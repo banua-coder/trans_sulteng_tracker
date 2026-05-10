@@ -69,6 +69,14 @@ export const messages = {
     a11y: {
       toggleTheme: 'Ganti tema gelap/terang',
       toggleLang: 'Ganti bahasa',
+      myLocation: 'Lokasi saya',
+    },
+    nearby: {
+      title: 'Halte terdekat',
+      empty: 'Tidak ada halte di sekitar',
+      denied: 'Akses lokasi ditolak',
+      pending: 'Mengambil lokasi…',
+      retry: 'Coba lagi',
     },
     footer: {
       data: 'Data BRT Nusantara · Kementerian Perhubungan',

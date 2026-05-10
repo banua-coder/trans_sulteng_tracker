@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { computed, reactive, ref } from 'vue'
 import { api } from '@/lib/api'
+import { haversineMeters } from '@/lib/format'
 import type { BrtBus, BrtCity, BrtCorridor, BrtHalte } from '@/types/brt'
 
 export const useBrtStore = defineStore('brt', () => {
@@ -64,10 +65,29 @@ export const useBrtStore = defineStore('brt', () => {
   function upsertBus(b: BrtBus) {
     if (b.lat == null || b.lng == null) return
     const key = b.imei || b.id
-    // Stamp _receivedAt so the UI can decide freshness from wall-clock
-    // truth instead of relying on the upstream dt_tracker (which the
-    // server emits in UTC without a timezone marker).
-    buses.set(key, { ...buses.get(key), ...b, _receivedAt: Date.now() })
+    const prev = buses.get(key)
+    const now = Date.now()
+    // _lastMovedAt only ticks forward when the bus actually moved >5m;
+    // otherwise we keep the previous timestamp so isStale can detect a
+    // bus that's been parked in the same spot for a while.
+    let lastMovedAt = prev?._lastMovedAt ?? now
+    if (
+      !prev ||
+      prev.lat == null ||
+      prev.lng == null ||
+      haversineMeters(
+        { lat: prev.lat, lng: prev.lng },
+        { lat: b.lat, lng: b.lng },
+      ) > 5
+    ) {
+      lastMovedAt = now
+    }
+    buses.set(key, {
+      ...prev,
+      ...b,
+      _receivedAt: now,
+      _lastMovedAt: lastMovedAt,
+    })
   }
 
   function clearBuses() {

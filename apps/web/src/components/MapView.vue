@@ -8,6 +8,7 @@ import { storeToRefs } from 'pinia'
 import { useBrtStore } from '@/stores/brt'
 import { useCityStore } from '@/stores/city'
 import { useFocusStore } from '@/stores/focus'
+import { useGeoStore } from '@/stores/geo'
 import { useSelectionStore } from '@/stores/selection'
 import { busIcon, halteMarker } from '@/lib/leaflet/markers'
 import { darkMatterTiles, voyagerTiles } from '@/lib/leaflet/tiles'
@@ -19,6 +20,7 @@ const brt = useBrtStore()
 const city = useCityStore()
 const selection = useSelectionStore()
 const focus = useFocusStore()
+const geo = useGeoStore()
 const { isDark } = useTheme()
 const { corridors, halte, buses } = storeToRefs(brt)
 
@@ -28,6 +30,9 @@ let tileLayer: L.TileLayer | null = null
 const corridorLayer = L.layerGroup()
 const halteLayer = L.layerGroup()
 const busLayer = L.layerGroup()
+const meLayer = L.layerGroup()
+let meMarker: L.Marker | null = null
+let meAccuracyCircle: L.Circle | null = null
 const busMarkers = new Map<string, L.Marker>()
 
 /** Polylines and halte tracked per (kor, leg) so the A↔B toggle can fit
@@ -65,6 +70,7 @@ function initMap() {
   corridorLayer.addTo(map)
   halteLayer.addTo(map)
   busLayer.addTo(map)
+  meLayer.addTo(map)
 
   // Any user gesture breaks the follow lock — they're navigating,
   // we shouldn't fight them.
@@ -284,6 +290,7 @@ onMounted(() => {
   drawCorridors(corridors.value)
   drawHalte(halte.value)
   for (const b of buses.value.values()) upsertBusMarker(b)
+  renderMe()
 })
 
 watch(
@@ -293,6 +300,68 @@ watch(
     following = false
     focus.clear()
     if (map && CITY_CENTER[pref]) map.setView(CITY_CENTER[pref], 13)
+  },
+)
+
+// Render the user's current location whenever geolocation grants it,
+// then on every subsequent fix update the marker + accuracy circle.
+function renderMe() {
+  const pos = geo.position
+  if (!map) return
+  if (!pos) {
+    if (meMarker) {
+      meLayer.removeLayer(meMarker)
+      meMarker = null
+    }
+    if (meAccuracyCircle) {
+      meLayer.removeLayer(meAccuracyCircle)
+      meAccuracyCircle = null
+    }
+    return
+  }
+  const latlng: L.LatLngTuple = [pos.lat, pos.lng]
+  if (!meMarker) {
+    const icon = L.divIcon({
+      className: 'me-marker',
+      iconSize: [28, 28],
+      iconAnchor: [14, 14],
+      html: '<span class="me-pulse"></span><span class="me-disc"></span>',
+    })
+    meMarker = L.marker(latlng, { icon, keyboard: false, interactive: false })
+    meMarker.addTo(meLayer)
+  } else {
+    meMarker.setLatLng(latlng)
+  }
+  // Accuracy circle (in meters), if reasonable.
+  if (Number.isFinite(pos.accuracy) && pos.accuracy > 0 && pos.accuracy < 2_000) {
+    if (!meAccuracyCircle) {
+      meAccuracyCircle = L.circle(latlng, {
+        radius: pos.accuracy,
+        weight: 1,
+        color: '#1D9CD4',
+        fillColor: '#1D9CD4',
+        fillOpacity: 0.08,
+        opacity: 0.4,
+        interactive: false,
+      })
+      meAccuracyCircle.addTo(meLayer)
+    } else {
+      meAccuracyCircle.setLatLng(latlng)
+      meAccuracyCircle.setRadius(pos.accuracy)
+    }
+  }
+}
+
+watch(
+  () => geo.position,
+  (pos, prev) => {
+    renderMe()
+    // First successful fix: fly to it so the user sees themselves.
+    if (map && pos && !prev) {
+      const targetZoom = Math.max(map.getZoom(), 15)
+      following = false
+      map.flyTo([pos.lat, pos.lng], targetZoom, { duration: 0.6 })
+    }
   },
 )
 

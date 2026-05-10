@@ -1,13 +1,23 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="cektrans">
-  <rect width="512" height="512" rx="64" fill="#0A0E14"/>
-  <g transform="translate(256 256)">
-    <circle cx="0" cy="0" r="120" fill="none" stroke="#1D9CD4" stroke-width="22"/>
-    <circle cx="0" cy="0" r="34" fill="#1D9CD4"/>
-    <g stroke="#F7F7F4" stroke-width="22" stroke-linecap="round">
-      <line x1="0" y1="-176" x2="0" y2="-150"/>
-      <line x1="0" y1="150" x2="0" y2="176"/>
-      <line x1="-176" y1="0" x2="-150" y2="0"/>
-      <line x1="150" y1="0" x2="176" y2="0"/>
-    </g>
-  </g>
+  <!-- Rounded ink plate, banuacoder corner radius -->
+  <rect width="512" height="512" rx="96" fill="#0A0E14"/>
+  <!-- Subtle radial glow behind the live dot -->
+  <defs>
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%"  stop-color="#1D9CD4" stop-opacity="0.55"/>
+      <stop offset="70%" stop-color="#1D9CD4" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <circle cx="392" cy="148" r="120" fill="url(#glow)"/>
+  <!-- Route line: starting halte at bottom-left, sweeping up to the live bus.
+       Stops mid-arc to suggest a continuing journey. -->
+  <path d="M 110 392 C 200 380, 220 248, 312 224 S 392 148, 392 148"
+        stroke="#1D9CD4" stroke-width="36" fill="none"
+        stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Origin halte: white-ringed dot, the visual anchor for the journey -->
+  <circle cx="110" cy="392" r="34" fill="#F7F7F4" stroke="#1D9CD4" stroke-width="14"/>
+  <!-- Live bus pulse ring -->
+  <circle cx="392" cy="148" r="76" fill="none" stroke="#1D9CD4" stroke-width="10" stroke-opacity="0.45"/>
+  <!-- Live bus dot (corridor cyan, white halo) -->
+  <circle cx="392" cy="148" r="48" fill="#1D9CD4" stroke="#F7F7F4" stroke-width="10"/>
 </svg>

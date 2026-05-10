@@ -10,6 +10,8 @@ import { useUrlSync } from '@/lib/urlSync'
 import MapView from '@/components/MapView.vue'
 import MapLegend from '@/components/MapLegend.vue'
 import BusDataBadge from '@/components/BusDataBadge.vue'
+import MyLocationButton from '@/components/MyLocationButton.vue'
+import NearbyHaltePanel from '@/components/NearbyHaltePanel.vue'
 import CorridorPanel from '@/components/CorridorPanel.vue'
 import BusListPanel from '@/components/BusListPanel.vue'
 import BottomSheet from '@/components/BottomSheet.vue'
@@ -53,6 +55,7 @@ onBeforeUnmount(() => {
       class="hidden border-r border-bnc-stone-200 bg-bnc-stone-50/60 p-4 lg:block lg:overflow-y-auto dark:border-bnc-stone-800 dark:bg-bnc-stone-900/40"
     >
       <div class="flex flex-col gap-5">
+        <NearbyHaltePanel />
         <CorridorPanel />
         <BusListPanel />
       </div>
@@ -62,11 +65,15 @@ onBeforeUnmount(() => {
       <MapView class="absolute inset-0" />
       <BusDataBadge />
       <MapLegend />
+      <div class="pointer-events-none absolute right-3 top-3 z-[800] flex flex-col gap-2">
+        <MyLocationButton class="pointer-events-auto" />
+      </div>
     </section>
 
     <!-- Mobile bottom sheet -->
     <BottomSheet>
       <div class="flex flex-col gap-5">
+        <NearbyHaltePanel />
         <CorridorPanel />
         <BusListPanel />
       </div>
