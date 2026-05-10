@@ -69,14 +69,20 @@ onBeforeUnmount(() => {
       </div>
     </aside>
 
-    <!-- On mobile the bottom sheet writes its current snap height to
-         the `--sheet-h` CSS variable on :root. We reserve that exact
-         amount at the bottom of this section so the map's frame ends
-         right where the sheet begins, and re-flows when the user
-         drags between snaps. Desktop has no sheet, so we override
-         `--sheet-h` to 0 there. -->
-    <section class="relative min-h-0 lg:[--sheet-h:0px]" :style="{ paddingBottom: 'var(--sheet-h, 88px)' }">
-      <MapView class="absolute inset-x-0 top-0" :style="{ bottom: 'var(--sheet-h, 88px)' }" />
+    <!-- BottomSheet writes its current snap height to `--sheet-h` on
+         :root; we wrap MapView in a sized box that uses that value
+         as its `bottom` inset so the map's frame shrinks and grows
+         with the sheet drag. Desktop overrides --sheet-h to 0px so
+         the map fills the whole section. The inner wrapper is what
+         the map's h-full computes against, so size changes propagate
+         and the ResizeObserver in MapView fires invalidateSize. -->
+    <section class="relative min-h-0 lg:[--sheet-h:0px]">
+      <div
+        class="absolute inset-x-0 top-0"
+        :style="{ bottom: 'var(--sheet-h, 88px)', transition: 'bottom 280ms ease' }"
+      >
+        <MapView class="h-full w-full" />
+      </div>
       <BusDataBadge />
       <MapLegend />
       <div class="pointer-events-none absolute right-3 top-3 z-[800] flex flex-col gap-2">

@@ -102,6 +102,11 @@ function pad(n: number) {
 
 <template>
   <article v-if="corridor" class="flex flex-col gap-3">
+    <!-- Sticky header — the BottomSheet's slot container is the
+         scroll context. With sticky top-0 the corridor info +
+         direction tabs stay visible at the top of the sheet while
+         the halte timeline scrolls underneath. -->
+    <div class="sticky top-0 z-10 -mx-4 -mt-1 flex flex-col gap-3 bg-bnc-paper px-4 pb-3 pt-1 dark:bg-bnc-stone-900">
     <header class="flex items-center justify-between gap-2">
       <div class="flex min-w-0 items-center gap-2">
         <button
@@ -202,6 +207,7 @@ function pad(n: number) {
     >
       {{ t('route.oneWayOnly') }}
     </p>
+    </div>
 
     <!-- timeline -->
     <ol class="flex flex-col">
