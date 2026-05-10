@@ -4,7 +4,7 @@ import { storeToRefs } from 'pinia'
 import { useBrtStore } from '@/stores/brt'
 import { useFocusStore } from '@/stores/focus'
 import { useSelectionStore } from '@/stores/selection'
-import { etaMinutes, formatDistance, isStale, parsePassenger } from '@/lib/format'
+import { etaToHalte, formatDistance, isStale, parsePassenger } from '@/lib/format'
 import CopyLinkButton from '@/components/CopyLinkButton.vue'
 import type { BrtBus, BrtHalte } from '@/types/brt'
 
@@ -26,6 +26,7 @@ interface HalteRow {
   halte: BrtHalte
   next: BrtBus | null
   etaMin: number | null
+  distM: number | null
   fresh: boolean
 }
 
@@ -34,22 +35,25 @@ const rows = computed<HalteRow[]>(() => {
   if (!corridor.value) return []
   const list: HalteRow[] = []
   for (const h of halte.value) {
-    let best: { bus: BrtBus; eta: number | null } | null = null
+    let best: { bus: BrtBus; eta: number | null; dist: number | null } | null = null
     for (const bus of brt.buses.values()) {
       if (bus.kor !== h.kor) continue
       if (bus.new_shel_t !== h.sh_id) continue
-      const eta = etaMinutes(bus.dist_shel ?? null, bus.speed ?? null)
+      const r = etaToHalte(bus, h)
+      const eta = r?.etaMin ?? null
+      const dist = r?.distM ?? null
       if (
         !best ||
         (eta != null && (best.eta == null || eta < best.eta))
       ) {
-        best = { bus, eta }
+        best = { bus, eta, dist }
       }
     }
     list.push({
       halte: h,
       next: best?.bus ?? null,
       etaMin: best?.eta ?? null,
+      distM: best?.dist ?? null,
       fresh: best ? !isStale(best.bus) : false,
     })
   }
@@ -203,8 +207,14 @@ function pickBus(b: BrtBus) {
                 v-if="r.next"
                 class="truncate font-mono text-[11px] text-bnc-stone-500"
               >
-                {{ r.next.plate_number || r.next.name || r.next.kor }} ·
-                {{ formatDistance(r.next.dist_shel) }}
+                <span
+                  v-if="r.next.name"
+                  class="mr-1 inline-flex items-center rounded bg-bnc-stone-100 px-1 py-[1px] text-[9px] font-bold tracking-wider text-bnc-ink dark:bg-bnc-stone-800 dark:text-bnc-paper"
+                >
+                  {{ r.next.name }}
+                </span>
+                {{ r.next.plate_number || r.next.kor }}
+                <template v-if="r.distM != null">· {{ formatDistance(r.distM) }}</template>
                 <template v-if="parsePassenger(r.next.passenger) != null">
                   · {{ parsePassenger(r.next.passenger) }} pax
                 </template>
@@ -213,12 +223,9 @@ function pickBus(b: BrtBus) {
                 tidak ada bus mendekat
               </p>
             </div>
-            <span class="ml-auto whitespace-nowrap font-mono text-sm tabular-nums">
+            <span class="ml-auto whitespace-nowrap font-mono text-sm font-bold tabular-nums text-bnc-accent">
               <template v-if="r.etaMin != null">
                 ~ {{ Math.max(1, Math.round(r.etaMin)) }}m
-              </template>
-              <template v-else-if="r.next?.speed === 0">
-                · approaching
               </template>
               <template v-else>
                 —

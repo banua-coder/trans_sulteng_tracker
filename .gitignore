@@ -47,3 +47,6 @@ Cargo.lock.bak
 Thumbs.db
 *.swp
 *.swo
+
+# Local design references — never commit
+/reference/

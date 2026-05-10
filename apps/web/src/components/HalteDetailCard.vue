@@ -4,7 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
 import { useSelectionStore } from '@/stores/selection'
 import { useBrtStore } from '@/stores/brt'
-import { etaMinutes, formatDistance, isStale, parsePassenger } from '@/lib/format'
+import { etaToHalte, formatDistance, isStale, parsePassenger } from '@/lib/format'
 import CopyLinkButton from '@/components/CopyLinkButton.vue'
 import type { BrtBus } from '@/types/brt'
 
@@ -29,6 +29,7 @@ onBeforeUnmount(() => {
 interface Arrival {
   bus: BrtBus
   etaMin: number | null
+  distM: number | null
   fresh: boolean
 }
 
@@ -40,10 +41,11 @@ const arrivals = computed<Arrival[]>(() => {
   for (const bus of brt.buses.values()) {
     if (bus.kor !== halte.kor) continue
     if (bus.new_shel_t !== halte.sh_id) continue
-    const eta = etaMinutes(bus.dist_shel ?? null, bus.speed ?? null)
+    const eta = etaToHalte(bus, halte)
     candidates.push({
       bus,
-      etaMin: eta,
+      etaMin: eta?.etaMin ?? null,
+      distM: eta?.distM ?? null,
       fresh: !isStale(bus),
     })
   }
@@ -119,15 +121,22 @@ function pickBus(imei: string) {
               class="flex w-full items-center gap-3 rounded-md border border-bnc-stone-200 bg-bnc-stone-50 px-2 py-2 text-left transition-colors hover:border-bnc-stone-300 dark:border-bnc-stone-800 dark:bg-bnc-stone-800/50 dark:hover:border-bnc-stone-700"
               @click="pickBus(a.bus.imei || a.bus.id)"
             >
-              <span class="font-mono text-xs font-bold text-bnc-ink dark:text-bnc-paper">
-                {{ a.bus.plate_number || a.bus.name || a.bus.kor }}
-              </span>
-              <span class="ml-auto font-mono text-sm tabular-nums">
+              <div class="flex min-w-0 flex-col">
+                <div class="flex items-center gap-1.5">
+                  <span
+                    v-if="a.bus.name"
+                    class="inline-flex items-center rounded bg-bnc-stone-200 px-1 py-[1px] font-mono text-[9px] font-bold tracking-wider dark:bg-bnc-stone-700"
+                  >
+                    {{ a.bus.name }}
+                  </span>
+                  <span class="truncate font-mono text-xs font-bold text-bnc-ink dark:text-bnc-paper">
+                    {{ a.bus.plate_number || a.bus.kor }}
+                  </span>
+                </div>
+              </div>
+              <span class="ml-auto font-mono text-sm font-bold tabular-nums text-bnc-accent">
                 <template v-if="a.etaMin != null">
                   ~ {{ Math.max(1, Math.round(a.etaMin)) }} {{ t('units.minutes') }}
-                </template>
-                <template v-else-if="a.bus.speed === 0">
-                  · approaching
                 </template>
                 <template v-else>
                   —
@@ -141,7 +150,8 @@ function pickBus(imei: string) {
               </span>
             </button>
             <p class="mt-1 px-2 font-mono text-[10px] text-bnc-stone-500">
-              {{ formatDistance(a.bus.dist_shel) }} away
+              <template v-if="a.distM != null">{{ formatDistance(a.distM) }} away</template>
+              <template v-else>—</template>
               <template v-if="parsePassenger(a.bus.passenger) != null">
                 · {{ parsePassenger(a.bus.passenger) }} pax
               </template>
