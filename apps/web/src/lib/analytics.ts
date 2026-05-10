@@ -23,10 +23,15 @@ export function initAnalytics(): void {
   loaded = true
 
   window.dataLayer = window.dataLayer || []
-  // Use the canonical gtag shape so subsequent .push calls behave like
-  // arguments to the real gtag function.
-  window.gtag = function gtag(...args: unknown[]) {
-    window.dataLayer!.push(args)
+  // Canonical gtag shape: push the real `arguments` object (not a
+  // spread copy). GTM identifies gtag commands by checking
+  // `arguments.callee === gtag`; a plain Array fails that check, so
+  // commands sit in dataLayer un-processed and no /collect beacons
+  // fire. Keep this verbatim — see https://developers.google.com/tag-platform/gtagjs/install
+  // eslint-disable-next-line prefer-rest-params
+  window.gtag = function gtag() {
+    // eslint-disable-next-line prefer-rest-params
+    window.dataLayer!.push(arguments)
   }
   window.gtag('js', new Date())
   window.gtag('config', GA_ID, {
