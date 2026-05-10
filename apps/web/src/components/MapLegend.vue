@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useUiStore } from '@/stores/ui'
+import { VERSION_LABEL } from '@/lib/version'
 
 const { t } = useI18n()
 const ui = useUiStore()
@@ -68,6 +69,12 @@ const open = computed<boolean>({
             <span>{{ t('legend.corridor') }}</span>
           </li>
         </ul>
+        <p
+          class="mt-3 select-text border-t border-bnc-stone-200 pt-2 font-mono text-[10px] tabular-nums text-bnc-stone-500 dark:border-bnc-stone-800"
+          :title="VERSION_LABEL"
+        >
+          {{ VERSION_LABEL }}
+        </p>
       </div>
     </transition>
   </div>

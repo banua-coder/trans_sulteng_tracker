@@ -6,6 +6,7 @@ import { api } from '@/lib/api'
 import type { BrtCity, CitySlug } from '@/types/brt'
 import { CITY_PREF, PREF_CITY } from '@/types/brt'
 import BanuacoderIcon from '@/components/BanuacoderIcon.vue'
+import { VERSION_LABEL } from '@/lib/version'
 
 const { t } = useI18n()
 
@@ -167,7 +168,12 @@ const year = computed(() => new Date().getFullYear())
     </p>
 
     <footer class="mt-16 flex flex-col gap-3 border-t border-bnc-stone-200 pt-6 text-xs text-bnc-stone-500 sm:flex-row sm:items-center sm:justify-between dark:border-bnc-stone-800">
-      <p>{{ t('footer.data') }}</p>
+      <div class="flex flex-col gap-1">
+        <p>{{ t('footer.data') }}</p>
+        <p class="select-text font-mono text-[10px] tabular-nums text-bnc-stone-400">
+          {{ VERSION_LABEL }}
+        </p>
+      </div>
       <a
         href="https://banuacoder.com"
         target="_blank"
