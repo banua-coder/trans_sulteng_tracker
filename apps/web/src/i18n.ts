@@ -24,6 +24,15 @@ export const messages = {
       halte: 'Halte',
       corridor: 'Koridor',
     },
+    stats: {
+      avg: 'Rata-rata',
+      viewers: 'Penonton',
+      oldest: 'Update tertua',
+    },
+    share: {
+      copy: 'Salin tautan',
+      copied: 'Tersalin',
+    },
     operating: {
       active: 'Bus beroperasi sekarang',
       sleeping: 'Bus belum beroperasi',
@@ -88,6 +97,15 @@ export const messages = {
       busStale: 'Data > 5 min',
       halte: 'Stop',
       corridor: 'Corridor',
+    },
+    stats: {
+      avg: 'Avg',
+      viewers: 'Viewers',
+      oldest: 'Oldest fix',
+    },
+    share: {
+      copy: 'Copy link',
+      copied: 'Copied',
     },
     operating: {
       active: 'Buses are running now',

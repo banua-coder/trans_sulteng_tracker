@@ -6,6 +6,7 @@ import { useCityStore } from '@/stores/city'
 import { useFocusStore } from '@/stores/focus'
 import { useSelectionStore } from '@/stores/selection'
 import { useSocketStore } from '@/stores/socket'
+import { useUrlSync } from '@/lib/urlSync'
 import MapView from '@/components/MapView.vue'
 import MapLegend from '@/components/MapLegend.vue'
 import BusDataBadge from '@/components/BusDataBadge.vue'
@@ -23,6 +24,8 @@ const selection = useSelectionStore()
 const focus = useFocusStore()
 const { kind: selectionKind } = storeToRefs(selection)
 const { isFocused } = storeToRefs(focus)
+
+useUrlSync()
 
 watch(
   () => city.pref,
