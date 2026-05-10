@@ -10,6 +10,7 @@ import MapView from '@/components/MapView.vue'
 import MapLegend from '@/components/MapLegend.vue'
 import BusDataBadge from '@/components/BusDataBadge.vue'
 import CorridorPanel from '@/components/CorridorPanel.vue'
+import BusListPanel from '@/components/BusListPanel.vue'
 import BottomSheet from '@/components/BottomSheet.vue'
 import BusDetailCard from '@/components/BusDetailCard.vue'
 import HalteDetailCard from '@/components/HalteDetailCard.vue'
@@ -48,7 +49,10 @@ onBeforeUnmount(() => {
     <aside
       class="hidden border-r border-bnc-stone-200 bg-bnc-stone-50/60 p-4 lg:block lg:overflow-y-auto dark:border-bnc-stone-800 dark:bg-bnc-stone-900/40"
     >
-      <CorridorPanel />
+      <div class="flex flex-col gap-5">
+        <CorridorPanel />
+        <BusListPanel />
+      </div>
     </aside>
 
     <section class="relative min-h-0">
@@ -59,7 +63,10 @@ onBeforeUnmount(() => {
 
     <!-- Mobile bottom sheet -->
     <BottomSheet>
-      <CorridorPanel />
+      <div class="flex flex-col gap-5">
+        <CorridorPanel />
+        <BusListPanel />
+      </div>
     </BottomSheet>
 
     <!-- One card at a time at the bottom-right "info" slot:
