@@ -67,12 +67,13 @@ function pickCity(slug: CitySlug) {
 
     <router-link
       to="/"
-      class="flex shrink-0 items-center gap-1 rounded-md p-0.5 transition-colors hover:bg-bnc-stone-100 dark:hover:bg-bnc-stone-800"
+      class="flex shrink-0 items-center gap-1 rounded-md px-1 py-0.5 font-display text-sm font-semibold tracking-tight transition-colors hover:bg-bnc-stone-100 sm:text-base dark:hover:bg-bnc-stone-800"
       :aria-label="t('brand.name')"
       :title="t('brand.name')"
     >
       <span class="hidden text-bnc-stone-500 sm:inline">/</span>
-      <CekTransLogo :size="28" />
+      <CekTransLogo :size="28" class="sm:hidden" />
+      <span class="hidden sm:inline">{{ t('brand.name') }}</span>
     </router-link>
 
     <transition name="switcher-fade">
