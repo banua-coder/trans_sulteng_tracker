@@ -172,11 +172,13 @@ const year = computed(() => new Date().getFullYear())
         href="https://banuacoder.com"
         target="_blank"
         rel="noopener"
-        class="inline-flex items-center gap-2 text-bnc-ink transition-colors hover:text-bnc-accent dark:text-bnc-paper"
+        class="inline-flex items-center gap-3 transition-opacity hover:opacity-80"
         aria-label="Banua Coder · banuacoder.com"
       >
-        <BanuacoderLogo :size="18" />
-        <span class="font-mono uppercase tracking-wider">© {{ year }} Banuacoder</span>
+        <BanuacoderLogo :height="20" />
+        <span class="font-mono text-[11px] uppercase tracking-wider text-bnc-stone-500">
+          © {{ year }}
+        </span>
       </a>
     </footer>
   </section>
