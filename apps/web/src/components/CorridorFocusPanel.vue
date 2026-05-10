@@ -92,7 +92,9 @@ const directionLabel = computed(() => {
     : `${c.toward} → ${c.origin}`
 })
 
-void selection
+function pickBus(bus: BrtBus) {
+  selection.selectBus(bus.imei || bus.id)
+}
 </script>
 
 <template>
@@ -203,20 +205,26 @@ void selection
           :is-first="idx === 0"
           :is-last="idx === rows.length - 1"
         >
-          <IncomingBusCard
+          <button
             v-for="ib in r.incoming"
             :key="ib.bus.imei || ib.bus.id"
-            :kor="ib.bus.kor"
-            :corridor-color="accentColor"
-            :plate="ib.bus.plate_number ?? null"
-            :armada="ib.bus.name ?? null"
-            :eta-min="ib.etaMin"
-            :dist-m="ib.distM"
-            :arrival-at="ib.arrivalAt"
-            :status="ib.status"
-            :toward="r.halte.sh_name"
-            :stale="ib.stale"
-          />
+            type="button"
+            class="text-left transition-transform active:scale-[0.99]"
+            @click="pickBus(ib.bus)"
+          >
+            <IncomingBusCard
+              :kor="ib.bus.kor"
+              :corridor-color="accentColor"
+              :plate="ib.bus.plate_number ?? null"
+              :armada="ib.bus.name ?? null"
+              :eta-min="ib.etaMin"
+              :dist-m="ib.distM"
+              :arrival-at="ib.arrivalAt"
+              :status="ib.status"
+              :toward="r.halte.sh_name"
+              :stale="ib.stale"
+            />
+          </button>
         </HalteTimelineNode>
       </ol>
       <p
