@@ -6,6 +6,7 @@ import { useFocusStore } from '@/stores/focus'
 import { useSelectionStore } from '@/stores/selection'
 import { etaToHalte, formatDistance, isStale, parsePassenger } from '@/lib/format'
 import CopyLinkButton from '@/components/CopyLinkButton.vue'
+import PlateBadge from '@/components/PlateBadge.vue'
 import type { BrtBus, BrtHalte } from '@/types/brt'
 
 const brt = useBrtStore()
@@ -211,22 +212,27 @@ function pickBus(b: BrtBus) {
               <p class="truncate font-display text-sm font-semibold tracking-tight">
                 {{ r.halte.sh_name }}
               </p>
-              <p
-                v-if="r.next"
-                class="truncate font-mono text-[11px] text-bnc-stone-500"
-              >
+              <div v-if="r.next" class="mt-0.5 flex flex-wrap items-center gap-1.5">
+                <PlateBadge v-if="r.next.plate_number" :plate="r.next.plate_number" size="sm" />
+                <span
+                  v-else
+                  class="font-mono text-[11px] font-bold text-bnc-ink dark:text-bnc-paper"
+                >
+                  {{ r.next.kor }}
+                </span>
                 <span
                   v-if="r.next.name"
-                  class="mr-1 inline-flex items-center rounded bg-bnc-stone-100 px-1 py-[1px] text-[9px] font-bold tracking-wider text-bnc-ink dark:bg-bnc-stone-800 dark:text-bnc-paper"
+                  class="inline-flex items-center rounded bg-bnc-stone-100 px-1 py-[1px] font-mono text-[9px] font-bold tracking-wider text-bnc-ink dark:bg-bnc-stone-800 dark:text-bnc-paper"
                 >
                   {{ r.next.name }}
                 </span>
-                {{ r.next.plate_number || r.next.kor }}
-                <template v-if="r.distM != null">· {{ formatDistance(r.distM) }}</template>
-                <template v-if="parsePassenger(r.next.passenger) != null">
-                  · {{ parsePassenger(r.next.passenger) }} pax
-                </template>
-              </p>
+                <span class="font-mono text-[11px] text-bnc-stone-500">
+                  <template v-if="r.distM != null">{{ formatDistance(r.distM) }}</template>
+                  <template v-if="parsePassenger(r.next.passenger) != null">
+                    · {{ parsePassenger(r.next.passenger) }} pax
+                  </template>
+                </span>
+              </div>
               <p v-else class="font-mono text-[11px] text-bnc-stone-500">
                 tidak ada bus mendekat
               </p>

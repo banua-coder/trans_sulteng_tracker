@@ -6,6 +6,7 @@ import { useSelectionStore } from '@/stores/selection'
 import { useBrtStore } from '@/stores/brt'
 import { etaToHalte, formatDistance, isStale, parsePassenger } from '@/lib/format'
 import CopyLinkButton from '@/components/CopyLinkButton.vue'
+import PlateBadge from '@/components/PlateBadge.vue'
 import type { BrtBus } from '@/types/brt'
 
 const { t } = useI18n()
@@ -123,14 +124,18 @@ function pickBus(imei: string) {
             >
               <div class="flex min-w-0 flex-col">
                 <div class="flex items-center gap-1.5">
+                  <PlateBadge v-if="a.bus.plate_number" :plate="a.bus.plate_number" size="sm" />
+                  <span
+                    v-else
+                    class="truncate font-mono text-xs font-bold text-bnc-ink dark:text-bnc-paper"
+                  >
+                    {{ a.bus.kor }}
+                  </span>
                   <span
                     v-if="a.bus.name"
                     class="inline-flex items-center rounded bg-bnc-stone-200 px-1 py-[1px] font-mono text-[9px] font-bold tracking-wider dark:bg-bnc-stone-700"
                   >
                     {{ a.bus.name }}
-                  </span>
-                  <span class="truncate font-mono text-xs font-bold text-bnc-ink dark:text-bnc-paper">
-                    {{ a.bus.plate_number || a.bus.kor }}
                   </span>
                 </div>
               </div>
