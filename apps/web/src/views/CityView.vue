@@ -79,14 +79,15 @@ onBeforeUnmount(() => {
       </div>
     </BottomSheet>
 
-    <!-- One card at a time at the bottom-right "info" slot:
-         · bus selected   → BusDetailCard
-         · halte selected → HalteDetailCard
-         · neither, but a corridor is focused → CorridorFocusPanel
-         Closing the bus/halte card while focused returns to the
-         focus panel automatically. -->
-    <BusDetailCard v-if="selectionKind === 'bus'" />
-    <HalteDetailCard v-else-if="selectionKind === 'halte'" />
-    <CorridorFocusPanel v-else-if="isFocused" />
+    <!-- Bottom-right info column. Cards stack vertically when more than
+         one is active so a focused corridor and a selected bus can both
+         show their info — bus on top, route info underneath. -->
+    <div
+      class="pointer-events-none fixed inset-x-3 bottom-3 z-[1000] flex flex-col-reverse items-stretch gap-3 sm:left-auto sm:right-4 sm:bottom-4 sm:max-w-md"
+    >
+      <CorridorFocusPanel v-if="isFocused" />
+      <BusDetailCard v-if="selectionKind === 'bus'" />
+      <HalteDetailCard v-if="selectionKind === 'halte'" />
+    </div>
   </div>
 </template>

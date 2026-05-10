@@ -69,7 +69,7 @@ function pickBus(imei: string) {
   <transition name="slide-up">
     <article
       v-if="selectedHalte"
-      class="pointer-events-auto fixed inset-x-3 bottom-3 z-[1000] mx-auto max-w-md rounded-[var(--radius-md)] border border-bnc-stone-200 bg-white p-4 shadow-[var(--shadow-elevated)] sm:right-4 sm:left-auto sm:bottom-4 sm:max-w-sm dark:border-bnc-stone-800 dark:bg-bnc-stone-900"
+      class="pointer-events-auto w-full max-w-md rounded-[var(--radius-md)] border border-bnc-stone-200 bg-white p-4 shadow-[var(--shadow-elevated)] sm:max-w-sm dark:border-bnc-stone-800 dark:bg-bnc-stone-900"
       role="dialog"
       :aria-label="selectedHalte.sh_name"
     >
