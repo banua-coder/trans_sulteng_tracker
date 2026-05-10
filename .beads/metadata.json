@@ -1,0 +1,7 @@
+{
+  "database": "dolt",
+  "backend": "dolt",
+  "dolt_mode": "embedded",
+  "dolt_database": "trans_sulteng_tracker",
+  "project_id": "da15424d-bdf3-427c-a547-1484b9b88094"
+}
