@@ -7,6 +7,9 @@ import { fileURLToPath, URL } from 'node:url'
 const PROXY_TARGET = process.env.VITE_PROXY_TARGET ?? 'http://localhost:8080'
 
 export default defineConfig({
+  // Read .env from the monorepo root so a single env file serves
+  // both the Vite dev server and the Rust proxy.
+  envDir: fileURLToPath(new URL('../..', import.meta.url)),
   plugins: [
     vue(),
     tailwindcss(),

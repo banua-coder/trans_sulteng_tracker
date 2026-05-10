@@ -33,16 +33,22 @@ Prerequisites: Node.js ≥ 20, pnpm ≥ 10, Rust stable (via [rustup](https://ru
 Docker (for the full compose stack).
 
 ```bash
-# 1. Install JS deps
-pnpm install
+# 1. One-time install (JS + Rust deps)
+make install
+# or: pnpm install && cargo fetch --manifest-path apps/proxy/Cargo.toml
 
-# 2. Bring up the proxy (reads env from .env)
-cp .env.example .env       # then fill in BRT_KEY etc.
-cd apps/proxy && cargo run
+# 2. Drop in your local env
+cp .env.example .env       # fill in BRT_KEY + upstream URLs
 
-# 3. In another shell, start the Vue dev server
-pnpm dev                   # http://localhost:5173 — proxies /api + /socket.io
+# 3. Start both apps with one command
+pnpm dev
+# → web   http://localhost:5173  (proxies /api + /socket.io to :8080)
+# → proxy http://localhost:8080  (Axum REST + Socket.IO bridge)
 ```
+
+Run them separately with `pnpm dev:web` / `pnpm dev:proxy`, or via
+the Makefile (`make dev`, `make dev-web`, `make dev-proxy`). Both
+apps read the same root-level `.env`.
 
 Or run both containers behind Traefik (mirrors prod):
 

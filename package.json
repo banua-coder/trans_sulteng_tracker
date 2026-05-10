@@ -4,11 +4,17 @@
   "version": "0.0.0",
   "description": "Realtime tracker for TransPalu and Trans Donggala — Vue 3 frontend + Rust proxy",
   "scripts": {
-    "dev": "pnpm --filter @cektrans/web dev",
+    "dev": "concurrently --kill-others-on-fail --names web,proxy --prefix-colors cyan,magenta \"pnpm dev:web\" \"pnpm dev:proxy\"",
+    "dev:web": "pnpm --filter @cektrans/web dev",
+    "dev:proxy": "cargo run --manifest-path apps/proxy/Cargo.toml",
     "build": "pnpm --filter @cektrans/web build",
+    "build:proxy": "cargo build --release --manifest-path apps/proxy/Cargo.toml",
     "preview": "pnpm --filter @cektrans/web preview",
     "lint": "pnpm --filter @cektrans/web lint",
     "typecheck": "pnpm --filter @cektrans/web typecheck"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
   },
   "engines": {
     "node": ">=20",
