@@ -16,9 +16,14 @@ export const useSocketStore = defineStore('socket', () => {
     const brt = useBrtStore()
 
     if (sock && currentPref === pref) return
-    if (sock && currentPref !== pref) {
-      sock.emit('unsubscribe', { pref: currentPref })
-    }
+
+    // NOTE: do NOT emit a separate `unsubscribe` for the old pref.
+    // The proxy's `subscribe` handler already calls `s.leave_all()`
+    // before joining the new room. Emitting both ran into a race
+    // where the server processed `unsubscribe` AFTER `subscribe`,
+    // kicking the client out of the room it had just joined — which
+    // is what caused "stuck on waiting bus data" after a city
+    // switch. One emit is enough.
 
     if (!sock) {
       state.value = 'connecting'

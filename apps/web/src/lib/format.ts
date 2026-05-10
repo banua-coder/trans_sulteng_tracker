@@ -179,3 +179,14 @@ export function parsePassenger(p?: string | number | null): number | null {
   if (!Number.isFinite(n) || n < 0) return null
   return n
 }
+
+/** Parse the upstream `prosen` field — trip progress along the
+ *  corridor, 0–99. Trans Donggala ships this; Trans Palu doesn't.
+ *  Negative values are sentinels (e.g. -1550 = "not on route yet")
+ *  and treated as missing. */
+export function parseProgress(p?: string | number | null): number | null {
+  if (p == null || p === '') return null
+  const n = typeof p === 'number' ? p : parseFloat(p)
+  if (!Number.isFinite(n) || n < 0 || n > 100) return null
+  return n
+}
