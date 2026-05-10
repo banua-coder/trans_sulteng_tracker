@@ -17,12 +17,20 @@ export const messages = {
       offline: 'Terputus',
       connecting: 'Menyambung…',
     },
+    legend: {
+      title: 'Keterangan',
+      busLive: 'Bus aktif',
+      busStale: 'Data > 5 menit',
+      halte: 'Halte',
+      corridor: 'Koridor',
+    },
     operating: {
       active: 'Bus beroperasi sekarang',
       sleeping: 'Bus belum beroperasi',
       window: 'Jam operasi 06.00–18.00 WITA',
       waiting: 'Menunggu data bus…',
       none: 'Tidak ada bus aktif',
+      loading: 'Memuat data bus…',
     },
     bus: {
       plate: 'Pelat',
@@ -70,12 +78,20 @@ export const messages = {
       offline: 'Offline',
       connecting: 'Connecting…',
     },
+    legend: {
+      title: 'Legend',
+      busLive: 'Live bus',
+      busStale: 'Data > 5 min',
+      halte: 'Stop',
+      corridor: 'Corridor',
+    },
     operating: {
       active: 'Buses are running now',
       sleeping: 'Buses are not running yet',
       window: 'Service hours 06:00–18:00 WITA',
       waiting: 'Waiting for bus data…',
       none: 'No active buses',
+      loading: 'Loading bus data…',
     },
     bus: {
       plate: 'Plate',
