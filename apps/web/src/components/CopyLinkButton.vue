@@ -34,13 +34,14 @@ async function copy() {
 <template>
   <button
     type="button"
-    class="inline-flex items-center gap-1.5 rounded-full bg-bnc-stone-100 px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider text-bnc-stone-700 transition-colors hover:bg-bnc-stone-200 dark:bg-bnc-stone-800 dark:text-bnc-stone-200 dark:hover:bg-bnc-stone-700"
+    class="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-bnc-stone-100 px-2 py-1 font-mono text-[10px] uppercase tracking-wider text-bnc-stone-700 transition-colors hover:bg-bnc-stone-200 sm:px-2.5 dark:bg-bnc-stone-800 dark:text-bnc-stone-200 dark:hover:bg-bnc-stone-700"
     :aria-live="copied ? 'polite' : 'off'"
+    :aria-label="copied ? t('share.copied') : t('share.copy')"
     @click="copy"
   >
     <svg
       v-if="!copied"
-      class="h-3 w-3"
+      class="h-3.5 w-3.5"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -53,7 +54,7 @@ async function copy() {
     </svg>
     <svg
       v-else
-      class="h-3 w-3 text-bnc-good"
+      class="h-3.5 w-3.5 text-bnc-good"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -63,6 +64,6 @@ async function copy() {
     >
       <path d="M5 12l5 5L20 7" />
     </svg>
-    <span>{{ copied ? t('share.copied') : t('share.copy') }}</span>
+    <span class="hidden sm:inline">{{ copied ? t('share.copied') : t('share.copy') }}</span>
   </button>
 </template>

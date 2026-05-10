@@ -19,16 +19,16 @@ const props = withDefaults(
 )
 
 const sizeClasses: Record<Size, string> = {
-  sm: 'px-1.5 py-[1px] text-[11px] border-[1.5px] rounded-[3px]',
-  md: 'px-2 py-[2px] text-sm border-2 rounded',
-  lg: 'px-2.5 py-1 text-lg border-2 rounded-md',
+  sm: 'px-1.5 py-[2px] text-[11px] border-[1.5px] rounded-[3px]',
+  md: 'px-2 py-[3px] text-[13px] border-[1.5px] rounded',
+  lg: 'px-2.5 py-1 text-[15px] border-2 rounded-md',
 }
 </script>
 
 <template>
   <span
     v-if="props.plate"
-    class="inline-flex items-center border-bnc-ink bg-[#F5C518] font-mono font-extrabold uppercase tracking-wider text-bnc-ink shadow-sm dark:border-bnc-ink"
+    class="inline-flex shrink-0 items-center whitespace-nowrap border-bnc-ink bg-[#F5C518] font-mono font-extrabold uppercase leading-none tracking-wider text-bnc-ink shadow-sm dark:border-bnc-ink"
     :class="sizeClasses[props.size]"
     :aria-label="`Nomor polisi ${props.plate}`"
   >
