@@ -6,6 +6,7 @@ import { useSocketStore } from '@/stores/socket'
 import { useCityStore } from '@/stores/city'
 import { useTheme } from '@/lib/theme'
 import BanuacoderLogo from '@/components/BanuacoderLogo.vue'
+import CekTransLogo from '@/components/CekTransLogo.vue'
 import type { CitySlug } from '@/types/brt'
 
 const { t, locale } = useI18n()
@@ -66,11 +67,12 @@ function pickCity(slug: CitySlug) {
 
     <router-link
       to="/"
-      class="flex shrink-0 items-center gap-1 font-display text-sm font-semibold tracking-tight sm:text-base"
+      class="flex shrink-0 items-center gap-1 rounded-md p-0.5 transition-colors hover:bg-bnc-stone-100 dark:hover:bg-bnc-stone-800"
       :aria-label="t('brand.name')"
+      :title="t('brand.name')"
     >
-      <span class="text-bnc-stone-500">/</span>
-      <span>{{ t('brand.name') }}</span>
+      <span class="hidden text-bnc-stone-500 sm:inline">/</span>
+      <CekTransLogo :size="28" />
     </router-link>
 
     <transition name="switcher-fade">
