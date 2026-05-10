@@ -54,6 +54,61 @@ export function etaMinutes(distMeters?: string | null, speedKmh?: number | null)
   return m / 1000 / speedKmh * 60
 }
 
+/** Average BRT cruising speed (km/h) used when the bus is stopped/slow
+ *  but we still want a rough ETA for the next halte. Calibrated from
+ *  observed payloads — Trans Palu corridors average ~22 km/h. */
+const FALLBACK_AVG_SPEED_KMH = 22
+
+/**
+ * Estimate ETA from a moving bus to its declared next halte.
+ *
+ * Prefers the upstream-reported `dist_shel` when available, otherwise
+ * falls back to a haversine between the bus's current fix and the
+ * halte's coordinates. For ETA, uses the bus's reported speed when it
+ * is above a usable threshold (5 km/h), otherwise a configurable
+ * fallback so a momentarily-stopped bus still produces a sane
+ * "~3 min" number instead of nothing.
+ *
+ * Returns null when we have no way to compute either (no halte, no
+ * coords, no upstream distance).
+ */
+export function etaToHalte(
+  bus: Pick<BrtBus, 'lat' | 'lng' | 'speed' | 'dist_shel'>,
+  halte: { sh_lat?: string | number; sh_lng?: string | number } | null | undefined,
+): { distM: number; etaMin: number } | null {
+  let distM: number | null = null
+
+  // Prefer upstream-reported distance to next halte
+  if (bus.dist_shel != null && bus.dist_shel !== '') {
+    const parsed = parseFloat(String(bus.dist_shel))
+    if (Number.isFinite(parsed) && parsed >= 0) distM = parsed
+  }
+
+  // Fallback: haversine from bus → halte
+  if (distM == null && halte) {
+    const hLat = typeof halte.sh_lat === 'string' ? parseFloat(halte.sh_lat) : halte.sh_lat
+    const hLng = typeof halte.sh_lng === 'string' ? parseFloat(halte.sh_lng) : halte.sh_lng
+    if (
+      Number.isFinite(hLat) &&
+      Number.isFinite(hLng) &&
+      Number.isFinite(bus.lat) &&
+      Number.isFinite(bus.lng)
+    ) {
+      distM = haversineMeters(
+        { lat: bus.lat, lng: bus.lng },
+        { lat: hLat as number, lng: hLng as number },
+      )
+    }
+  }
+
+  if (distM == null) return null
+
+  const speed = Number.isFinite(bus.speed) ? Number(bus.speed) : 0
+  const usableSpeed = speed >= 5 ? speed : FALLBACK_AVG_SPEED_KMH
+  const etaMin = (distM / 1000) / usableSpeed * 60
+  return { distM, etaMin }
+}
+
 /** True when a bus has stopped delivering useful state.
  *
  *  Three independent signals — any one flips the bus to stale:

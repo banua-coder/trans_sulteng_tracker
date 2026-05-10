@@ -40,6 +40,8 @@ interface Row {
   stale: boolean
   color: string
   nextHalteName: string | null
+  armada: string | null
+  plate: string | null
 }
 
 const rows = computed<Row[]>(() => {
@@ -49,12 +51,15 @@ const rows = computed<Row[]>(() => {
   const out: Row[] = []
   for (const bus of buses.value.values()) {
     if (fk && bus.kor !== fk) continue
-    const plate = bus.plate_number?.trim() || bus.name?.trim() || bus.kor || '—'
+    const armada = bus.name?.trim() || null
+    const plate = bus.plate_number?.trim() || null
+    const label = plate || armada || bus.kor || '—'
     const nextHalteName = bus.new_shel_t ? halteById.value.get(bus.new_shel_t) ?? null : null
 
     if (q) {
       const haystack = [
-        plate,
+        armada ?? '',
+        plate ?? '',
         bus.kor ?? '',
         bus.toward ?? '',
         nextHalteName ?? '',
@@ -66,11 +71,13 @@ const rows = computed<Row[]>(() => {
 
     out.push({
       bus,
-      label: plate,
+      label,
       age: ageSeconds(bus.dt_tracker),
       stale: isStale(bus),
       color: brt.colorForKor(bus.kor) || '#0EA5E9',
       nextHalteName,
+      armada,
+      plate,
     })
   }
   // Fresh first; within fresh sort by latest receivedAt; stale at the bottom.
@@ -158,9 +165,17 @@ function pick(bus: BrtBus) {
             {{ r.bus.kor || '·' }}
           </span>
           <div class="min-w-0 flex-1">
-            <p class="truncate font-display text-sm font-semibold tracking-tight">
-              {{ r.label }}
-            </p>
+            <div class="flex items-center gap-1.5">
+              <span
+                v-if="r.armada"
+                class="inline-flex items-center rounded bg-bnc-stone-100 px-1 py-[1px] font-mono text-[9px] font-bold tracking-wider dark:bg-bnc-stone-800"
+              >
+                {{ r.armada }}
+              </span>
+              <p class="truncate font-display text-sm font-semibold tracking-tight">
+                {{ r.plate || r.bus.kor || '—' }}
+              </p>
+            </div>
             <p class="truncate font-mono text-[10px] text-bnc-stone-500">
               {{ r.nextHalteName ?? r.bus.toward ?? '—' }}
             </p>

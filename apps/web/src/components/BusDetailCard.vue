@@ -4,7 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
 import { useSelectionStore } from '@/stores/selection'
 import { useBrtStore } from '@/stores/brt'
-import { ageSeconds, formatAge, formatDistance, formatSpeed, isStale, parsePassenger } from '@/lib/format'
+import { ageSeconds, etaToHalte, formatAge, formatDistance, formatSpeed, isStale, parsePassenger } from '@/lib/format'
 import CopyLinkButton from '@/components/CopyLinkButton.vue'
 
 const { t } = useI18n()
@@ -39,11 +39,20 @@ const updatedLabel = computed(() => {
   return `${formatAge(a)} ${t('units.ago')}`
 })
 
-const nextHalte = computed(() => {
+const nextHalteRecord = computed(() => {
   const bus = selectedBus.value
   if (!bus?.new_shel_t) return null
-  const h = brt.halte.find((x) => x.sh_id === bus.new_shel_t)
-  return h?.sh_name ?? bus.new_shel_t
+  return brt.halte.find((x) => x.sh_id === bus.new_shel_t) ?? null
+})
+
+const nextHalte = computed(() => {
+  return nextHalteRecord.value?.sh_name ?? selectedBus.value?.new_shel_t ?? null
+})
+
+const nextEta = computed(() => {
+  const bus = selectedBus.value
+  if (!bus) return null
+  return etaToHalte(bus, nextHalteRecord.value)
 })
 
 const passenger = computed(() =>
@@ -68,11 +77,19 @@ const passenger = computed(() =>
           {{ selectedBus.kor || '·' }}
         </span>
         <div class="min-w-0 flex-1">
-          <p class="font-mono text-[11px] uppercase tracking-wider text-bnc-stone-500">
-            {{ t('bus.corridor') }} {{ selectedBus.kor || '—' }}
-          </p>
+          <div class="flex items-center gap-1.5">
+            <span
+              v-if="selectedBus.name"
+              class="inline-flex items-center rounded-md bg-bnc-stone-100 px-1.5 py-[1px] font-mono text-[10px] font-bold tracking-wider text-bnc-ink dark:bg-bnc-stone-800 dark:text-bnc-paper"
+            >
+              {{ selectedBus.name }}
+            </span>
+            <p class="font-mono text-[11px] uppercase tracking-wider text-bnc-stone-500">
+              {{ t('bus.corridor') }} {{ selectedBus.kor || '—' }}
+            </p>
+          </div>
           <h3 class="truncate font-display text-base font-semibold tracking-tight">
-            {{ selectedBus.plate_number || selectedBus.name || '—' }}
+            {{ selectedBus.plate_number || '—' }}
           </h3>
           <p class="truncate text-xs text-bnc-stone-500">
             → {{ selectedBus.toward || '—' }}
@@ -131,8 +148,20 @@ const passenger = computed(() =>
             {{ t('bus.nextHalte') }}
           </dt>
           <dd class="mt-0.5 truncate text-sm">
-            {{ nextHalte ?? '—' }}
-            <span v-if="selectedBus.dist_shel" class="block font-mono text-[10px] text-bnc-stone-500">
+            <span class="truncate">{{ nextHalte ?? '—' }}</span>
+            <span
+              v-if="nextEta"
+              class="block font-mono text-[11px] font-bold text-bnc-accent"
+            >
+              ~ {{ Math.max(1, Math.round(nextEta.etaMin)) }} {{ t('units.minutes') }}
+              <span class="ml-1 font-normal text-bnc-stone-500">
+                · {{ formatDistance(nextEta.distM) }}
+              </span>
+            </span>
+            <span
+              v-else-if="selectedBus.dist_shel"
+              class="block font-mono text-[10px] text-bnc-stone-500"
+            >
               {{ formatDistance(selectedBus.dist_shel) }}
             </span>
           </dd>
