@@ -19,8 +19,10 @@ defineProps<{
 </script>
 
 <template>
-  <li class="relative flex items-start gap-3 pl-1 pt-1">
-    <!-- vertical track -->
+  <li class="relative flex items-start gap-3 pt-1">
+    <!-- Vertical track — pinned to the horizontal center of the dot.
+         Dot is 14 px wide starting at x=0, so its center is at x=7.
+         Track (w-px) sits at left-[7px] for pixel-perfect alignment. -->
     <span
       v-if="!isFirst || !isLast"
       class="absolute left-[7px] w-px"

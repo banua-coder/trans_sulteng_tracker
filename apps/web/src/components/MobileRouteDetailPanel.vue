@@ -111,8 +111,11 @@ function pad(n: number) {
     <!-- Sticky header — the BottomSheet's slot container is the
          scroll context. With sticky top-0 the corridor info +
          direction tabs stay visible at the top of the sheet while
-         the halte timeline scrolls underneath. -->
-    <div class="sticky top-0 z-10 -mx-4 -mt-1 flex flex-col gap-3 bg-bnc-paper px-4 pb-3 pt-1 dark:bg-bnc-stone-900">
+         the halte timeline scrolls underneath.
+         z-20 keeps us above the timeline track. The solid bg matches
+         the sheet's surface so scrolling content never bleeds
+         through, and the bottom shadow provides a subtle separator. -->
+    <div class="sticky -top-1 z-20 -mx-4 flex flex-col gap-3 bg-bnc-paper px-4 pb-3 pt-2 shadow-[0_4px_8px_-6px_rgba(10,14,20,0.12)] dark:bg-bnc-stone-900">
     <header class="flex items-center justify-between gap-2">
       <div class="flex min-w-0 items-center gap-2">
         <button
