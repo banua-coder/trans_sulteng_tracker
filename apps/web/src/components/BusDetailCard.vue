@@ -151,12 +151,15 @@ const passenger = computed(() =>
             <p class="truncate" :title="nextHalte ?? ''">{{ nextHalte ?? '—' }}</p>
             <p
               v-if="nextEta"
-              class="mt-0.5 whitespace-nowrap font-mono text-[11px] font-bold text-bnc-accent"
+              class="mt-0.5 whitespace-nowrap font-mono text-[11px] font-bold leading-tight text-bnc-accent"
             >
               ~ {{ Math.max(1, Math.round(nextEta.etaMin)) }} {{ t('units.minutes') }}
-              <span class="font-normal text-bnc-stone-500">
-                · {{ formatDistance(nextEta.distM) }}
-              </span>
+            </p>
+            <p
+              v-if="nextEta"
+              class="whitespace-nowrap font-mono text-[10px] leading-tight text-bnc-stone-500"
+            >
+              {{ formatDistance(nextEta.distM) }}
             </p>
             <p
               v-else-if="selectedBus.dist_shel"
