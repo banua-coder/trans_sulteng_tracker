@@ -3,13 +3,13 @@
 Realtime tracker for **TransPalu** and **Trans Donggala** BRT, hosted at
 [cektrans.banuacoder.com](https://cektrans.banuacoder.com).
 
-A Vue 3 static SPA + a small Rust proxy run as two containers behind the
-existing Banuacoder VPS nginx. The proxy talks to the upstream BRT
-Nusantara GpsApi — handling AES-256-CBC token + body crypto, REST
-caching, and Socket.IO fan-out — and exposes a clean public API
-(`/api/*` + `/socket.io/`) to the browser. Upstream endpoints and the
-shared secret are operator-only; supply them via runtime env (see
-[.env.example](./.env.example)).
+A Vue 3 static SPA + a small Rust proxy run as two containers on the
+shared Banuacoder VPS, fronted by **Traefik** (with Let's Encrypt TLS).
+The proxy talks to the upstream BRT Nusantara GpsApi — handling
+AES-256-CBC token + body crypto, REST caching, and Socket.IO fan-out —
+and exposes a clean public API (`/api/*` + `/socket.io/`) to the
+browser. Upstream endpoints and the shared secret are operator-only;
+supply them via runtime env (see [.env.example](./.env.example)).
 
 ## Layout
 
@@ -44,12 +44,17 @@ cd apps/proxy && cargo run
 pnpm dev                   # http://localhost:5173 — proxies /api + /socket.io
 ```
 
-Or run both containers together:
+Or run both containers behind Traefik (mirrors prod):
 
 ```bash
-docker compose -f ops/docker-compose.yml up --build
-# web   → http://localhost:8081
-# proxy → http://localhost:8080
+# 1. Bring up the shared Traefik stack (Archipelago infra)
+#    so the `traefik-public` network exists.
+
+# 2. Build + start cektrans
+docker compose -f ops/docker-compose.yml up --build -d
+
+# 3. Add `cektrans.banuacoder.com 127.0.0.1` to /etc/hosts
+#    or override the Host rule in compose for local testing.
 ```
 
 ## Configuration
