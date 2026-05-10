@@ -8,7 +8,7 @@ const open = ref(true)
 
 <template>
   <div
-    class="pointer-events-auto absolute bottom-3 left-3 z-[800] flex flex-col gap-1.5"
+    class="pointer-events-auto absolute bottom-24 left-3 z-[800] flex flex-col gap-1.5 lg:bottom-3"
     aria-label="Map legend"
   >
     <button

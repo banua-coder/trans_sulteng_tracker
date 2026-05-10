@@ -3,12 +3,25 @@
  * Mobile bottom sheet with three snap points (peek/mid/full).
  * Drag the handle to move between snaps. Falls back to tap-to-cycle
  * for keyboard / non-touch users.
+ *
+ * `forceSnap` lets the parent bump the sheet open/closed when its
+ * content swaps — e.g. opening a bus detail card auto-expands to
+ * mid so the user sees the new content without dragging.
  */
-import { computed, onBeforeUnmount, ref } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 
 type Snap = 'peek' | 'mid' | 'full'
 
+const props = defineProps<{ forceSnap?: Snap | null }>()
+
 const snap = ref<Snap>('peek')
+
+watch(
+  () => props.forceSnap,
+  (next) => {
+    if (next) snap.value = next
+  },
+)
 const sheetEl = ref<HTMLElement | null>(null)
 const dragging = ref(false)
 
