@@ -40,3 +40,13 @@ export function isStale(dt_tracker?: string | null, staleSecs = 5 * 60): boolean
   const a = ageSeconds(dt_tracker)
   return a != null && a > staleSecs
 }
+
+/** Parse the upstream `passenger` field. Some cities omit it entirely;
+ *  others ship it as a numeric string ("0", "12"). Returns null when
+ *  the value is missing or unparseable. */
+export function parsePassenger(p?: string | number | null): number | null {
+  if (p == null || p === '') return null
+  const n = typeof p === 'number' ? p : parseInt(p, 10)
+  if (!Number.isFinite(n) || n < 0) return null
+  return n
+}

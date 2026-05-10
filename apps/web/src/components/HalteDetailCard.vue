@@ -4,7 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
 import { useSelectionStore } from '@/stores/selection'
 import { useBrtStore } from '@/stores/brt'
-import { etaMinutes, formatDistance, isStale } from '@/lib/format'
+import { etaMinutes, formatDistance, isStale, parsePassenger } from '@/lib/format'
 import type { BrtBus } from '@/types/brt'
 
 const { t } = useI18n()
@@ -138,6 +138,9 @@ function pickBus(imei: string) {
             </button>
             <p class="mt-1 px-2 font-mono text-[10px] text-bnc-stone-500">
               {{ formatDistance(a.bus.dist_shel) }} away
+              <template v-if="parsePassenger(a.bus.passenger) != null">
+                · {{ parsePassenger(a.bus.passenger) }} pax
+              </template>
             </p>
           </li>
         </ul>

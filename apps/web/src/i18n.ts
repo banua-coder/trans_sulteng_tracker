@@ -30,6 +30,8 @@ export const messages = {
       speed: 'Kecepatan',
       lastUpdate: 'Update terakhir',
       nextHalte: 'Halte berikutnya',
+      passenger: 'Penumpang',
+      pax: 'penumpang',
     },
     units: {
       kmh: 'km/jam',
@@ -81,6 +83,8 @@ export const messages = {
       speed: 'Speed',
       lastUpdate: 'Last update',
       nextHalte: 'Next stop',
+      passenger: 'Passengers',
+      pax: 'pax',
     },
     units: {
       kmh: 'km/h',

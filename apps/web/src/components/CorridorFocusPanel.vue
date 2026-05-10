@@ -4,7 +4,7 @@ import { storeToRefs } from 'pinia'
 import { useBrtStore } from '@/stores/brt'
 import { useFocusStore } from '@/stores/focus'
 import { useSelectionStore } from '@/stores/selection'
-import { etaMinutes, formatDistance, isStale } from '@/lib/format'
+import { etaMinutes, formatDistance, isStale, parsePassenger } from '@/lib/format'
 import type { BrtBus, BrtHalte } from '@/types/brt'
 
 const brt = useBrtStore()
@@ -195,6 +195,9 @@ function pickBus(b: BrtBus) {
               >
                 {{ r.next.plate_number || r.next.name || r.next.kor }} ·
                 {{ formatDistance(r.next.dist_shel) }}
+                <template v-if="parsePassenger(r.next.passenger) != null">
+                  · {{ parsePassenger(r.next.passenger) }} pax
+                </template>
               </p>
               <p v-else class="font-mono text-[11px] text-bnc-stone-500">
                 tidak ada bus mendekat
