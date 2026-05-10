@@ -143,27 +143,27 @@ const passenger = computed(() =>
             {{ updatedLabel }}
           </dd>
         </div>
-        <div>
+        <div class="min-w-0">
           <dt class="font-mono text-[10px] uppercase tracking-wider text-bnc-stone-500">
             {{ t('bus.nextHalte') }}
           </dt>
-          <dd class="mt-0.5 truncate text-sm">
-            <span class="truncate">{{ nextHalte ?? '—' }}</span>
-            <span
+          <dd class="mt-0.5 text-sm">
+            <p class="truncate" :title="nextHalte ?? ''">{{ nextHalte ?? '—' }}</p>
+            <p
               v-if="nextEta"
-              class="block font-mono text-[11px] font-bold text-bnc-accent"
+              class="mt-0.5 whitespace-nowrap font-mono text-[11px] font-bold text-bnc-accent"
             >
               ~ {{ Math.max(1, Math.round(nextEta.etaMin)) }} {{ t('units.minutes') }}
-              <span class="ml-1 font-normal text-bnc-stone-500">
+              <span class="font-normal text-bnc-stone-500">
                 · {{ formatDistance(nextEta.distM) }}
               </span>
-            </span>
-            <span
+            </p>
+            <p
               v-else-if="selectedBus.dist_shel"
-              class="block font-mono text-[10px] text-bnc-stone-500"
+              class="mt-0.5 whitespace-nowrap font-mono text-[10px] text-bnc-stone-500"
             >
               {{ formatDistance(selectedBus.dist_shel) }}
-            </span>
+            </p>
           </dd>
         </div>
       </dl>
