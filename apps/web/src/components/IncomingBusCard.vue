@@ -14,7 +14,7 @@ import { formatDistance } from '@/lib/format'
 
 type Status = 'last' | 'approaching'
 
-defineProps<{
+const props = defineProps<{
   kor: string
   corridorColor: string
   plate: string | null
@@ -22,6 +22,11 @@ defineProps<{
   etaMin: number | null
   /** Distance to the halte in metres (haversine or upstream). */
   distM?: number | null
+  /** Trip progress along the corridor as a percent (0–100). Optional
+   *  — Trans Donggala ships it, Trans Palu doesn't. When present the
+   *  left accent stripe fills from the bottom up to show how much of
+   *  the route the bus has covered. */
+  progressPct?: number | null
   /** Last stop name when status='last', else next-stop name. */
   toward: string | null
   /** Wall-clock target arrival, formatted "HH:mm". Optional — TJ
@@ -33,6 +38,20 @@ defineProps<{
 }>()
 
 const { t } = useI18n()
+
+// Linear gradient that fills the stripe from the bottom up to the
+// progress %. The unfilled portion drops to ~30% opacity of the
+// corridor color, so the stripe still reads as the right route.
+function stripeStyle(): Record<string, string> {
+  const color = props.corridorColor
+  if (props.progressPct == null) {
+    return { background: color }
+  }
+  const pct = Math.max(0, Math.min(100, props.progressPct))
+  return {
+    background: `linear-gradient(to top, ${color} 0%, ${color} ${pct}%, ${color}33 ${pct}%, ${color}33 100%)`,
+  }
+}
 </script>
 
 <template>
@@ -41,7 +60,8 @@ const { t } = useI18n()
   >
     <span
       class="grid w-1 shrink-0 rounded-full"
-      :style="{ background: corridorColor }"
+      :style="stripeStyle()"
+      :title="progressPct != null ? `${Math.round(progressPct)}%` : undefined"
       aria-hidden
     />
 

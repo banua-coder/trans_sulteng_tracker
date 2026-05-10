@@ -73,6 +73,10 @@ export interface BrtBus {
   old_shel_t?: string | null
   passenger?: string
   loc_valid?: string
+  /** Trip progress along the corridor, 0–99 as a percentage. Trans
+   *  Donggala ships this; Trans Palu currently always sends null.
+   *  Negative values are sentinels — treat as missing. */
+  prosen?: string | number | null
 
   /** Internal: wall-clock timestamp (ms) of when our store received this
    *  payload. Authoritative for stale checks since the upstream

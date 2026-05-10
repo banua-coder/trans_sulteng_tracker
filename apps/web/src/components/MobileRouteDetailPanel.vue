@@ -14,7 +14,7 @@ import { storeToRefs } from 'pinia'
 import { useBrtStore } from '@/stores/brt'
 import { useFocusStore } from '@/stores/focus'
 import { useSelectionStore } from '@/stores/selection'
-import { etaToHalte, isStale } from '@/lib/format'
+import { etaToHalte, isStale, parseProgress } from '@/lib/format'
 import HalteTimelineNode from '@/components/HalteTimelineNode.vue'
 import IncomingBusCard from '@/components/IncomingBusCard.vue'
 import CopyLinkButton from '@/components/CopyLinkButton.vue'
@@ -239,6 +239,7 @@ function pad(n: number) {
             :armada="ib.bus.name ?? null"
             :eta-min="ib.etaMin"
             :dist-m="ib.distM"
+            :progress-pct="parseProgress(ib.bus.prosen)"
             :arrival-at="ib.arrivalAt"
             :status="ib.status"
             :toward="r.halte.sh_name"
