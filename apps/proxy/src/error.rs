@@ -14,6 +14,7 @@ pub enum AppError {
     #[error("crypto error: {0}")]
     Crypto(String),
 
+    #[allow(dead_code)] // wired up by handlers that will return 404 (T6.x).
     #[error("not found")]
     NotFound,
 
