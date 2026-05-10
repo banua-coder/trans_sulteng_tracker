@@ -24,7 +24,7 @@ const statusKey = computed(() => {
   }
 })
 
-const { toggleTheme } = useTheme()
+const { isDark, toggleTheme } = useTheme()
 
 function toggleLang() {
   const next = locale.value === 'id' ? 'en' : 'id'
@@ -127,24 +127,64 @@ function pickCity(slug: CitySlug) {
       </button>
       <button
         type="button"
-        class="grid h-8 w-8 place-items-center rounded-full text-bnc-stone-600 transition-colors hover:bg-bnc-stone-100 dark:text-bnc-stone-300 dark:hover:bg-bnc-stone-800"
+        class="relative grid h-8 w-8 place-items-center overflow-hidden rounded-full text-bnc-stone-600 transition-colors hover:bg-bnc-stone-100 dark:text-bnc-stone-300 dark:hover:bg-bnc-stone-800"
         :aria-label="t('a11y.toggleTheme')"
+        :aria-pressed="isDark"
         @click="toggleTheme()"
       >
-        <svg
-          class="h-4 w-4"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.6"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <path
-            d="M21 12.79A9 9 0 1 1 11.21 3a7 7 0 0 0 9.79 9.79z"
-          />
-        </svg>
+        <transition name="theme-icon" mode="out-in">
+          <svg
+            v-if="isDark"
+            key="sun"
+            class="h-4 w-4"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.6"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden
+          >
+            <circle cx="12" cy="12" r="4" />
+            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
+          </svg>
+          <svg
+            v-else
+            key="moon"
+            class="h-4 w-4"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.6"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden
+          >
+            <path d="M21 12.79A9 9 0 1 1 11.21 3a7 7 0 0 0 9.79 9.79z" />
+          </svg>
+        </transition>
       </button>
     </div>
   </header>
 </template>
+
+<style scoped>
+.theme-icon-enter-active,
+.theme-icon-leave-active {
+  transition: opacity 200ms ease, transform 250ms ease;
+}
+.theme-icon-enter-from {
+  opacity: 0;
+  transform: rotate(-60deg) scale(0.7);
+}
+.theme-icon-leave-to {
+  opacity: 0;
+  transform: rotate(60deg) scale(0.7);
+}
+@media (prefers-reduced-motion: reduce) {
+  .theme-icon-enter-active,
+  .theme-icon-leave-active {
+    transition: none;
+  }
+}
+</style>
