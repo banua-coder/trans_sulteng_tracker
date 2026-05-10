@@ -5,7 +5,7 @@ import { RouterLink } from 'vue-router'
 import { api } from '@/lib/api'
 import type { BrtCity, CitySlug } from '@/types/brt'
 import { CITY_PREF, PREF_CITY } from '@/types/brt'
-import BanuacoderLogo from '@/components/BanuacoderLogo.vue'
+import BanuacoderIcon from '@/components/BanuacoderIcon.vue'
 
 const { t } = useI18n()
 
@@ -172,12 +172,12 @@ const year = computed(() => new Date().getFullYear())
         href="https://banuacoder.com"
         target="_blank"
         rel="noopener"
-        class="inline-flex items-center gap-3 transition-opacity hover:opacity-80"
+        class="inline-flex items-center gap-2 text-bnc-ink transition-opacity hover:opacity-80 dark:text-bnc-paper"
         aria-label="Banua Coder · banuacoder.com"
       >
-        <BanuacoderLogo :height="20" />
+        <BanuacoderIcon :size="22" />
         <span class="font-mono text-[11px] uppercase tracking-wider text-bnc-stone-500">
-          © {{ year }}
+          © {{ year }} Banuacoder
         </span>
       </a>
     </footer>
