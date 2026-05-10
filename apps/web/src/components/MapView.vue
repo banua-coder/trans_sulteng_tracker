@@ -7,6 +7,7 @@ import { storeToRefs } from 'pinia'
 
 import { useBrtStore } from '@/stores/brt'
 import { useCityStore } from '@/stores/city'
+import { useSelectionStore } from '@/stores/selection'
 import { busIcon, halteMarker } from '@/lib/leaflet/markers'
 import { voyagerTiles } from '@/lib/leaflet/tiles'
 import { isStale } from '@/lib/format'
@@ -14,6 +15,7 @@ import type { BrtBus, BrtCorridor, BrtHalte } from '@/types/brt'
 
 const brt = useBrtStore()
 const city = useCityStore()
+const selection = useSelectionStore()
 const { corridors, halte, buses } = storeToRefs(brt)
 
 const containerEl = shallowRef<HTMLElement | null>(null)
@@ -93,10 +95,10 @@ function drawHalte(items: BrtHalte[]) {
     const lng = parseFloat(h.sh_lng)
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue
     const color = (h.color && h.color !== '') ? h.color : (brt.colorForKor(h.kor) || '#0EA5E9')
-    halteMarker([lat, lng], color)
+    const marker = halteMarker([lat, lng], color)
       .bindTooltip(h.sh_name, { direction: 'top', offset: [0, -6] })
-      .bindPopup(`<strong>${escapeHtml(h.sh_name)}</strong><br><span class="font-mono text-xs">${escapeHtml(h.kor)}</span>`)
-      .addTo(halteLayer)
+    marker.on('click', () => selection.selectHalte(h.sh_id))
+    marker.addTo(halteLayer)
   }
 }
 
@@ -116,14 +118,13 @@ function upsertBusMarker(b: BrtBus) {
       rotationOrigin: 'center center',
       rotationAngle: angle,
     } as L.MarkerOptions)
-    m.bindPopup(() => busPopupHtml(b))
+    m.on('click', () => selection.selectBus(key))
     m.addTo(busLayer)
     busMarkers.set(key, m)
   } else {
     m.setLatLng([b.lat, b.lng])
     m.setIcon(icon)
     m.setRotationAngle?.(angle)
-    m.setPopupContent(busPopupHtml(b))
   }
 }
 
@@ -137,27 +138,6 @@ function pruneBusMarkers(active: Map<string, BrtBus>) {
   }
 }
 
-function busPopupHtml(b: BrtBus): string {
-  const plate = escapeHtml(b.plate_number ?? b.name ?? '—')
-  const kor = escapeHtml(b.kor ?? '—')
-  const toward = escapeHtml(b.toward ?? '—')
-  const speed = Number.isFinite(b.speed) ? Math.round(b.speed) : '—'
-  const updated = escapeHtml(b.dt_tracker ?? '—')
-  return `
-    <div class="min-w-[200px]">
-      <div class="font-display text-base font-semibold">${plate}</div>
-      <div class="font-mono text-[11px] uppercase tracking-wider opacity-70">${kor} → ${toward}</div>
-      <div class="mt-2 text-sm">${speed} km/jam</div>
-      <div class="text-xs opacity-60">${updated}</div>
-    </div>
-  `
-}
-
-function escapeHtml(s: string | null | undefined): string {
-  return String(s ?? '').replace(/[&<>"']/g, (c) => ({
-    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
-  }[c] ?? c))
-}
 
 onMounted(() => {
   initMap()
