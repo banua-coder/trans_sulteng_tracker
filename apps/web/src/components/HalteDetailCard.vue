@@ -43,7 +43,7 @@ const arrivals = computed<Arrival[]>(() => {
     candidates.push({
       bus,
       etaMin: eta,
-      fresh: !isStale(bus.dt_tracker),
+      fresh: !isStale(bus),
     })
   }
   candidates.sort((a, b) => {

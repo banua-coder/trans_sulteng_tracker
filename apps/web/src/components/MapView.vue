@@ -219,7 +219,7 @@ function upsertBusMarker(b: BrtBus) {
   if (b.lat == null || b.lng == null) return
   const key = b.imei || b.id
   const color = busColorFor(b)
-  const stale = isStale(b.dt_tracker)
+  const stale = isStale(b)
   const angle = Number.isFinite(b.angle) ? b.angle : 0
   const icon = busIcon({ color, code: b.kor || '·', angle, stale })
 

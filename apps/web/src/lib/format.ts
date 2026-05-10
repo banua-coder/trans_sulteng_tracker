@@ -1,9 +1,28 @@
 /** Time + speed + distance formatters used across the UI. */
 
+import type { BrtBus } from '@/types/brt'
+
+/** Parse the upstream `dt_tracker` / `dt_server` strings.
+ *
+ *  The findings note these are UTC, but the wire format is
+ *  "YYYY-MM-DD HH:MM:SS" with no timezone marker. `Date.parse` would
+ *  treat that as LOCAL time, so a bus reported "now" in WITA (UTC+8)
+ *  would show up 8 hours in the past. We append " UTC" if no zone
+ *  hint is present so the parse is correct. */
+export function parseUpstreamTime(s?: string | null): number | null {
+  if (!s) return null
+  const trimmed = s.trim()
+  const hasZone = /Z$|[+-]\d{2}:?\d{2}$/.test(trimmed)
+  const normalized = trimmed.includes('T')
+    ? trimmed + (hasZone ? '' : 'Z')
+    : trimmed.replace(' ', 'T') + (hasZone ? '' : 'Z')
+  const t = Date.parse(normalized)
+  return Number.isNaN(t) ? null : t
+}
+
 export function ageSeconds(iso?: string | null): number | null {
-  if (!iso) return null
-  const t = Date.parse(iso)
-  if (Number.isNaN(t)) return null
+  const t = parseUpstreamTime(iso)
+  if (t == null) return null
   return Math.max(0, Math.floor((Date.now() - t) / 1000))
 }
 
@@ -35,9 +54,17 @@ export function etaMinutes(distMeters?: string | null, speedKmh?: number | null)
   return m / 1000 / speedKmh * 60
 }
 
-/** True if a bus's last fix is older than `staleSecs` (default 5 min). */
-export function isStale(dt_tracker?: string | null, staleSecs = 5 * 60): boolean {
-  const a = ageSeconds(dt_tracker)
+/** True when a bus hasn't sent us a fresh fix in `staleSecs` (5 min default).
+ *
+ *  Authoritative source: `_receivedAt` — the wall-clock moment our
+ *  store recorded the last upsert. Falls back to parsing dt_tracker
+ *  only when _receivedAt is missing (e.g., a bus carried over from a
+ *  prior session before this stamp existed). */
+export function isStale(b: BrtBus, staleSecs = 5 * 60): boolean {
+  if (b._receivedAt) {
+    return Date.now() - b._receivedAt > staleSecs * 1000
+  }
+  const a = ageSeconds(b.dt_tracker)
   return a != null && a > staleSecs
 }
 

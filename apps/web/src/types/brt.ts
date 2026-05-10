@@ -73,6 +73,11 @@ export interface BrtBus {
   old_shel_t?: string | null
   passenger?: string
   loc_valid?: string
+
+  /** Internal: wall-clock timestamp (ms) of when our store received this
+   *  payload. Authoritative for stale checks since the upstream
+   *  dt_tracker is unreliable (UTC without timezone marker). */
+  _receivedAt?: number
 }
 
 export type CitySlug = 'palu' | 'donggala'
