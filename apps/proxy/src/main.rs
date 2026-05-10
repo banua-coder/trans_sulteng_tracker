@@ -1,4 +1,5 @@
 mod config;
+mod crypto;
 mod error;
 
 use std::time::Duration;
