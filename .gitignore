@@ -14,6 +14,7 @@ AGENTS.md
 CLAUDE.md
 MEMORY.md
 .context-os/
+.playwright-mcp/
 
 # ── Beads / Dolt (legacy paths kept for safety) ─────────────────────
 .dolt/
