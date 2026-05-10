@@ -14,7 +14,6 @@
     "@mapbox/polyline": "^1.2.1",
     "@vueuse/core": "^11.3.0",
     "leaflet": "^1.9.4",
-    "leaflet-rotatedmarker": "^0.2.0",
     "pinia": "^2.2.6",
     "socket.io-client": "^4.8.1",
     "vue": "^3.5.13",

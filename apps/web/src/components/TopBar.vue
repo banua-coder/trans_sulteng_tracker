@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useSocketStore } from '@/stores/socket'
 import { useCityStore } from '@/stores/city'
+import BanuacoderLogo from '@/components/BanuacoderLogo.vue'
 import type { CitySlug } from '@/types/brt'
 
 const { t, locale } = useI18n()
@@ -43,16 +44,29 @@ function pickCity(slug: CitySlug) {
   <header
     class="sticky top-0 z-30 flex h-[var(--header-h)] items-center gap-4 border-b border-bnc-stone-200 bg-bnc-paper/85 px-4 backdrop-blur dark:border-bnc-stone-800 dark:bg-bnc-ink/85"
   >
+    <a
+      href="https://banuacoder.com"
+      target="_blank"
+      rel="noopener"
+      class="flex items-center gap-2 rounded-md px-1.5 py-1 text-bnc-ink transition-colors hover:bg-bnc-stone-100 dark:text-bnc-paper dark:hover:bg-bnc-stone-800"
+      aria-label="Banua Coder · banuacoder.com"
+    >
+      <BanuacoderLogo :size="22" />
+      <span class="hidden font-display text-sm font-semibold tracking-tight sm:inline">
+        Banuacoder
+      </span>
+    </a>
+
+    <span
+      aria-hidden
+      class="hidden h-5 w-px bg-bnc-stone-200 sm:block dark:bg-bnc-stone-800"
+    />
+
     <router-link
       to="/"
-      class="flex items-center gap-2 font-display text-base font-semibold tracking-tight"
+      class="flex items-center gap-1 font-display text-base font-semibold tracking-tight"
     >
-      <span
-        aria-hidden
-        class="grid h-7 w-7 place-items-center rounded-md bg-bnc-ink text-bnc-paper dark:bg-bnc-paper dark:text-bnc-ink"
-      >
-        <span class="font-mono text-xs font-bold">cT</span>
-      </span>
+      <span class="text-bnc-stone-500">/</span>
       <span>{{ t('brand.name') }}</span>
     </router-link>
 

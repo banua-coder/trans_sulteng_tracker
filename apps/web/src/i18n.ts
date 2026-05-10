@@ -21,6 +21,8 @@ export const messages = {
       active: 'Bus beroperasi sekarang',
       sleeping: 'Bus belum beroperasi',
       window: 'Jam operasi 06.00–18.00 WITA',
+      waiting: 'Menunggu data bus…',
+      none: 'Tidak ada bus aktif',
     },
     bus: {
       plate: 'Pelat',
@@ -70,6 +72,8 @@ export const messages = {
       active: 'Buses are running now',
       sleeping: 'Buses are not running yet',
       window: 'Service hours 06:00–18:00 WITA',
+      waiting: 'Waiting for bus data…',
+      none: 'No active buses',
     },
     bus: {
       plate: 'Plate',

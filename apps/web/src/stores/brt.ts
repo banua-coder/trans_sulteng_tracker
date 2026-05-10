@@ -1,9 +1,10 @@
 import { defineStore } from 'pinia'
 import { computed, reactive, ref } from 'vue'
 import { api } from '@/lib/api'
-import type { BrtBus, BrtCorridor, BrtHalte } from '@/types/brt'
+import type { BrtBus, BrtCity, BrtCorridor, BrtHalte } from '@/types/brt'
 
 export const useBrtStore = defineStore('brt', () => {
+  const cities = ref<BrtCity[]>([])
   const corridors = ref<BrtCorridor[]>([])
   const halte = ref<BrtHalte[]>([])
   const buses = reactive<Map<string, BrtBus>>(new Map())
@@ -18,6 +19,22 @@ export const useBrtStore = defineStore('brt', () => {
   })
 
   const colorForKor = computed(() => (kor: string) => corridorByKor.value.get(kor)?.color ?? '#0EA5E9')
+
+  const cityByPref = computed(() => {
+    const m = new Map<string, BrtCity>()
+    for (const c of cities.value) if (c.pref) m.set(c.pref, c)
+    return m
+  })
+
+  async function loadCities() {
+    try {
+      const list = await api.cities()
+      cities.value = asArray<BrtCity>(list)
+    } catch (e) {
+      // Cities meta is non-critical — silently keep whatever we had.
+      void e
+    }
+  }
 
   async function loadRoutes(pref: string) {
     loading.value = true
@@ -54,6 +71,7 @@ export const useBrtStore = defineStore('brt', () => {
   }
 
   return {
+    cities,
     corridors,
     halte,
     buses,
@@ -61,6 +79,8 @@ export const useBrtStore = defineStore('brt', () => {
     error,
     corridorByKor,
     colorForKor,
+    cityByPref,
+    loadCities,
     loadRoutes,
     upsertBus,
     clearBuses,

@@ -108,16 +108,22 @@ html.dark .leaflet-container { background: var(--color-bnc-stone-900); }
   border-radius: var(--radius-md);
 }
 
-/* Bus marker shell — circle with corridor code inside, TransJakarta-style */
+/* Bus marker — TransJakarta-style: corridor-colored disc with corridor
+   code inside (static + readable), plus an arrow that rotates with the
+   bus heading. Disc and arrow share the same corridor color. */
 .bus-marker {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  position: relative;
+  width: 48px;
+  height: 48px;
   pointer-events: auto;
 }
 .bus-marker .bus-disc {
-  width: 36px;
-  height: 36px;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 32px;
+  height: 32px;
   border-radius: 9999px;
   display: flex;
   align-items: center;
@@ -128,21 +134,36 @@ html.dark .leaflet-container { background: var(--color-bnc-stone-900); }
   font-size: 12px;
   letter-spacing: 0.02em;
   border: 2px solid #fff;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.18);
-  transition: transform 250ms ease;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.22);
+  z-index: 2;
 }
-.bus-marker .bus-heading {
+/* The arrow lives inside a wrapper that rotates by bus.angle.
+   It points outward from the disc, in the direction of motion. */
+.bus-marker .bus-arrow-wrap {
   position: absolute;
-  top: -3px;
+  inset: 0;
+  z-index: 1;
+  transform-origin: 50% 50%;
+  transition: transform 280ms ease;
+  pointer-events: none;
+}
+.bus-marker .bus-arrow {
+  position: absolute;
+  top: 0;
   left: 50%;
-  width: 10px;
-  height: 10px;
-  margin-left: -5px;
-  background: inherit;
-  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+  width: 0;
+  height: 0;
+  border-left: 7px solid transparent;
+  border-right: 7px solid transparent;
+  border-bottom: 11px solid currentColor;
+  transform: translate(-50%, 0);
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.25));
+}
+.bus-marker.stale .bus-disc,
+.bus-marker.stale .bus-arrow {
+  filter: grayscale(0.85) opacity(0.55);
 }
 .bus-marker.stale .bus-disc {
-  filter: grayscale(0.85) opacity(0.6);
   background-image: repeating-linear-gradient(
     45deg,
     rgba(255,255,255,0.18) 0 4px,
