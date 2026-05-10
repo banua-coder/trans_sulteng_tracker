@@ -127,8 +127,11 @@ const year = computed(() => new Date().getFullYear())
             />
           </span>
           <div class="min-w-0 flex-1">
-            <p class="font-mono text-[11px] uppercase tracking-wider text-bnc-stone-500">
-              pref {{ c.pref }} · {{ c.city }}
+            <p
+              v-if="c.city"
+              class="font-mono text-[11px] uppercase tracking-wider text-bnc-stone-500"
+            >
+              {{ c.city }}
             </p>
             <h2 class="mt-1 font-display text-2xl font-semibold tracking-tight">
               {{ c.name }}
