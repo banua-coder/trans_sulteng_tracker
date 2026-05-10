@@ -14,7 +14,9 @@ COPY apps/web ./apps/web
 
 # VITE_* build-time vars come from CI build args.
 ARG VITE_BUILD_SHA=unknown
+ARG VITE_GA_ID=
 ENV VITE_BUILD_SHA=${VITE_BUILD_SHA}
+ENV VITE_GA_ID=${VITE_GA_ID}
 
 RUN pnpm --filter @cektrans/web build
 

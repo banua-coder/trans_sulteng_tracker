@@ -14,6 +14,7 @@ import { busIcon, halteMarker } from '@/lib/leaflet/markers'
 import { darkMatterTiles, voyagerTiles } from '@/lib/leaflet/tiles'
 import { useTheme } from '@/lib/theme'
 import { isStale } from '@/lib/format'
+import { trackEvent } from '@/lib/analytics'
 import type { BrtBus, BrtCorridor, BrtHalte } from '@/types/brt'
 
 const brt = useBrtStore()
@@ -247,6 +248,13 @@ function upsertBusMarker(b: BrtBus) {
     el.style.pointerEvents = busOpacityFor(b) === '0' ? 'none' : ''
   }
 
+  // Bring focused / selected buses to the top of the marker pane so they
+  // never get hidden behind another marker.
+  let z = 0
+  if (focus.kor && b.kor === focus.kor) z = 500
+  if (selection.kind === 'bus' && selection.id === key) z = 1500
+  m.setZIndexOffset(z)
+
   // If this is the bus the user is following, glide the map with it.
   if (
     following &&
@@ -266,6 +274,7 @@ function focusBus(key: string, _b: BrtBus) {
     return
   }
   selection.selectBus(key)
+  trackEvent('bus_follow', { kor: _b.kor ?? '', source: 'marker' })
 }
 
 /** When corridors arrive after some buses, rebuild every bus icon so the
@@ -375,8 +384,11 @@ watch(isDark, (dark) => {
 // When focus changes, re-apply dimming + fit to the focused corridor's bounds.
 watch(
   () => [focus.kor, focus.direction] as const,
-  ([fk]) => {
+  ([fk, dir], oldValue) => {
     applyFocus()
+    if (fk && oldValue?.[0] !== fk) {
+      trackEvent('corridor_focus', { kor: fk, dir: String(dir) })
+    }
     if (map && fk) {
       const byLeg = corridorLines.get(fk)
       const all = byLeg ? [...byLeg.a, ...byLeg.b] : []
