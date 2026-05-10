@@ -96,9 +96,13 @@
       .ck-splash__bnc {
         display: flex;
         align-items: center;
-        gap: 8px;
-        font-size: 13px;
-        font-weight: 600;
+        height: 22px;
+      }
+      .ck-splash__bnc img { height: 100%; width: auto; display: block; }
+      .ck-splash__bnc--dark { display: none; }
+      @media (prefers-color-scheme: dark) {
+        .ck-splash__bnc--light { display: none; }
+        .ck-splash__bnc--dark { display: flex; }
       }
       @media (prefers-reduced-motion: reduce) {
         .ck-splash__pulse { animation: none; }
@@ -124,9 +128,11 @@
 
       <div class="ck-splash__from">
         <span class="ck-splash__from-label">From</span>
-        <div class="ck-splash__bnc">
-          <img src="/banuacoder-icon.svg" alt="" width="32" height="32" />
-          <span>Banuacoder</span>
+        <div class="ck-splash__bnc ck-splash__bnc--light">
+          <img src="/banuacoder-horizontal.png" alt="Banuacoder" />
+        </div>
+        <div class="ck-splash__bnc ck-splash__bnc--dark">
+          <img src="/banuacoder-horizontal-dark.png" alt="Banuacoder" />
         </div>
       </div>
     </div>

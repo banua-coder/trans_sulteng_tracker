@@ -54,10 +54,7 @@ function pickCity(slug: CitySlug) {
       class="hidden shrink-0 items-center gap-2 rounded-md px-1.5 py-1 text-bnc-ink transition-colors hover:bg-bnc-stone-100 sm:flex dark:text-bnc-paper dark:hover:bg-bnc-stone-800"
       aria-label="Banua Coder · banuacoder.com"
     >
-      <BanuacoderLogo :size="22" />
-      <span class="font-display text-sm font-semibold tracking-tight">
-        Banuacoder
-      </span>
+      <BanuacoderLogo :height="20" />
     </a>
 
     <span
