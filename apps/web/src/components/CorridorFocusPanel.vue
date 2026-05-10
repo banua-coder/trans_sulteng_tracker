@@ -11,7 +11,7 @@ import type { BrtBus, BrtHalte } from '@/types/brt'
 const brt = useBrtStore()
 const focus = useFocusStore()
 const selection = useSelectionStore()
-const { corridor, halte, direction } = storeToRefs(focus)
+const { corridor, halte, direction, directionAvailable } = storeToRefs(focus)
 
 const tick = ref(0)
 let timer: number | undefined
@@ -145,6 +145,7 @@ function pickBus(b: BrtBus) {
         </p>
         <div class="mt-2 grid gap-1.5">
           <button
+            v-if="directionAvailable.a"
             type="button"
             class="flex items-center gap-2 rounded-md border px-3 py-2 text-left text-sm transition-colors"
             :class="
@@ -160,6 +161,7 @@ function pickBus(b: BrtBus) {
             <span class="font-display font-semibold">{{ corridor?.toward || '—' }}</span>
           </button>
           <button
+            v-if="directionAvailable.b"
             type="button"
             class="flex items-center gap-2 rounded-md border px-3 py-2 text-left text-sm transition-colors"
             :class="
@@ -174,6 +176,12 @@ function pickBus(b: BrtBus) {
             </span>
             <span class="font-display font-semibold">{{ corridor?.origin || '—' }}</span>
           </button>
+          <p
+            v-if="!directionAvailable.a || !directionAvailable.b"
+            class="rounded-md bg-bnc-stone-100 px-2 py-1.5 text-[11px] text-bnc-stone-600 dark:bg-bnc-stone-800 dark:text-bnc-stone-300"
+          >
+            Operator hanya menyediakan halte satu arah untuk koridor ini.
+          </p>
         </div>
       </div>
 
