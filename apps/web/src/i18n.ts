@@ -40,6 +40,10 @@ export const messages = {
       nextHalte: 'Halte berikutnya',
       passenger: 'Penumpang',
       pax: 'penumpang',
+      listTitle: 'Bus aktif',
+      search: 'Cari pelat, koridor, halte…',
+      empty: 'Belum ada bus aktif',
+      noMatch: 'Tidak ada bus yang cocok',
     },
     units: {
       kmh: 'km/jam',
@@ -101,6 +105,10 @@ export const messages = {
       nextHalte: 'Next stop',
       passenger: 'Passengers',
       pax: 'pax',
+      listTitle: 'Active buses',
+      search: 'Search plate, corridor, stop…',
+      empty: 'No active buses yet',
+      noMatch: 'No matching buses',
     },
     units: {
       kmh: 'km/h',
