@@ -80,10 +80,7 @@ const busStatusLabel = computed(() => {
         />
       </span>
       <div class="min-w-0">
-        <p class="font-mono text-[11px] uppercase tracking-[0.2em] text-bnc-stone-500">
-          pref {{ city.pref }}
-        </p>
-        <h2 class="mt-0.5 truncate font-display text-base font-semibold tracking-tight">
+        <h2 class="truncate font-display text-base font-semibold tracking-tight">
           {{ cityMeta?.name ?? city.slug }}
         </h2>
         <p v-if="cityMeta?.city" class="truncate text-xs text-bnc-stone-500">

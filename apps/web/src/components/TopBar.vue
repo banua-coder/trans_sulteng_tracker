@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRoute } from 'vue-router'
 import { useSocketStore } from '@/stores/socket'
 import { useCityStore } from '@/stores/city'
 import { useTheme } from '@/lib/theme'
@@ -8,8 +9,12 @@ import BanuacoderLogo from '@/components/BanuacoderLogo.vue'
 import type { CitySlug } from '@/types/brt'
 
 const { t, locale } = useI18n()
+const route = useRoute()
 const socket = useSocketStore()
 const city = useCityStore()
+
+// Switcher only matters when the user is actually on a city map.
+const showCitySwitcher = computed(() => route.name === 'city')
 
 const statusKey = computed(() => {
   switch (socket.state) {
@@ -67,35 +72,38 @@ function pickCity(slug: CitySlug) {
       <span>{{ t('brand.name') }}</span>
     </router-link>
 
-    <nav
-      class="-mx-1 flex min-w-0 items-center gap-1 overflow-x-auto px-1 [scrollbar-width:none] [&amp;::-webkit-scrollbar]:hidden"
-      :aria-label="t('nav.home')"
-    >
-      <button
-        type="button"
-        class="shrink-0 rounded-full px-3 py-1.5 font-mono text-xs uppercase tracking-wider transition-colors"
-        :class="
-          city.slug === 'palu'
-            ? 'bg-bnc-ink text-bnc-paper dark:bg-bnc-paper dark:text-bnc-ink'
-            : 'text-bnc-stone-600 hover:bg-bnc-stone-100 dark:text-bnc-stone-300 dark:hover:bg-bnc-stone-800'
-        "
-        @click="pickCity('palu')"
+    <transition name="switcher-fade">
+      <nav
+        v-if="showCitySwitcher"
+        class="-mx-1 flex min-w-0 items-center gap-1 overflow-x-auto px-1 [scrollbar-width:none] [&amp;::-webkit-scrollbar]:hidden"
+        :aria-label="t('nav.home')"
       >
-        {{ t('nav.palu') }}
-      </button>
-      <button
-        type="button"
-        class="shrink-0 rounded-full px-3 py-1.5 font-mono text-xs uppercase tracking-wider transition-colors"
-        :class="
-          city.slug === 'donggala'
-            ? 'bg-bnc-ink text-bnc-paper dark:bg-bnc-paper dark:text-bnc-ink'
-            : 'text-bnc-stone-600 hover:bg-bnc-stone-100 dark:text-bnc-stone-300 dark:hover:bg-bnc-stone-800'
-        "
-        @click="pickCity('donggala')"
-      >
-        {{ t('nav.donggala') }}
-      </button>
-    </nav>
+        <button
+          type="button"
+          class="shrink-0 rounded-full px-3 py-1.5 font-mono text-xs uppercase tracking-wider transition-colors"
+          :class="
+            city.slug === 'palu'
+              ? 'bg-bnc-ink text-bnc-paper dark:bg-bnc-paper dark:text-bnc-ink'
+              : 'text-bnc-stone-600 hover:bg-bnc-stone-100 dark:text-bnc-stone-300 dark:hover:bg-bnc-stone-800'
+          "
+          @click="pickCity('palu')"
+        >
+          {{ t('nav.palu') }}
+        </button>
+        <button
+          type="button"
+          class="shrink-0 rounded-full px-3 py-1.5 font-mono text-xs uppercase tracking-wider transition-colors"
+          :class="
+            city.slug === 'donggala'
+              ? 'bg-bnc-ink text-bnc-paper dark:bg-bnc-paper dark:text-bnc-ink'
+              : 'text-bnc-stone-600 hover:bg-bnc-stone-100 dark:text-bnc-stone-300 dark:hover:bg-bnc-stone-800'
+          "
+          @click="pickCity('donggala')"
+        >
+          {{ t('nav.donggala') }}
+        </button>
+      </nav>
+    </transition>
 
     <div class="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-3">
       <span
@@ -169,6 +177,16 @@ function pickCity(slug: CitySlug) {
 </template>
 
 <style scoped>
+.switcher-fade-enter-active,
+.switcher-fade-leave-active {
+  transition: opacity 200ms ease, transform 220ms ease;
+}
+.switcher-fade-enter-from,
+.switcher-fade-leave-to {
+  opacity: 0;
+  transform: translateX(-8px);
+}
+
 .theme-icon-enter-active,
 .theme-icon-leave-active {
   transition: opacity 200ms ease, transform 250ms ease;
