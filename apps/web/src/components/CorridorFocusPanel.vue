@@ -4,9 +4,10 @@ import { storeToRefs } from 'pinia'
 import { useBrtStore } from '@/stores/brt'
 import { useFocusStore } from '@/stores/focus'
 import { useSelectionStore } from '@/stores/selection'
-import { etaToHalte, formatDistance, isStale, parsePassenger } from '@/lib/format'
+import { etaToHalte, isStale } from '@/lib/format'
 import CopyLinkButton from '@/components/CopyLinkButton.vue'
-import PlateBadge from '@/components/PlateBadge.vue'
+import HalteTimelineNode from '@/components/HalteTimelineNode.vue'
+import IncomingBusCard from '@/components/IncomingBusCard.vue'
 import type { BrtBus, BrtHalte } from '@/types/brt'
 
 const brt = useBrtStore()
@@ -23,40 +24,54 @@ onBeforeUnmount(() => {
   if (timer) window.clearInterval(timer)
 })
 
-interface HalteRow {
-  halte: BrtHalte
-  next: BrtBus | null
+interface IncomingBus {
+  bus: BrtBus
   etaMin: number | null
   distM: number | null
-  fresh: boolean
+  arrivalAt: string | null
+  status: 'last' | 'approaching'
+  stale: boolean
+}
+interface HalteRow {
+  halte: BrtHalte
+  incoming: IncomingBus[]
+}
+
+function formatArrivalAt(etaMin: number): string {
+  const d = new Date(Date.now() + Math.max(0, etaMin) * 60_000)
+  const pad = (n: number) => (n < 10 ? `0${n}` : String(n))
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
 const rows = computed<HalteRow[]>(() => {
   void tick.value
   if (!corridor.value) return []
+  const buses = [...brt.buses.values()].filter((b) => b.kor === corridor.value!.kor)
   const list: HalteRow[] = []
-  for (const h of halte.value) {
-    let best: { bus: BrtBus; eta: number | null; dist: number | null } | null = null
-    for (const bus of brt.buses.values()) {
-      if (bus.kor !== h.kor) continue
+  for (let i = 0; i < halte.value.length; i++) {
+    const h = halte.value[i]
+    const isTerminal = i === halte.value.length - 1
+    const incoming: IncomingBus[] = []
+    for (const bus of buses) {
       if (bus.new_shel_t !== h.sh_id) continue
-      const r = etaToHalte(bus, h)
-      const eta = r?.etaMin ?? null
-      const dist = r?.distM ?? null
-      if (
-        !best ||
-        (eta != null && (best.eta == null || eta < best.eta))
-      ) {
-        best = { bus, eta, dist }
-      }
+      const eta = etaToHalte(bus, h)
+      const etaMin = eta?.etaMin ?? null
+      incoming.push({
+        bus,
+        etaMin,
+        distM: eta?.distM ?? null,
+        arrivalAt: etaMin != null ? formatArrivalAt(etaMin) : null,
+        status: isTerminal ? 'last' : 'approaching',
+        stale: isStale(bus),
+      })
     }
-    list.push({
-      halte: h,
-      next: best?.bus ?? null,
-      etaMin: best?.eta ?? null,
-      distM: best?.dist ?? null,
-      fresh: best ? !isStale(best.bus) : false,
+    incoming.sort((a, b) => {
+      if (a.etaMin == null && b.etaMin == null) return 0
+      if (a.etaMin == null) return 1
+      if (b.etaMin == null) return -1
+      return a.etaMin - b.etaMin
     })
+    list.push({ halte: h, incoming })
   }
   return list
 })
@@ -77,14 +92,7 @@ const directionLabel = computed(() => {
     : `${c.toward} → ${c.origin}`
 })
 
-function pickBus(b: BrtBus) {
-  // Selecting a bus while a corridor is focused doesn't drop the focus
-  // — CityView swaps the focus panel for the bus card while the bus is
-  // selected, and restores the focus panel when the user closes it.
-  selection.selectBus(b.imei || b.id)
-}
-
-
+void selection
 </script>
 
 <template>
@@ -186,82 +194,30 @@ function pickBus(b: BrtBus) {
         </div>
       </div>
 
-      <ol
-        v-if="rows.length"
-        class="relative flex-1 overflow-y-auto px-4 py-3"
-      >
-        <li
+      <ol v-if="rows.length" class="flex-1 overflow-y-auto px-4 py-3">
+        <HalteTimelineNode
           v-for="(r, idx) in rows"
           :key="r.halte.sh_id"
-          class="relative flex items-start gap-3 pb-3"
+          :haltename="r.halte.sh_name"
+          :accent-color="accentColor"
+          :is-first="idx === 0"
+          :is-last="idx === rows.length - 1"
         >
-          <!-- vertical track + dot -->
-          <span
-            v-if="idx < rows.length - 1"
-            class="absolute left-[7px] top-[18px] bottom-0 w-px"
-            :style="{ background: accentColor, opacity: 0.5 }"
-            aria-hidden
+          <IncomingBusCard
+            v-for="ib in r.incoming"
+            :key="ib.bus.imei || ib.bus.id"
+            :kor="ib.bus.kor"
+            :corridor-color="accentColor"
+            :plate="ib.bus.plate_number ?? null"
+            :armada="ib.bus.name ?? null"
+            :eta-min="ib.etaMin"
+            :dist-m="ib.distM"
+            :arrival-at="ib.arrivalAt"
+            :status="ib.status"
+            :toward="r.halte.sh_name"
+            :stale="ib.stale"
           />
-          <span
-            class="mt-1 h-3.5 w-3.5 shrink-0 rounded-full border-2 border-white shadow"
-            :style="{ background: accentColor, boxShadow: '0 0 0 1px ' + accentColor }"
-            aria-hidden
-          />
-          <div class="flex w-full min-w-0 items-start gap-3 text-left">
-            <div class="min-w-0 flex-1">
-              <p class="truncate font-display text-sm font-semibold tracking-tight">
-                {{ r.halte.sh_name }}
-              </p>
-              <div v-if="r.next" class="mt-0.5 flex flex-wrap items-center gap-1.5">
-                <PlateBadge v-if="r.next.plate_number" :plate="r.next.plate_number" size="sm" />
-                <span
-                  v-else
-                  class="font-mono text-[11px] font-bold text-bnc-ink dark:text-bnc-paper"
-                >
-                  {{ r.next.kor }}
-                </span>
-                <span
-                  v-if="r.next.name"
-                  class="inline-flex items-center rounded bg-bnc-stone-100 px-1 py-[1px] font-mono text-[9px] font-bold tracking-wider text-bnc-ink dark:bg-bnc-stone-800 dark:text-bnc-paper"
-                >
-                  {{ r.next.name }}
-                </span>
-                <span class="font-mono text-[11px] text-bnc-stone-500">
-                  <template v-if="r.distM != null">{{ formatDistance(r.distM) }}</template>
-                  <template v-if="parsePassenger(r.next.passenger) != null">
-                    · {{ parsePassenger(r.next.passenger) }} pax
-                  </template>
-                </span>
-              </div>
-              <p v-else class="font-mono text-[11px] text-bnc-stone-500">
-                tidak ada bus mendekat
-              </p>
-            </div>
-            <span class="ml-auto whitespace-nowrap font-mono text-sm font-bold tabular-nums text-bnc-accent">
-              <template v-if="r.etaMin != null">
-                ~ {{ Math.max(1, Math.round(r.etaMin)) }}m
-              </template>
-              <template v-else>
-                —
-              </template>
-            </span>
-            <span
-              v-if="r.next && !r.fresh"
-              class="ml-2 rounded-full bg-bnc-stone-200 px-1.5 py-0.5 font-mono text-[10px] uppercase text-bnc-stone-600 dark:bg-bnc-stone-700 dark:text-bnc-stone-300"
-            >
-              stale
-            </span>
-            <button
-              v-if="r.next"
-              type="button"
-              class="ml-1 rounded-full bg-bnc-stone-100 px-2 py-1 font-mono text-[10px] uppercase tracking-wider text-bnc-stone-700 hover:bg-bnc-stone-200 dark:bg-bnc-stone-800 dark:text-bnc-stone-200 dark:hover:bg-bnc-stone-700"
-              :title="'Buka detail bus'"
-              @click.stop="pickBus(r.next)"
-            >
-              Lihat
-            </button>
-          </div>
-        </li>
+        </HalteTimelineNode>
       </ol>
       <p
         v-else
