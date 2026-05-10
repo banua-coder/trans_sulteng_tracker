@@ -50,11 +50,11 @@ function pickCity(slug: CitySlug) {
       href="https://banuacoder.com"
       target="_blank"
       rel="noopener"
-      class="flex shrink-0 items-center gap-2 rounded-md px-1.5 py-1 text-bnc-ink transition-colors hover:bg-bnc-stone-100 dark:text-bnc-paper dark:hover:bg-bnc-stone-800"
+      class="hidden shrink-0 items-center gap-2 rounded-md px-1.5 py-1 text-bnc-ink transition-colors hover:bg-bnc-stone-100 sm:flex dark:text-bnc-paper dark:hover:bg-bnc-stone-800"
       aria-label="Banua Coder · banuacoder.com"
     >
       <BanuacoderLogo :size="22" />
-      <span class="hidden font-display text-sm font-semibold tracking-tight sm:inline">
+      <span class="font-display text-sm font-semibold tracking-tight">
         Banuacoder
       </span>
     </a>
@@ -66,7 +66,8 @@ function pickCity(slug: CitySlug) {
 
     <router-link
       to="/"
-      class="hidden shrink-0 items-center gap-1 font-display text-base font-semibold tracking-tight md:flex"
+      class="flex shrink-0 items-center gap-1 font-display text-sm font-semibold tracking-tight sm:text-base"
+      :aria-label="t('brand.name')"
     >
       <span class="text-bnc-stone-500">/</span>
       <span>{{ t('brand.name') }}</span>
