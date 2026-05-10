@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useSocketStore } from '@/stores/socket'
 import { useCityStore } from '@/stores/city'
+import { useTheme } from '@/lib/theme'
 import BanuacoderLogo from '@/components/BanuacoderLogo.vue'
 import type { CitySlug } from '@/types/brt'
 
@@ -23,11 +24,7 @@ const statusKey = computed(() => {
   }
 })
 
-function toggleTheme() {
-  const root = document.documentElement
-  root.classList.toggle('dark')
-  localStorage.setItem('cektrans:theme', root.classList.contains('dark') ? 'dark' : 'light')
-}
+const { toggleTheme } = useTheme()
 
 function toggleLang() {
   const next = locale.value === 'id' ? 'en' : 'id'
@@ -127,7 +124,7 @@ function pickCity(slug: CitySlug) {
         type="button"
         class="rounded-full p-2 text-bnc-stone-600 transition-colors hover:bg-bnc-stone-100 dark:text-bnc-stone-300 dark:hover:bg-bnc-stone-800"
         :aria-label="t('a11y.toggleTheme')"
-        @click="toggleTheme"
+        @click="toggleTheme()"
       >
         <svg
           class="h-4 w-4"
