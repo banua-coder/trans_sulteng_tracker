@@ -4,7 +4,7 @@ export const messages = {
   id: {
     brand: {
       name: 'cektrans',
-      tagline: 'Pelacak realtime TransPalu & Trans Donggala',
+      tagline: 'Lacak TransPalu & Trans Donggala langsung dari peta',
     },
     nav: {
       home: 'Beranda',
@@ -78,7 +78,7 @@ export const messages = {
   en: {
     brand: {
       name: 'cektrans',
-      tagline: 'Realtime tracker for TransPalu & Trans Donggala',
+      tagline: 'TransPalu & Trans Donggala — live on the map',
     },
     nav: {
       home: 'Home',
