@@ -24,13 +24,24 @@ export const useBrtStore = defineStore('brt', () => {
     error.value = null
     try {
       const [c, h] = await Promise.all([api.corridors(pref), api.halte(pref)])
-      corridors.value = c
-      halte.value = h
+      corridors.value = asArray(c)
+      halte.value = asArray(h)
     } catch (e) {
       error.value = e instanceof Error ? e.message : String(e)
+      corridors.value = []
+      halte.value = []
     } finally {
       loading.value = false
     }
+  }
+
+  /** Defensive: tolerate either a raw array or a {data: [...]} wrapper. */
+  function asArray<T>(v: unknown): T[] {
+    if (Array.isArray(v)) return v as T[]
+    if (v && typeof v === 'object' && Array.isArray((v as { data?: unknown }).data)) {
+      return (v as { data: T[] }).data
+    }
+    return []
   }
 
   function upsertBus(b: BrtBus) {
