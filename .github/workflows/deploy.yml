@@ -117,9 +117,11 @@ jobs:
         env:
           DEPLOY_VERSION: ${{ needs.resolve-version.outputs.version }}
         with:
+          # SSH private key lives in the banua-coder org-level secret
+          # WORKFLOW_TOKEN, shared with Archipelago + cektrans deploys.
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USERNAME }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          key: ${{ secrets.WORKFLOW_TOKEN }}
           envs: DEPLOY_VERSION
           script: |
             set -euo pipefail
