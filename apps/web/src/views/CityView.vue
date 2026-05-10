@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { onBeforeUnmount, watch } from 'vue'
+import { storeToRefs } from 'pinia'
 import { useBrtStore } from '@/stores/brt'
 import { useCityStore } from '@/stores/city'
+import { useFocusStore } from '@/stores/focus'
 import { useSelectionStore } from '@/stores/selection'
 import { useSocketStore } from '@/stores/socket'
 import MapView from '@/components/MapView.vue'
@@ -9,16 +11,20 @@ import CorridorPanel from '@/components/CorridorPanel.vue'
 import BottomSheet from '@/components/BottomSheet.vue'
 import BusDetailCard from '@/components/BusDetailCard.vue'
 import HalteDetailCard from '@/components/HalteDetailCard.vue'
+import CorridorFocusPanel from '@/components/CorridorFocusPanel.vue'
 
 const city = useCityStore()
 const brt = useBrtStore()
 const socket = useSocketStore()
 const selection = useSelectionStore()
+const focus = useFocusStore()
+const { isFocused } = storeToRefs(focus)
 
 watch(
   () => city.pref,
   async (pref) => {
     selection.clear()
+    focus.clear()
     brt.clearBuses()
     await brt.loadRoutes(pref)
     socket.connect(pref)
@@ -29,6 +35,7 @@ watch(
 onBeforeUnmount(() => {
   socket.disconnect()
   selection.clear()
+  focus.clear()
 })
 </script>
 
@@ -50,8 +57,12 @@ onBeforeUnmount(() => {
       <CorridorPanel />
     </BottomSheet>
 
-    <!-- Detail cards (one shows at a time per selection store) -->
-    <BusDetailCard />
-    <HalteDetailCard />
+    <!-- Detail cards. Hidden while a corridor is focused so the focus
+         panel owns the same screen real estate. -->
+    <template v-if="!isFocused">
+      <BusDetailCard />
+      <HalteDetailCard />
+    </template>
+    <CorridorFocusPanel />
   </div>
 </template>
