@@ -13,6 +13,7 @@ import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
 import { useBrtStore } from '@/stores/brt'
 import { useFocusStore } from '@/stores/focus'
+import { useSelectionStore } from '@/stores/selection'
 import { etaToHalte, isStale } from '@/lib/format'
 import HalteTimelineNode from '@/components/HalteTimelineNode.vue'
 import IncomingBusCard from '@/components/IncomingBusCard.vue'
@@ -22,7 +23,12 @@ import type { BrtBus, BrtHalte } from '@/types/brt'
 const { t } = useI18n()
 const brt = useBrtStore()
 const focus = useFocusStore()
+const selection = useSelectionStore()
 const { corridor, halte, direction, directionAvailable } = storeToRefs(focus)
+
+function pickBus(bus: BrtBus) {
+  selection.selectBus(bus.imei || bus.id)
+}
 
 const tick = ref(0)
 let timer: number | undefined
@@ -219,20 +225,26 @@ function pad(n: number) {
         :is-first="idx === 0"
         :is-last="idx === rows.length - 1"
       >
-        <IncomingBusCard
+        <button
           v-for="ib in r.incoming"
           :key="ib.bus.imei || ib.bus.id"
-          :kor="ib.bus.kor"
-          :corridor-color="accentColor"
-          :plate="ib.bus.plate_number ?? null"
-          :armada="ib.bus.name ?? null"
-          :eta-min="ib.etaMin"
-          :dist-m="ib.distM"
-          :arrival-at="ib.arrivalAt"
-          :status="ib.status"
-          :toward="r.halte.sh_name"
-          :stale="ib.stale"
-        />
+          type="button"
+          class="text-left transition-transform active:scale-[0.99]"
+          @click="pickBus(ib.bus)"
+        >
+          <IncomingBusCard
+            :kor="ib.bus.kor"
+            :corridor-color="accentColor"
+            :plate="ib.bus.plate_number ?? null"
+            :armada="ib.bus.name ?? null"
+            :eta-min="ib.etaMin"
+            :dist-m="ib.distM"
+            :arrival-at="ib.arrivalAt"
+            :status="ib.status"
+            :toward="r.halte.sh_name"
+            :stale="ib.stale"
+          />
+        </button>
       </HalteTimelineNode>
 
       <li
