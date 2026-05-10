@@ -69,6 +69,18 @@
     line-height: 1.55;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    /* Smoothly cross-fade the page colors when the theme toggles. */
+    transition: background-color 280ms ease, color 280ms ease;
+  }
+  /* Same fade for the major surfaces, scoped so we don't re-trigger on
+     every component update. */
+  body, header, aside, section, nav, button, dialog, dl, dt, dd, ul, li {
+    transition: background-color 280ms ease, color 280ms ease, border-color 280ms ease;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html, body, header, aside, section, nav, button, dialog, dl, dt, dd, ul, li {
+      transition: none !important;
+    }
   }
 
   html.dark {
@@ -176,6 +188,46 @@ html.dark .leaflet-container { background: var(--color-bnc-stone-900); }
   border: 2px solid #fff;
   border-radius: 9999px;
   box-shadow: 0 1px 3px rgba(0,0,0,0.20);
+}
+
+/* "Me" marker — the user's geolocation pin. Blue dot with a soft
+   pulse ring, like a phone GPS marker. */
+.me-marker {
+  position: relative;
+  width: 28px;
+  height: 28px;
+}
+.me-marker .me-disc {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 14px;
+  height: 14px;
+  border-radius: 9999px;
+  background: var(--color-bnc-accent);
+  border: 3px solid #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+  z-index: 2;
+}
+.me-marker .me-pulse {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 14px;
+  height: 14px;
+  border-radius: 9999px;
+  background: var(--color-bnc-accent);
+  opacity: 0.55;
+  animation: me-pulse 1.8s ease-out infinite;
+  z-index: 1;
+}
+@keyframes me-pulse {
+  0%   { transform: scale(1); opacity: 0.55; }
+  80%  { transform: scale(2.6); opacity: 0; }
+  100% { transform: scale(2.6); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .me-marker .me-pulse { animation: none; }
 }
 
 /* Live dot pulse — used for "connected" indicator */

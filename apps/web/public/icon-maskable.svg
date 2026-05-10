@@ -1,15 +1,21 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="cektrans">
-  <!-- Maskable: full-bleed background, important content kept inside the
-       inner 80% safe zone so the OS mask doesn't cut anything. -->
+  <!-- Maskable: full-bleed ink, important content kept inside the ~80%
+       safe zone (centered ~410px). The OS mask supplies the corners. -->
   <rect width="512" height="512" fill="#0A0E14"/>
-  <g transform="translate(256 256)">
-    <circle cx="0" cy="0" r="84" fill="none" stroke="#1D9CD4" stroke-width="18"/>
-    <circle cx="0" cy="0" r="22" fill="#1D9CD4"/>
-    <g stroke="#F7F7F4" stroke-width="16" stroke-linecap="round">
-      <line x1="0" y1="-128" x2="0" y2="-108"/>
-      <line x1="0" y1="108" x2="0" y2="128"/>
-      <line x1="-128" y1="0" x2="-108" y2="0"/>
-      <line x1="108" y1="0" x2="128" y2="0"/>
-    </g>
+  <defs>
+    <radialGradient id="glow-m" cx="50%" cy="50%" r="50%">
+      <stop offset="0%"  stop-color="#1D9CD4" stop-opacity="0.55"/>
+      <stop offset="70%" stop-color="#1D9CD4" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <!-- Route + halte + bus, scaled into the safe zone (51..461) -->
+  <g transform="translate(102 102) scale(0.6)">
+    <circle cx="392" cy="148" r="120" fill="url(#glow-m)"/>
+    <path d="M 110 392 C 200 380, 220 248, 312 224 S 392 148, 392 148"
+          stroke="#1D9CD4" stroke-width="36" fill="none"
+          stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="110" cy="392" r="34" fill="#F7F7F4" stroke="#1D9CD4" stroke-width="14"/>
+    <circle cx="392" cy="148" r="76" fill="none" stroke="#1D9CD4" stroke-width="10" stroke-opacity="0.45"/>
+    <circle cx="392" cy="148" r="48" fill="#1D9CD4" stroke="#F7F7F4" stroke-width="10"/>
   </g>
 </svg>

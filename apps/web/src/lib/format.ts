@@ -54,18 +54,58 @@ export function etaMinutes(distMeters?: string | null, speedKmh?: number | null)
   return m / 1000 / speedKmh * 60
 }
 
-/** True when a bus hasn't sent us a fresh fix in `staleSecs` (5 min default).
+/** True when a bus has stopped delivering useful state.
  *
- *  Authoritative source: `_receivedAt` — the wall-clock moment our
- *  store recorded the last upsert. Falls back to parsing dt_tracker
- *  only when _receivedAt is missing (e.g., a bus carried over from a
- *  prior session before this stamp existed). */
-export function isStale(b: BrtBus, staleSecs = 5 * 60): boolean {
-  if (b._receivedAt) {
-    return Date.now() - b._receivedAt > staleSecs * 1000
+ *  Two independent signals — either flips the bus to stale:
+ *   1. **Data drought** — we haven't received an upsert from the server
+ *      for `feedTimeoutSecs` (default 5 min). The feed is dead.
+ *   2. **Stalled in place** — reported speed is < `stallSpeedKmh` AND
+ *      the position hasn't moved meaningfully for `stallSecs`. The
+ *      bus is parked / engine off.
+ *
+ *  A fast-moving bus (speed ≥ 20 km/h) is *never* stale even if
+ *  _lastMovedAt looks old, since the next fix will refresh it
+ *  immediately. */
+export function isStale(
+  b: BrtBus,
+  feedTimeoutSecs = 5 * 60,
+  stallSpeedKmh = 20,
+  stallSecs = 2 * 60,
+): boolean {
+  const now = Date.now()
+  const recv = b._receivedAt
+  if (recv && now - recv > feedTimeoutSecs * 1000) return true
+
+  // No _receivedAt? Fall back to parsing dt_tracker for the drought test.
+  if (!recv) {
+    const a = ageSeconds(b.dt_tracker)
+    if (a != null && a > feedTimeoutSecs) return true
   }
-  const a = ageSeconds(b.dt_tracker)
-  return a != null && a > staleSecs
+
+  // Stalled-in-place test.
+  const speed = Number.isFinite(b.speed) ? Number(b.speed) : 0
+  const moved = b._lastMovedAt
+  if (speed < stallSpeedKmh && moved && now - moved > stallSecs * 1000) {
+    return true
+  }
+  return false
+}
+
+/** Haversine distance in metres between two lat/lng points. */
+export function haversineMeters(
+  a: { lat: number; lng: number },
+  b: { lat: number; lng: number },
+): number {
+  const R = 6_371_000
+  const toRad = (d: number) => (d * Math.PI) / 180
+  const dLat = toRad(b.lat - a.lat)
+  const dLng = toRad(b.lng - a.lng)
+  const lat1 = toRad(a.lat)
+  const lat2 = toRad(b.lat)
+  const x =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2
+  return 2 * R * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x))
 }
 
 /** Parse the upstream `passenger` field. Some cities omit it entirely;
