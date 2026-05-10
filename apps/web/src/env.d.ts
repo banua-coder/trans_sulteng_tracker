@@ -9,6 +9,18 @@ declare module '*.vue' {
 
 declare module 'leaflet-rotatedmarker'
 
+import 'leaflet'
+declare module 'leaflet' {
+  interface MarkerOptions {
+    rotationAngle?: number
+    rotationOrigin?: string
+  }
+  interface Marker {
+    setRotationAngle(angle: number): this
+    setRotationOrigin(origin: string): this
+  }
+}
+
 interface ImportMetaEnv {
   readonly VITE_PROXY_TARGET?: string
   readonly VITE_BUILD_SHA?: string
