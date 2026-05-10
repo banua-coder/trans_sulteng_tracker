@@ -39,13 +39,13 @@ function pickCity(slug: CitySlug) {
 
 <template>
   <header
-    class="sticky top-0 z-[1100] flex h-[var(--header-h)] items-center gap-4 border-b border-bnc-stone-200 bg-bnc-paper/85 px-4 backdrop-blur dark:border-bnc-stone-800 dark:bg-bnc-ink/85"
+    class="sticky top-0 z-[1100] flex h-[var(--header-h)] items-center gap-2 border-b border-bnc-stone-200 bg-bnc-paper/85 px-3 backdrop-blur sm:gap-4 sm:px-4 dark:border-bnc-stone-800 dark:bg-bnc-ink/85"
   >
     <a
       href="https://banuacoder.com"
       target="_blank"
       rel="noopener"
-      class="flex items-center gap-2 rounded-md px-1.5 py-1 text-bnc-ink transition-colors hover:bg-bnc-stone-100 dark:text-bnc-paper dark:hover:bg-bnc-stone-800"
+      class="flex shrink-0 items-center gap-2 rounded-md px-1.5 py-1 text-bnc-ink transition-colors hover:bg-bnc-stone-100 dark:text-bnc-paper dark:hover:bg-bnc-stone-800"
       aria-label="Banua Coder · banuacoder.com"
     >
       <BanuacoderLogo :size="22" />
@@ -56,21 +56,24 @@ function pickCity(slug: CitySlug) {
 
     <span
       aria-hidden
-      class="hidden h-5 w-px bg-bnc-stone-200 sm:block dark:bg-bnc-stone-800"
+      class="hidden h-5 w-px shrink-0 bg-bnc-stone-200 sm:block dark:bg-bnc-stone-800"
     />
 
     <router-link
       to="/"
-      class="flex items-center gap-1 font-display text-base font-semibold tracking-tight"
+      class="hidden shrink-0 items-center gap-1 font-display text-base font-semibold tracking-tight md:flex"
     >
       <span class="text-bnc-stone-500">/</span>
       <span>{{ t('brand.name') }}</span>
     </router-link>
 
-    <nav class="ml-2 hidden items-center gap-1 sm:flex" :aria-label="t('nav.home')">
+    <nav
+      class="-mx-1 flex min-w-0 items-center gap-1 overflow-x-auto px-1 [scrollbar-width:none] [&amp;::-webkit-scrollbar]:hidden"
+      :aria-label="t('nav.home')"
+    >
       <button
         type="button"
-        class="rounded-full px-3 py-1.5 font-mono text-xs uppercase tracking-wider transition-colors"
+        class="shrink-0 rounded-full px-3 py-1.5 font-mono text-xs uppercase tracking-wider transition-colors"
         :class="
           city.slug === 'palu'
             ? 'bg-bnc-ink text-bnc-paper dark:bg-bnc-paper dark:text-bnc-ink'
@@ -82,7 +85,7 @@ function pickCity(slug: CitySlug) {
       </button>
       <button
         type="button"
-        class="rounded-full px-3 py-1.5 font-mono text-xs uppercase tracking-wider transition-colors"
+        class="shrink-0 rounded-full px-3 py-1.5 font-mono text-xs uppercase tracking-wider transition-colors"
         :class="
           city.slug === 'donggala'
             ? 'bg-bnc-ink text-bnc-paper dark:bg-bnc-paper dark:text-bnc-ink'
@@ -94,9 +97,10 @@ function pickCity(slug: CitySlug) {
       </button>
     </nav>
 
-    <div class="ml-auto flex items-center gap-3">
+    <div class="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-3">
       <span
-        class="flex items-center gap-2 rounded-full bg-bnc-stone-100 px-3 py-1 font-mono text-[11px] uppercase tracking-wider text-bnc-stone-600 dark:bg-bnc-stone-800 dark:text-bnc-stone-300"
+        class="flex items-center gap-2 rounded-full bg-bnc-stone-100 px-2 py-1 font-mono text-[11px] uppercase tracking-wider text-bnc-stone-600 sm:px-3 dark:bg-bnc-stone-800 dark:text-bnc-stone-300"
+        :title="t(statusKey)"
       >
         <span
           class="live-dot"
@@ -106,15 +110,16 @@ function pickCity(slug: CitySlug) {
               : { background: 'var(--color-stale)', animation: 'none' }
           "
         />
-        {{ t(statusKey) }}
+        <span class="hidden sm:inline">{{ t(statusKey) }}</span>
         <template v-if="socket.viewers > 0">
-          · <span class="font-mono">{{ socket.viewers }}</span>
+          <span class="hidden sm:inline">·</span>
+          <span class="font-mono">{{ socket.viewers }}</span>
         </template>
       </span>
 
       <button
         type="button"
-        class="rounded-full p-2 text-bnc-stone-600 transition-colors hover:bg-bnc-stone-100 dark:text-bnc-stone-300 dark:hover:bg-bnc-stone-800"
+        class="grid h-8 w-8 place-items-center rounded-full text-bnc-stone-600 transition-colors hover:bg-bnc-stone-100 dark:text-bnc-stone-300 dark:hover:bg-bnc-stone-800"
         :aria-label="t('a11y.toggleLang')"
         @click="toggleLang"
       >
@@ -122,7 +127,7 @@ function pickCity(slug: CitySlug) {
       </button>
       <button
         type="button"
-        class="rounded-full p-2 text-bnc-stone-600 transition-colors hover:bg-bnc-stone-100 dark:text-bnc-stone-300 dark:hover:bg-bnc-stone-800"
+        class="grid h-8 w-8 place-items-center rounded-full text-bnc-stone-600 transition-colors hover:bg-bnc-stone-100 dark:text-bnc-stone-300 dark:hover:bg-bnc-stone-800"
         :aria-label="t('a11y.toggleTheme')"
         @click="toggleTheme()"
       >
