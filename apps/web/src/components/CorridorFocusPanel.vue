@@ -72,11 +72,13 @@ const directionLabel = computed(() => {
 })
 
 function pickBus(b: BrtBus) {
-  // Switching to bus-follow mode: drop the corridor focus first so we
-  // don't stack two cards at the same screen position.
-  focus.clear()
+  // Selecting a bus while a corridor is focused doesn't drop the focus
+  // — CityView swaps the focus panel for the bus card while the bus is
+  // selected, and restores the focus panel when the user closes it.
   selection.selectBus(b.imei || b.id)
 }
+
+
 </script>
 
 <template>
@@ -101,7 +103,7 @@ function pickBus(b: BrtBus) {
           <p class="font-mono text-[11px] uppercase tracking-wider text-bnc-stone-500">
             Koridor {{ corridor?.kor }} · {{ corridor?.jam_operasional || '—' }}
           </p>
-          <h3 class="truncate font-display text-base font-semibold tracking-tight">
+          <h3 class="font-display text-base font-semibold leading-tight tracking-tight">
             {{ directionLabel }}
           </h3>
           <p class="mt-0.5 font-mono text-[11px] text-bnc-stone-500">
@@ -128,37 +130,41 @@ function pickBus(b: BrtBus) {
       </header>
 
       <div
-        class="flex items-center gap-2 border-b border-bnc-stone-200 px-4 py-2 text-xs dark:border-bnc-stone-800"
+        class="border-b border-bnc-stone-200 px-4 py-3 dark:border-bnc-stone-800"
       >
-        <span class="font-mono text-[11px] uppercase tracking-wider text-bnc-stone-500">
+        <p class="font-mono text-[11px] uppercase tracking-wider text-bnc-stone-500">
           Arah
-        </span>
-        <div
-          class="ml-auto inline-flex rounded-full border border-bnc-stone-200 bg-bnc-stone-50 p-0.5 dark:border-bnc-stone-800 dark:bg-bnc-stone-800"
-        >
+        </p>
+        <div class="mt-2 grid gap-1.5">
           <button
             type="button"
-            class="min-w-[44px] rounded-full px-3 py-1 font-mono text-[11px] uppercase tracking-wider transition-colors"
+            class="flex items-center gap-2 rounded-md border px-3 py-2 text-left text-sm transition-colors"
             :class="
               direction === 'a'
-                ? 'bg-bnc-ink text-bnc-paper dark:bg-bnc-paper dark:text-bnc-ink'
-                : 'text-bnc-stone-500 hover:text-bnc-ink dark:hover:text-bnc-paper'
+                ? 'border-bnc-ink bg-bnc-ink text-bnc-paper dark:border-bnc-paper dark:bg-bnc-paper dark:text-bnc-ink'
+                : 'border-bnc-stone-200 bg-bnc-stone-50 text-bnc-stone-700 hover:border-bnc-stone-300 dark:border-bnc-stone-800 dark:bg-bnc-stone-800/50 dark:text-bnc-stone-200'
             "
             @click="focus.setDirection('a')"
           >
-            A → B
+            <span class="shrink-0 font-mono text-[11px] uppercase tracking-wider opacity-70">
+              →
+            </span>
+            <span class="font-display font-semibold">{{ corridor?.toward || '—' }}</span>
           </button>
           <button
             type="button"
-            class="min-w-[44px] rounded-full px-3 py-1 font-mono text-[11px] uppercase tracking-wider transition-colors"
+            class="flex items-center gap-2 rounded-md border px-3 py-2 text-left text-sm transition-colors"
             :class="
               direction === 'b'
-                ? 'bg-bnc-ink text-bnc-paper dark:bg-bnc-paper dark:text-bnc-ink'
-                : 'text-bnc-stone-500 hover:text-bnc-ink dark:hover:text-bnc-paper'
+                ? 'border-bnc-ink bg-bnc-ink text-bnc-paper dark:border-bnc-paper dark:bg-bnc-paper dark:text-bnc-ink'
+                : 'border-bnc-stone-200 bg-bnc-stone-50 text-bnc-stone-700 hover:border-bnc-stone-300 dark:border-bnc-stone-800 dark:bg-bnc-stone-800/50 dark:text-bnc-stone-200'
             "
             @click="focus.setDirection('b')"
           >
-            B → A
+            <span class="shrink-0 font-mono text-[11px] uppercase tracking-wider opacity-70">
+              →
+            </span>
+            <span class="font-display font-semibold">{{ corridor?.origin || '—' }}</span>
           </button>
         </div>
       </div>

@@ -28,16 +28,11 @@ const halteLayer = L.layerGroup()
 const busLayer = L.layerGroup()
 const busMarkers = new Map<string, L.Marker>()
 
-/** Polylines, halte, and last-known bus payload tracked per (kor, leg)
- *  so focus mode can paint the current leg in RED, the reverse leg in
- *  BLUE, and fade everything else — TransJakarta tracker convention. */
+/** Polylines and halte tracked per (kor, leg) so the A↔B toggle can fit
+ *  the map to one leg even though styling stays per-corridor. */
 type Leg = 'a' | 'b'
 const corridorLines = new Map<string, Record<Leg, L.Polyline[]>>()
 const halteByLeg = new Map<string, Record<Leg, L.CircleMarker[]>>()
-
-/** Forward / reverse direction colors used while a corridor is focused. */
-const FOCUS_FORWARD = '#E11D48' // rose-600 — current direction
-const FOCUS_REVERSE = '#2563EB' // blue-600  — reverse direction
 
 const CITY_CENTER: Record<string, L.LatLngTuple> = {
   '12': [-0.814841, 119.875584],
@@ -161,49 +156,30 @@ function drawHalte(items: BrtHalte[]) {
   applyFocus()
 }
 
-/** Which leg the bus is travelling on, given the focused corridor. */
-function busLeg(b: BrtBus, c: BrtCorridor | undefined): Leg {
-  if (!c) return 'a'
-  if (b.toward === c.toward) return 'a'
-  if (b.toward === c.origin) return 'b'
-  return 'a'
-}
-
 /** Re-paint corridors / halte / buses based on the current focus state.
  *
- *  TransJakarta-style behavior:
- *    · No focus           → original API color, all visible.
- *    · Corridor K focused → K's CURRENT direction painted RED at full
- *                            opacity, K's REVERSE direction painted
- *                            BLUE and translucent. Other corridors
- *                            fade to ~10% (visible as faint context). */
+ *  No focus           → original API color, all visible.
+ *  Corridor K focused → K stays at full opacity in its API color, with
+ *                        slightly heavier polyline weight. Everything
+ *                        else fades to ~10% so the focused route is
+ *                        clearly the headliner. */
 function applyFocus() {
   const fk = focus.kor
-  const dir: Leg = focus.direction
-  const reverse: Leg = dir === 'a' ? 'b' : 'a'
 
   // Corridors
   for (const [kor, byLeg] of corridorLines.entries()) {
     const c = brt.corridorByKor.get(kor)
     const baseColor = c?.color || '#0EA5E9'
     const baseDim = c && Number(c.is_ops) !== 1
-    const baseOpacity = baseDim ? 0.35 : 0.85
+    const all = [...byLeg.a, ...byLeg.b]
 
     if (fk === null) {
-      for (const ln of [...byLeg.a, ...byLeg.b]) {
-        ln.setStyle({ color: baseColor, opacity: baseOpacity, weight: 5 })
-      }
+      const opacity = baseDim ? 0.35 : 0.85
+      for (const ln of all) ln.setStyle({ color: baseColor, opacity, weight: 5 })
     } else if (kor === fk) {
-      for (const ln of byLeg[dir]) {
-        ln.setStyle({ color: FOCUS_FORWARD, opacity: 0.95, weight: 6 })
-      }
-      for (const ln of byLeg[reverse]) {
-        ln.setStyle({ color: FOCUS_REVERSE, opacity: 0.45, weight: 4 })
-      }
+      for (const ln of all) ln.setStyle({ color: baseColor, opacity: 0.95, weight: 6 })
     } else {
-      for (const ln of [...byLeg.a, ...byLeg.b]) {
-        ln.setStyle({ color: baseColor, opacity: 0.1, weight: 2 })
-      }
+      for (const ln of all) ln.setStyle({ color: baseColor, opacity: 0.1, weight: 2 })
     }
   }
 
@@ -211,52 +187,30 @@ function applyFocus() {
   for (const [kor, byLeg] of halteByLeg.entries()) {
     const c = brt.corridorByKor.get(kor)
     const baseColor = brt.colorForKor(kor) || c?.color || '#0EA5E9'
-    if (fk === null) {
-      for (const m of [...byLeg.a, ...byLeg.b]) {
+    const all = [...byLeg.a, ...byLeg.b]
+    if (fk === null || kor === fk) {
+      for (const m of all)
         m.setStyle({ fillColor: baseColor, color: '#fff', fillOpacity: 1, opacity: 1 })
-      }
-    } else if (kor === fk) {
-      for (const m of byLeg[dir]) {
-        m.setStyle({ fillColor: FOCUS_FORWARD, color: '#fff', fillOpacity: 1, opacity: 1 })
-      }
-      for (const m of byLeg[reverse]) {
-        m.setStyle({ fillColor: FOCUS_REVERSE, color: '#fff', fillOpacity: 0.45, opacity: 0.7 })
-      }
     } else {
-      for (const m of [...byLeg.a, ...byLeg.b]) {
-        m.setStyle({ fillColor: baseColor, fillOpacity: 0.12, opacity: 0.18 })
-      }
+      for (const m of all)
+        m.setStyle({ fillColor: baseColor, fillOpacity: 0.18, opacity: 0.25 })
     }
   }
 
-  // Buses — re-render through upsertBusMarker so their icon picks up
-  // the new leg color + visibility.
+  // Buses
   for (const bus of brt.buses.values()) upsertBusMarker(bus)
 }
 
-/** Pick the bus marker color: original corridor color when nothing is
- *  focused; red/blue legs when this bus is on the focused corridor;
- *  fall back to corridor color when the bus is on some other corridor
- *  (it'll be hidden via opacity anyway). */
 function busColorFor(b: BrtBus): string {
-  const fk = focus.kor
-  if (fk === null || b.kor !== fk) {
-    return brt.colorForKor(b.kor) || '#0EA5E9'
-  }
-  const c = brt.corridorByKor.get(fk)
-  const leg = busLeg(b, c)
-  const isCurrent = leg === focus.direction
-  return isCurrent ? FOCUS_FORWARD : FOCUS_REVERSE
+  return brt.colorForKor(b.kor) || '#0EA5E9'
 }
 
-/** Element opacity for a bus marker given the current focus state. */
+/** Element opacity: full when no focus or on-focused-corridor, faded
+ *  otherwise so the focused corridor's buses are the obvious read. */
 function busOpacityFor(b: BrtBus): string {
   const fk = focus.kor
-  if (fk === null) return '1'
-  if (b.kor !== fk) return '0' // hide off-corridor buses while focused
-  const c = brt.corridorByKor.get(fk)
-  const leg = busLeg(b, c)
-  return leg === focus.direction ? '1' : '0.5'
+  if (fk === null || b.kor === fk) return '1'
+  return '0.18'
 }
 
 function upsertBusMarker(b: BrtBus) {
