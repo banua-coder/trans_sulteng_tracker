@@ -27,10 +27,17 @@ const corridorLayer = L.layerGroup()
 const halteLayer = L.layerGroup()
 const busLayer = L.layerGroup()
 const busMarkers = new Map<string, L.Marker>()
-/** Polylines tracked by corridor code so we can dim non-focused ones. */
-const corridorLines = new Map<string, L.Polyline[]>()
-/** CircleMarker per halte, tracked for focus dimming. */
-const halteByKor = new Map<string, L.CircleMarker[]>()
+
+/** Polylines, halte, and last-known bus payload tracked per (kor, leg)
+ *  so focus mode can paint the current leg in RED, the reverse leg in
+ *  BLUE, and fade everything else — TransJakarta tracker convention. */
+type Leg = 'a' | 'b'
+const corridorLines = new Map<string, Record<Leg, L.Polyline[]>>()
+const halteByLeg = new Map<string, Record<Leg, L.CircleMarker[]>>()
+
+/** Forward / reverse direction colors used while a corridor is focused. */
+const FOCUS_FORWARD = '#E11D48' // rose-600 — current direction
+const FOCUS_REVERSE = '#2563EB' // blue-600  — reverse direction
 
 const CITY_CENTER: Record<string, L.LatLngTuple> = {
   '12': [-0.814841, 119.875584],
@@ -75,7 +82,7 @@ function clearAll() {
   busLayer.clearLayers()
   busMarkers.clear()
   corridorLines.clear()
-  halteByKor.clear()
+  halteByLeg.clear()
 }
 
 function drawCorridors(items: BrtCorridor[]) {
@@ -86,9 +93,12 @@ function drawCorridors(items: BrtCorridor[]) {
   for (const c of items) {
     const color = c.color || '#0EA5E9'
     const dim = Number(c.is_ops) !== 1
-    const segs = [c.points_a, c.points_b].filter(Boolean) as string[]
-    const lines: L.Polyline[] = []
-    for (const enc of segs) {
+    const byLeg: Record<Leg, L.Polyline[]> = { a: [], b: [] }
+    const legs: { leg: Leg; enc: string }[] = []
+    if (c.points_a) legs.push({ leg: 'a', enc: c.points_a })
+    if (c.points_b) legs.push({ leg: 'b', enc: c.points_b })
+
+    for (const { leg, enc } of legs) {
       try {
         const latlngs = polyline.decode(enc) as L.LatLngTuple[]
         if (!latlngs.length) continue
@@ -102,13 +112,13 @@ function drawCorridors(items: BrtCorridor[]) {
         })
         line.on('click', () => focus.focus(c.kor))
         line.addTo(corridorLayer)
-        lines.push(line)
+        byLeg[leg].push(line)
         allBounds.extend(line.getBounds())
       } catch {
         // ignore malformed polyline
       }
     }
-    if (lines.length) corridorLines.set(c.kor, lines)
+    if (byLeg.a.length || byLeg.b.length) corridorLines.set(c.kor, byLeg)
   }
 
   if (map && allBounds.isValid()) {
@@ -117,13 +127,25 @@ function drawCorridors(items: BrtCorridor[]) {
   applyFocus()
 }
 
+/** Which leg of the corridor a halte belongs to.
+ *  Leg A = halte travelling FROM corridor.origin TO corridor.toward.
+ *  Leg B = the reverse. Some halte have null/empty origin or toward,
+ *  in which case we default to leg A. */
+function halteLeg(h: BrtHalte, c: BrtCorridor | undefined): Leg {
+  if (!c) return 'a'
+  if (h.origin === c.origin && h.toward === c.toward) return 'a'
+  if (h.origin === c.toward && h.toward === c.origin) return 'b'
+  return 'a'
+}
+
 function drawHalte(items: BrtHalte[]) {
   halteLayer.clearLayers()
-  halteByKor.clear()
+  halteByLeg.clear()
   for (const h of items) {
     const lat = parseFloat(h.sh_lat)
     const lng = parseFloat(h.sh_lng)
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue
+    const c = brt.corridorByKor.get(h.kor)
     // Halte color tracks the corridor color so a glance tells you the route.
     // Falls back to API-supplied h.color, then a final cyan if nothing else.
     const color = brt.colorForKor(h.kor) || (h.color && h.color !== '' ? h.color : '#0EA5E9')
@@ -131,46 +153,116 @@ function drawHalte(items: BrtHalte[]) {
       .bindTooltip(h.sh_name, { direction: 'top', offset: [0, -6] })
     marker.on('click', () => selection.selectHalte(h.sh_id))
     marker.addTo(halteLayer)
-    const list = halteByKor.get(h.kor) ?? []
-    list.push(marker)
-    halteByKor.set(h.kor, list)
+    const leg = halteLeg(h, c)
+    const slot = halteByLeg.get(h.kor) ?? { a: [], b: [] }
+    slot[leg].push(marker)
+    halteByLeg.set(h.kor, slot)
   }
   applyFocus()
 }
 
-/** Re-paint corridors / halte / buses based on the current focus state. */
+/** Which leg the bus is travelling on, given the focused corridor. */
+function busLeg(b: BrtBus, c: BrtCorridor | undefined): Leg {
+  if (!c) return 'a'
+  if (b.toward === c.toward) return 'a'
+  if (b.toward === c.origin) return 'b'
+  return 'a'
+}
+
+/** Re-paint corridors / halte / buses based on the current focus state.
+ *
+ *  TransJakarta-style behavior:
+ *    · No focus           → original API color, all visible.
+ *    · Corridor K focused → K's CURRENT direction painted RED at full
+ *                            opacity, K's REVERSE direction painted
+ *                            BLUE and translucent. Other corridors
+ *                            fade to ~10% (visible as faint context). */
 function applyFocus() {
   const fk = focus.kor
+  const dir: Leg = focus.direction
+  const reverse: Leg = dir === 'a' ? 'b' : 'a'
+
   // Corridors
-  for (const [kor, lines] of corridorLines.entries()) {
+  for (const [kor, byLeg] of corridorLines.entries()) {
     const c = brt.corridorByKor.get(kor)
+    const baseColor = c?.color || '#0EA5E9'
     const baseDim = c && Number(c.is_ops) !== 1
-    const dimByFocus = fk !== null && kor !== fk
-    const opacity = dimByFocus ? 0.18 : baseDim ? 0.35 : 0.85
-    const weight = dimByFocus ? 3 : kor === fk ? 6 : 5
-    for (const ln of lines) ln.setStyle({ opacity, weight })
-  }
-  // Halte
-  for (const [kor, marks] of halteByKor.entries()) {
-    const dim = fk !== null && kor !== fk
-    for (const m of marks) {
-      m.setStyle({ fillOpacity: dim ? 0.25 : 1, opacity: dim ? 0.35 : 1 })
+    const baseOpacity = baseDim ? 0.35 : 0.85
+
+    if (fk === null) {
+      for (const ln of [...byLeg.a, ...byLeg.b]) {
+        ln.setStyle({ color: baseColor, opacity: baseOpacity, weight: 5 })
+      }
+    } else if (kor === fk) {
+      for (const ln of byLeg[dir]) {
+        ln.setStyle({ color: FOCUS_FORWARD, opacity: 0.95, weight: 6 })
+      }
+      for (const ln of byLeg[reverse]) {
+        ln.setStyle({ color: FOCUS_REVERSE, opacity: 0.45, weight: 4 })
+      }
+    } else {
+      for (const ln of [...byLeg.a, ...byLeg.b]) {
+        ln.setStyle({ color: baseColor, opacity: 0.1, weight: 2 })
+      }
     }
   }
-  // Buses
-  for (const [key, m] of busMarkers.entries()) {
-    const bus = brt.buses.get(key)
-    if (!bus) continue
-    const visible = fk === null || bus.kor === fk
-    const el = m.getElement()
-    if (el) el.style.opacity = visible ? '1' : '0.15'
+
+  // Halte
+  for (const [kor, byLeg] of halteByLeg.entries()) {
+    const c = brt.corridorByKor.get(kor)
+    const baseColor = brt.colorForKor(kor) || c?.color || '#0EA5E9'
+    if (fk === null) {
+      for (const m of [...byLeg.a, ...byLeg.b]) {
+        m.setStyle({ fillColor: baseColor, color: '#fff', fillOpacity: 1, opacity: 1 })
+      }
+    } else if (kor === fk) {
+      for (const m of byLeg[dir]) {
+        m.setStyle({ fillColor: FOCUS_FORWARD, color: '#fff', fillOpacity: 1, opacity: 1 })
+      }
+      for (const m of byLeg[reverse]) {
+        m.setStyle({ fillColor: FOCUS_REVERSE, color: '#fff', fillOpacity: 0.45, opacity: 0.7 })
+      }
+    } else {
+      for (const m of [...byLeg.a, ...byLeg.b]) {
+        m.setStyle({ fillColor: baseColor, fillOpacity: 0.12, opacity: 0.18 })
+      }
+    }
   }
+
+  // Buses — re-render through upsertBusMarker so their icon picks up
+  // the new leg color + visibility.
+  for (const bus of brt.buses.values()) upsertBusMarker(bus)
+}
+
+/** Pick the bus marker color: original corridor color when nothing is
+ *  focused; red/blue legs when this bus is on the focused corridor;
+ *  fall back to corridor color when the bus is on some other corridor
+ *  (it'll be hidden via opacity anyway). */
+function busColorFor(b: BrtBus): string {
+  const fk = focus.kor
+  if (fk === null || b.kor !== fk) {
+    return brt.colorForKor(b.kor) || '#0EA5E9'
+  }
+  const c = brt.corridorByKor.get(fk)
+  const leg = busLeg(b, c)
+  const isCurrent = leg === focus.direction
+  return isCurrent ? FOCUS_FORWARD : FOCUS_REVERSE
+}
+
+/** Element opacity for a bus marker given the current focus state. */
+function busOpacityFor(b: BrtBus): string {
+  const fk = focus.kor
+  if (fk === null) return '1'
+  if (b.kor !== fk) return '0' // hide off-corridor buses while focused
+  const c = brt.corridorByKor.get(fk)
+  const leg = busLeg(b, c)
+  return leg === focus.direction ? '1' : '0.5'
 }
 
 function upsertBusMarker(b: BrtBus) {
   if (b.lat == null || b.lng == null) return
   const key = b.imei || b.id
-  const color = brt.colorForKor(b.kor) || '#0EA5E9'
+  const color = busColorFor(b)
   const stale = isStale(b.dt_tracker)
   const angle = Number.isFinite(b.angle) ? b.angle : 0
   const icon = busIcon({ color, code: b.kor || '·', angle, stale })
@@ -186,10 +278,11 @@ function upsertBusMarker(b: BrtBus) {
     m.setIcon(icon)
   }
 
-  // Apply focus dimming to the (possibly new) marker.
-  if (focus.kor !== null) {
-    const el = m.getElement()
-    if (el) el.style.opacity = b.kor === focus.kor ? '1' : '0.15'
+  // Visibility per current focus state.
+  const el = m.getElement()
+  if (el) {
+    el.style.opacity = busOpacityFor(b)
+    el.style.pointerEvents = busOpacityFor(b) === '0' ? 'none' : ''
   }
 
   // If this is the bus the user is following, glide the map with it.
@@ -253,10 +346,11 @@ watch(
   ([fk]) => {
     applyFocus()
     if (map && fk) {
-      const lines = corridorLines.get(fk)
-      if (lines && lines.length) {
+      const byLeg = corridorLines.get(fk)
+      const all = byLeg ? [...byLeg.a, ...byLeg.b] : []
+      if (all.length) {
         const bounds = L.latLngBounds([])
-        for (const ln of lines) bounds.extend(ln.getBounds())
+        for (const ln of all) bounds.extend(ln.getBounds())
         if (bounds.isValid()) {
           following = false
           map.flyToBounds(bounds.pad(0.12), { duration: 0.6 })
