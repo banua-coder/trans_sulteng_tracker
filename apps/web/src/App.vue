@@ -4,11 +4,13 @@ import { useRoute, useRouter } from 'vue-router'
 import TopBar from '@/components/TopBar.vue'
 import OperatingBanner from '@/components/OperatingBanner.vue'
 import { useCityStore } from '@/stores/city'
+import { useBrtStore } from '@/stores/brt'
 import type { CitySlug } from '@/types/brt'
 
 const route = useRoute()
 const router = useRouter()
 const city = useCityStore()
+const brt = useBrtStore()
 
 function syncFromRoute() {
   const slug = route.params.city as CitySlug | undefined
@@ -17,7 +19,10 @@ function syncFromRoute() {
   }
 }
 
-onMounted(syncFromRoute)
+onMounted(() => {
+  syncFromRoute()
+  void brt.loadCities()
+})
 watch(() => route.params.city, syncFromRoute)
 
 watch(

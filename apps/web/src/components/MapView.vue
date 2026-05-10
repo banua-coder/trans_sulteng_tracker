@@ -107,25 +107,25 @@ function upsertBusMarker(b: BrtBus) {
   const key = b.imei || b.id
   const color = brt.colorForKor(b.kor) || '#0EA5E9'
   const stale = isStale(b.dt_tracker)
-  const icon = busIcon({ color, code: b.kor || '·', stale })
   const angle = Number.isFinite(b.angle) ? b.angle : 0
+  const icon = busIcon({ color, code: b.kor || '·', angle, stale })
 
   let m = busMarkers.get(key)
   if (!m) {
-    m = L.marker([b.lat, b.lng], {
-      icon,
-      keyboard: false,
-      rotationOrigin: 'center center',
-      rotationAngle: angle,
-    } as L.MarkerOptions)
+    m = L.marker([b.lat, b.lng], { icon, keyboard: false })
     m.on('click', () => selection.selectBus(key))
     m.addTo(busLayer)
     busMarkers.set(key, m)
   } else {
     m.setLatLng([b.lat, b.lng])
     m.setIcon(icon)
-    m.setRotationAngle?.(angle)
   }
+}
+
+/** When corridors arrive after some buses, rebuild every bus icon so the
+ *  fallback gray gets replaced by the real corridor color + correct heading. */
+function recolorAllBuses() {
+  for (const bus of buses.value.values()) upsertBusMarker(bus)
 }
 
 function pruneBusMarkers(active: Map<string, BrtBus>) {
@@ -159,6 +159,9 @@ watch(
   (items) => {
     if (!map) return
     drawCorridors(items)
+    // Bus markers cached the fallback color before corridors arrived;
+    // refresh them now that we know the real per-corridor color.
+    recolorAllBuses()
   },
   { immediate: false },
 )
