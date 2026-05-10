@@ -5,6 +5,7 @@ import { storeToRefs } from 'pinia'
 import { useSelectionStore } from '@/stores/selection'
 import { useBrtStore } from '@/stores/brt'
 import { etaMinutes, formatDistance, isStale, parsePassenger } from '@/lib/format'
+import CopyLinkButton from '@/components/CopyLinkButton.vue'
 import type { BrtBus } from '@/types/brt'
 
 const { t } = useI18n()
@@ -89,16 +90,19 @@ function pickBus(imei: string) {
             {{ selectedHalte.origin }} → {{ selectedHalte.toward }}
           </p>
         </div>
-        <button
-          type="button"
-          class="rounded-full p-1 text-bnc-stone-500 transition-colors hover:bg-bnc-stone-100 hover:text-bnc-ink dark:hover:bg-bnc-stone-800 dark:hover:text-bnc-paper"
-          aria-label="Tutup"
-          @click="selection.clear()"
-        >
-          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-            <path d="M6 6l12 12M6 18L18 6" />
-          </svg>
-        </button>
+        <div class="flex shrink-0 flex-col items-end gap-1">
+          <button
+            type="button"
+            class="rounded-full p-1 text-bnc-stone-500 transition-colors hover:bg-bnc-stone-100 hover:text-bnc-ink dark:hover:bg-bnc-stone-800 dark:hover:text-bnc-paper"
+            aria-label="Tutup"
+            @click="selection.clear()"
+          >
+            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <path d="M6 6l12 12M6 18L18 6" />
+            </svg>
+          </button>
+          <CopyLinkButton />
+        </div>
       </header>
 
       <section class="mt-3 border-t border-bnc-stone-200 pt-3 dark:border-bnc-stone-800">

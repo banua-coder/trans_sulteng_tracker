@@ -5,6 +5,7 @@ import { useBrtStore } from '@/stores/brt'
 import { useFocusStore } from '@/stores/focus'
 import { useSelectionStore } from '@/stores/selection'
 import { etaMinutes, formatDistance, isStale, parsePassenger } from '@/lib/format'
+import CopyLinkButton from '@/components/CopyLinkButton.vue'
 import type { BrtBus, BrtHalte } from '@/types/brt'
 
 const brt = useBrtStore()
@@ -110,23 +111,26 @@ function pickBus(b: BrtBus) {
             {{ rows.length }} halte · {{ activeBuses.length }} bus aktif
           </p>
         </div>
-        <button
-          type="button"
-          class="rounded-full p-1 text-bnc-stone-500 transition-colors hover:bg-bnc-stone-100 hover:text-bnc-ink dark:hover:bg-bnc-stone-800 dark:hover:text-bnc-paper"
-          aria-label="Tutup fokus koridor"
-          @click="focus.clear()"
-        >
-          <svg
-            class="h-4 w-4"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
+        <div class="flex shrink-0 flex-col items-end gap-1">
+          <button
+            type="button"
+            class="rounded-full p-1 text-bnc-stone-500 transition-colors hover:bg-bnc-stone-100 hover:text-bnc-ink dark:hover:bg-bnc-stone-800 dark:hover:text-bnc-paper"
+            aria-label="Tutup fokus koridor"
+            @click="focus.clear()"
           >
-            <path d="M6 6l12 12M6 18L18 6" />
-          </svg>
-        </button>
+            <svg
+              class="h-4 w-4"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+            >
+              <path d="M6 6l12 12M6 18L18 6" />
+            </svg>
+          </button>
+          <CopyLinkButton />
+        </div>
       </header>
 
       <div

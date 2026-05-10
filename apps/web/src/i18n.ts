@@ -24,6 +24,15 @@ export const messages = {
       halte: 'Halte',
       corridor: 'Koridor',
     },
+    stats: {
+      avg: 'Rata-rata',
+      viewers: 'Penonton',
+      oldest: 'Update tertua',
+    },
+    share: {
+      copy: 'Salin tautan',
+      copied: 'Tersalin',
+    },
     operating: {
       active: 'Bus beroperasi sekarang',
       sleeping: 'Bus belum beroperasi',
@@ -40,6 +49,10 @@ export const messages = {
       nextHalte: 'Halte berikutnya',
       passenger: 'Penumpang',
       pax: 'penumpang',
+      listTitle: 'Bus aktif',
+      search: 'Cari pelat, koridor, halte…',
+      empty: 'Belum ada bus aktif',
+      noMatch: 'Tidak ada bus yang cocok',
     },
     units: {
       kmh: 'km/jam',
@@ -85,6 +98,15 @@ export const messages = {
       halte: 'Stop',
       corridor: 'Corridor',
     },
+    stats: {
+      avg: 'Avg',
+      viewers: 'Viewers',
+      oldest: 'Oldest fix',
+    },
+    share: {
+      copy: 'Copy link',
+      copied: 'Copied',
+    },
     operating: {
       active: 'Buses are running now',
       sleeping: 'Buses are not running yet',
@@ -101,6 +123,10 @@ export const messages = {
       nextHalte: 'Next stop',
       passenger: 'Passengers',
       pax: 'pax',
+      listTitle: 'Active buses',
+      search: 'Search plate, corridor, stop…',
+      empty: 'No active buses yet',
+      noMatch: 'No matching buses',
     },
     units: {
       kmh: 'km/h',
