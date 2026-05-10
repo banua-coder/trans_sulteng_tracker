@@ -42,7 +42,7 @@ function pickCity(slug: CitySlug) {
 
 <template>
   <header
-    class="sticky top-0 z-30 flex h-[var(--header-h)] items-center gap-4 border-b border-bnc-stone-200 bg-bnc-paper/85 px-4 backdrop-blur dark:border-bnc-stone-800 dark:bg-bnc-ink/85"
+    class="sticky top-0 z-[1100] flex h-[var(--header-h)] items-center gap-4 border-b border-bnc-stone-200 bg-bnc-paper/85 px-4 backdrop-blur dark:border-bnc-stone-800 dark:bg-bnc-ink/85"
   >
     <a
       href="https://banuacoder.com"
