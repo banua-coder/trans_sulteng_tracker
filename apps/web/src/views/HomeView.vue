@@ -95,8 +95,8 @@ const year = computed(() => new Date().getFullYear())
       {{ t('brand.tagline') }}
     </h1>
     <p class="mt-4 max-w-prose text-bnc-stone-600 dark:text-bnc-stone-300">
-      Pantau posisi bus, koridor, dan halte secara langsung — sumber data
-      resmi Mitra Darat Kementerian Perhubungan.
+      Tahu kapan bus tiba — sebelum kamu jalan ke halte. Posisi langsung
+      dari sistem resmi Mitra Darat, diperbarui setiap detik.
     </p>
 
     <div class="mt-10 grid gap-4 sm:grid-cols-2">
