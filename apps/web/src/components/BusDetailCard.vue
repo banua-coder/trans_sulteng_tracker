@@ -4,7 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
 import { useSelectionStore } from '@/stores/selection'
 import { useBrtStore } from '@/stores/brt'
-import { ageSeconds, formatAge, formatDistance, formatSpeed, isStale } from '@/lib/format'
+import { ageSeconds, formatAge, formatDistance, formatSpeed, isStale, parsePassenger } from '@/lib/format'
 
 const { t } = useI18n()
 const selection = useSelectionStore()
@@ -44,6 +44,10 @@ const nextHalte = computed(() => {
   const h = brt.halte.find((x) => x.sh_id === bus.new_shel_t)
   return h?.sh_name ?? bus.new_shel_t
 })
+
+const passenger = computed(() =>
+  selectedBus.value ? parsePassenger(selectedBus.value.passenger) : null,
+)
 </script>
 
 <template>
@@ -85,7 +89,10 @@ const nextHalte = computed(() => {
         </button>
       </header>
 
-      <dl class="mt-3 grid grid-cols-3 gap-3 border-t border-bnc-stone-200 pt-3 text-xs dark:border-bnc-stone-800">
+      <dl
+        class="mt-3 grid gap-3 border-t border-bnc-stone-200 pt-3 text-xs dark:border-bnc-stone-800"
+        :class="passenger != null ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-3'"
+      >
         <div>
           <dt class="font-mono text-[10px] uppercase tracking-wider text-bnc-stone-500">
             {{ t('bus.speed') }}
@@ -93,6 +100,15 @@ const nextHalte = computed(() => {
           <dd class="mt-0.5 font-mono text-base font-bold tabular-nums">
             {{ formatSpeed(selectedBus.speed) }}
             <span class="text-[10px] font-normal text-bnc-stone-500">{{ t('units.kmh') }}</span>
+          </dd>
+        </div>
+        <div v-if="passenger != null">
+          <dt class="font-mono text-[10px] uppercase tracking-wider text-bnc-stone-500">
+            {{ t('bus.passenger') }}
+          </dt>
+          <dd class="mt-0.5 font-mono text-base font-bold tabular-nums">
+            {{ passenger }}
+            <span class="text-[10px] font-normal text-bnc-stone-500">{{ t('bus.pax') }}</span>
           </dd>
         </div>
         <div>
