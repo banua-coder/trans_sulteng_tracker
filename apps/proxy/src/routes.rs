@@ -67,7 +67,7 @@ async fn cities(
             return Ok(Json(v));
         }
     }
-    let v = state.brt().get_trans().await?;
+    let v = unwrap_data(state.brt().get_trans().await?);
     cache.insert((), v.clone()).await;
     Ok(Json(v))
 }
@@ -84,7 +84,7 @@ async fn corridors(
             return Ok(Json(v));
         }
     }
-    let v = state.brt().get_corridor(&pref).await?;
+    let v = unwrap_data(state.brt().get_corridor(&pref).await?);
     cache.insert(pref, v.clone()).await;
     Ok(Json(v))
 }
@@ -101,7 +101,7 @@ async fn halte(
             return Ok(Json(v));
         }
     }
-    let v = state.brt().get_routes(&pref).await?;
+    let v = unwrap_data(state.brt().get_routes(&pref).await?);
     cache.insert(pref, v.clone()).await;
     Ok(Json(v))
 }
@@ -130,12 +130,24 @@ async fn halte_by_corridor(
             return Ok(Json(v));
         }
     }
-    let v = state
-        .brt()
-        .get_route_corridor(&pref, &kor, &q.toward, &q.origin)
-        .await?;
+    let v = unwrap_data(
+        state
+            .brt()
+            .get_route_corridor(&pref, &kor, &q.toward, &q.origin)
+            .await?,
+    );
     cache.insert(cache_key, v.clone()).await;
     Ok(Json(v))
+}
+
+/// The upstream wraps every list payload as `{"data": [...]}` plus
+/// status/message metadata we don't expose. Strip the wrapper so the
+/// frontend sees a plain array.
+fn unwrap_data(v: Value) -> Value {
+    match v {
+        Value::Object(mut map) => map.remove("data").unwrap_or(Value::Array(vec![])),
+        other => other,
+    }
 }
 
 /// `pref` upstream is a numeric string (e.g. "12" or "11") — keep it
