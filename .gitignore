@@ -1,5 +1,48 @@
+# ── Secrets & local env ─────────────────────────────────────────────
+.env
+.env.*
+!.env.example
 
-# Beads / Dolt files (added by bd init)
+# ── AI agent tooling (kept local, never published) ──────────────────
+.claude/
+.cursor/
+.aider*
+.codex/
+.codegraph/
+.beads/
+AGENTS.md
+CLAUDE.md
+MEMORY.md
+.context-os/
+
+# ── Beads / Dolt (legacy paths kept for safety) ─────────────────────
 .dolt/
 *.db
 .beads-credential-key
+
+# ── Node / pnpm ─────────────────────────────────────────────────────
+node_modules/
+.pnpm-store/
+pnpm-debug.log*
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ── Vue / Vite build output ─────────────────────────────────────────
+apps/web/dist/
+apps/web/dev-dist/
+apps/web/.vite/
+apps/web/stats.html
+
+# ── Rust / Cargo ────────────────────────────────────────────────────
+target/
+**/*.rs.bk
+Cargo.lock.bak
+
+# ── IDE / OS ────────────────────────────────────────────────────────
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.swp
+*.swo

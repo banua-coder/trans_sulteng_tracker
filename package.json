@@ -1,0 +1,18 @@
+{
+  "name": "trans-sulteng-tracker",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Realtime tracker for TransPalu and Trans Donggala — Vue 3 frontend + Rust proxy",
+  "scripts": {
+    "dev": "pnpm --filter @cektrans/web dev",
+    "build": "pnpm --filter @cektrans/web build",
+    "preview": "pnpm --filter @cektrans/web preview",
+    "lint": "pnpm --filter @cektrans/web lint",
+    "typecheck": "pnpm --filter @cektrans/web typecheck"
+  },
+  "engines": {
+    "node": ">=20",
+    "pnpm": ">=10"
+  },
+  "packageManager": "pnpm@10.0.0"
+}

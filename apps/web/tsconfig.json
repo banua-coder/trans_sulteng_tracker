@@ -1,0 +1,27 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "useDefineForClassFields": true,
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "jsx": "preserve",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "allowSyntheticDefaultImports": true,
+    "verbatimModuleSyntax": true,
+    "types": ["vite/client", "vite-plugin-pwa/client"],
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"]
+    }
+  },
+  "include": ["src/**/*.ts", "src/**/*.vue", "src/**/*.tsx"],
+  "references": [{ "path": "./tsconfig.node.json" }]
+}

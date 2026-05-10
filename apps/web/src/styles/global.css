@@ -1,0 +1,176 @@
+@import "@fontsource-variable/geist";
+@import "@fontsource-variable/inter";
+@import "@fontsource/jetbrains-mono";
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  /* ── Banuacoder brand foundation ─────────────────────────────── */
+  --color-bnc-ink: #0A0E14;
+  --color-bnc-paper: #F7F7F4;
+
+  --color-bnc-primary: #12398C;
+  --color-bnc-primary-fg: #FFFFFF;
+  --color-bnc-accent: #1D9CD4;
+  --color-bnc-accent-fg: #FFFFFF;
+
+  --color-bnc-stone-50:  #FAFAF9;
+  --color-bnc-stone-100: #F5F5F4;
+  --color-bnc-stone-200: #E7E5E4;
+  --color-bnc-stone-300: #D6D3D1;
+  --color-bnc-stone-400: #A8A29E;
+  --color-bnc-stone-500: #78716C;
+  --color-bnc-stone-600: #57534E;
+  --color-bnc-stone-700: #44403C;
+  --color-bnc-stone-800: #292524;
+  --color-bnc-stone-900: #1C1917;
+
+  /* ── Transit-data semantic tokens ────────────────────────────── */
+  --color-live: #1D9CD4;       /* live / connected */
+  --color-stale: #78716C;      /* >5 min since last fix */
+  --color-offline: #44403C;
+  --color-good: #2F855A;
+  --color-warn: #D97706;
+  --color-bad: #B45309;
+
+  /* ── Typography ──────────────────────────────────────────────── */
+  --font-display: 'Geist Variable', system-ui, sans-serif;
+  --font-body: 'Inter Variable', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+  /* ── Spacing & layout ────────────────────────────────────────── */
+  --spacing-section-y: clamp(4rem, 7vw, 7rem);
+  --container-max: 80rem;
+  --header-h: 56px;
+  --sidebar-w: 360px;
+
+  /* ── Radius / shadow / motion ────────────────────────────────── */
+  --radius-sm: 6px;
+  --radius-md: 12px;
+  --radius-lg: 24px;
+
+  --shadow-subtle: 0 1px 2px rgba(10, 14, 20, 0.04), 0 2px 8px rgba(10, 14, 20, 0.04);
+  --shadow-elevated: 0 4px 6px rgba(10, 14, 20, 0.06), 0 8px 24px rgba(10, 14, 20, 0.08);
+
+  --duration-quick: 150ms;
+  --duration-base: 250ms;
+}
+
+@layer base {
+  html, body {
+    overflow-x: clip;
+  }
+
+  html {
+    font-family: var(--font-body);
+    color: var(--color-bnc-ink);
+    background: var(--color-bnc-paper);
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  html.dark {
+    color: var(--color-bnc-paper);
+    background: var(--color-bnc-ink);
+    --shadow-subtle: 0 1px 2px rgba(0, 0, 0, 0.20), 0 2px 8px rgba(0, 0, 0, 0.16);
+    --shadow-elevated: 0 4px 6px rgba(0, 0, 0, 0.25), 0 8px 24px rgba(0, 0, 0, 0.28);
+  }
+
+  body { min-height: 100dvh; }
+
+  :focus-visible {
+    outline: 2px solid var(--color-bnc-accent);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+/* ── Leaflet base tweaks (TransJakarta-style minimal) ─────────── */
+.leaflet-container {
+  background: var(--color-bnc-paper);
+  font-family: var(--font-body);
+}
+html.dark .leaflet-container { background: var(--color-bnc-stone-900); }
+
+.leaflet-popup-content-wrapper,
+.leaflet-popup-tip {
+  box-shadow: var(--shadow-elevated);
+  border-radius: var(--radius-md);
+}
+
+/* Bus marker shell — circle with corridor code inside, TransJakarta-style */
+.bus-marker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+}
+.bus-marker .bus-disc {
+  width: 36px;
+  height: 36px;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  border: 2px solid #fff;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.18);
+  transition: transform 250ms ease;
+}
+.bus-marker .bus-heading {
+  position: absolute;
+  top: -3px;
+  left: 50%;
+  width: 10px;
+  height: 10px;
+  margin-left: -5px;
+  background: inherit;
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+}
+.bus-marker.stale .bus-disc {
+  filter: grayscale(0.85) opacity(0.6);
+  background-image: repeating-linear-gradient(
+    45deg,
+    rgba(255,255,255,0.18) 0 4px,
+    transparent 4px 8px
+  );
+}
+
+/* Halte marker — TransJakarta filled circle + white ring */
+.halte-marker {
+  border: 2px solid #fff;
+  border-radius: 9999px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.20);
+}
+
+/* Live dot pulse — used for "connected" indicator */
+.live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 9999px;
+  background: var(--color-live);
+  box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-live) 60%, transparent);
+  animation: live-pulse 1.6s ease-in-out infinite;
+}
+@keyframes live-pulse {
+  0%   { box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-live) 55%, transparent); }
+  70%  { box-shadow: 0 0 0 8px color-mix(in oklab, var(--color-live) 0%, transparent); }
+  100% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-live) 0%, transparent); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .live-dot { animation: none; }
+}

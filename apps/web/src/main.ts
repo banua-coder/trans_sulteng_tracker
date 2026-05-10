@@ -1,0 +1,30 @@
+import { createApp } from 'vue'
+import { createPinia } from 'pinia'
+import { createI18n } from 'vue-i18n'
+
+import App from './App.vue'
+import router from './router'
+import { messages, type Locale } from './i18n'
+
+import './styles/global.css'
+import 'leaflet/dist/leaflet.css'
+
+const stored = localStorage.getItem('cektrans:locale') as Locale | null
+const initialLocale: Locale = stored ?? 'id'
+
+const i18n = createI18n({
+  legacy: false,
+  locale: initialLocale,
+  fallbackLocale: 'id',
+  messages,
+})
+
+if (localStorage.getItem('cektrans:theme') === 'dark') {
+  document.documentElement.classList.add('dark')
+}
+
+const app = createApp(App)
+app.use(createPinia())
+app.use(router)
+app.use(i18n)
+app.mount('#app')

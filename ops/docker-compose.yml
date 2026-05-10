@@ -1,0 +1,45 @@
+# Local-equivalent of the production deploy.
+# Two containers behind the host nginx (banuacoder VPS):
+#   - web: serves the static Vue bundle on :80
+#   - proxy: speaks BRT upstream + exposes /api + /socket.io on :8080
+# In production the host nginx terminates TLS for cektrans.banuacoder.com and
+# routes /api and /socket.io to proxy:8080; everything else to web:80.
+
+name: cektrans
+
+services:
+  web:
+    build:
+      context: ..
+      dockerfile: ops/web.Dockerfile
+      args:
+        VITE_BUILD_SHA: ${VITE_BUILD_SHA:-local}
+    image: cektrans/web:local
+    restart: unless-stopped
+    ports:
+      - "8081:80"
+    depends_on:
+      proxy:
+        condition: service_healthy
+
+  proxy:
+    build:
+      context: ..
+      dockerfile: ops/proxy.Dockerfile
+    image: cektrans/proxy:local
+    restart: unless-stopped
+    environment:
+      BIND_ADDR: 0.0.0.0:8080
+      BRT_REST_BASE: ${BRT_REST_BASE}
+      BRT_SOCKET_BASE: ${BRT_SOCKET_BASE}
+      BRT_KEY: ${BRT_KEY}
+      ALLOW_ORIGIN: ${ALLOW_ORIGIN:-*}
+      RUST_LOG: ${RUST_LOG:-info}
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/api/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
