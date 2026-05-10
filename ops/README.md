@@ -107,11 +107,12 @@ green, then `docker image prune -f` for housekeeping.
 
 ## Required GitHub Actions secrets / variables
 
-| Name | Where | Purpose |
+| Name | Scope | Purpose |
 |---|---|---|
-| `SSH_HOST` | secret | VPS hostname (e.g. `vps.banuacoder.com`) |
-| `SSH_USERNAME` | secret | unprivileged deploy user with sudo-less compose access |
-| `SSH_PRIVATE_KEY` | secret | matching deploy key; the public half lives in `~/.ssh/authorized_keys` on the VPS |
+| `WORKFLOW_TOKEN` | **banua-coder org** | SSH private key matching the `~/.ssh/authorized_keys` entry on the VPS. Shared with the Archipelago deploy. |
+| `SSH_HOST` | secret (org or repo) | VPS hostname (e.g. `vps.banuacoder.com`) |
+| `SSH_USERNAME` | secret (org or repo) | unprivileged deploy user with docker access |
+| `VITE_GA_ID` | **variable** (not secret) | GA4 measurement ID baked into the web image at build time. Public-by-design — kept as a `vars.*` value, not a secret. |
 | `GITHUB_TOKEN` | auto | issued per-run; pushes images to GHCR |
 
 `BRT_KEY` and the upstream URLs are **not** GitHub secrets — they live
