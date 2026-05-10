@@ -10,6 +10,8 @@ defineProps<{
   origin: string
   toward: string
   halteCount?: number
+  /** Number of currently-active buses on this corridor (live socket). */
+  busCount?: number
 }>()
 </script>
 
@@ -30,10 +32,24 @@ defineProps<{
         {{ origin }} – {{ toward }}
       </p>
       <p
-        v-if="halteCount != null"
-        class="mt-0.5 font-mono text-[10px] uppercase tracking-wider text-bnc-stone-500"
+        v-if="halteCount != null || busCount != null"
+        class="mt-0.5 flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-bnc-stone-500"
       >
-        {{ halteCount }} halte
+        <span v-if="halteCount != null">{{ halteCount }} halte</span>
+        <span
+          v-if="busCount != null"
+          class="inline-flex items-center gap-1"
+          :class="busCount > 0 ? 'text-bnc-accent' : 'text-bnc-stone-500'"
+        >
+          <span
+            class="h-1.5 w-1.5 rounded-full"
+            :style="{
+              background: busCount > 0 ? 'var(--color-bnc-accent)' : 'var(--color-stale)',
+            }"
+            aria-hidden
+          />
+          {{ busCount }} bus
+        </span>
       </p>
     </div>
 

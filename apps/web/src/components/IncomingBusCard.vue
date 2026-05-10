@@ -10,6 +10,7 @@
  */
 import { useI18n } from 'vue-i18n'
 import PlateBadge from '@/components/PlateBadge.vue'
+import { formatDistance } from '@/lib/format'
 
 type Status = 'last' | 'approaching'
 
@@ -19,6 +20,8 @@ defineProps<{
   plate: string | null
   armada: string | null
   etaMin: number | null
+  /** Distance to the halte in metres (haversine or upstream). */
+  distM?: number | null
   /** Last stop name when status='last', else next-stop name. */
   toward: string | null
   /** Wall-clock target arrival, formatted "HH:mm". Optional — TJ
@@ -87,6 +90,12 @@ const { t } = useI18n()
         <template v-else>
           —
         </template>
+      </span>
+      <span
+        v-if="distM != null"
+        class="font-mono text-[10px] tabular-nums text-bnc-stone-500"
+      >
+        {{ formatDistance(distM) }}
       </span>
       <span
         v-if="arrivalAt"

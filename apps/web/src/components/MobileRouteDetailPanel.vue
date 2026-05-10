@@ -1,0 +1,240 @@
+<script setup lang="ts">
+/**
+ * Mobile "Route Detail" — vertical halte timeline with incoming
+ * bus cards. Lives inside the existing CityView BottomSheet when
+ * a corridor is focused (instead of the previous CorridorFocusPanel
+ * on mobile).
+ *
+ * Mirrors the TJ Transjakarta "Route Details" screen — direction
+ * tabs, then each halte node with its incoming buses stacked below.
+ */
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { storeToRefs } from 'pinia'
+import { useBrtStore } from '@/stores/brt'
+import { useFocusStore } from '@/stores/focus'
+import { etaToHalte, isStale } from '@/lib/format'
+import HalteTimelineNode from '@/components/HalteTimelineNode.vue'
+import IncomingBusCard from '@/components/IncomingBusCard.vue'
+import CopyLinkButton from '@/components/CopyLinkButton.vue'
+import type { BrtBus, BrtHalte } from '@/types/brt'
+
+const { t } = useI18n()
+const brt = useBrtStore()
+const focus = useFocusStore()
+const { corridor, halte, direction, directionAvailable } = storeToRefs(focus)
+
+const tick = ref(0)
+let timer: number | undefined
+onMounted(() => {
+  timer = window.setInterval(() => (tick.value += 1), 15_000)
+})
+onBeforeUnmount(() => {
+  if (timer) window.clearInterval(timer)
+})
+
+const accentColor = computed(() => corridor.value?.color || '#1D9CD4')
+
+const activeBusCount = computed(() => {
+  const c = corridor.value
+  if (!c) return 0
+  let n = 0
+  for (const b of brt.buses.values()) if (b.kor === c.kor) n++
+  return n
+})
+
+const halteCount = computed(() => halte.value.length)
+
+interface IncomingBus {
+  bus: BrtBus
+  etaMin: number | null
+  distM: number | null
+  arrivalAt: string | null
+  status: 'last' | 'approaching'
+  stale: boolean
+}
+interface HalteRow {
+  halte: BrtHalte
+  incoming: IncomingBus[]
+}
+
+const rows = computed<HalteRow[]>(() => {
+  void tick.value
+  if (!corridor.value) return []
+  const buses = [...brt.buses.values()].filter((b) => b.kor === corridor.value!.kor)
+  const out: HalteRow[] = []
+  for (let i = 0; i < halte.value.length; i++) {
+    const h = halte.value[i]
+    const isTerminal = i === halte.value.length - 1
+    const incoming: IncomingBus[] = []
+    for (const bus of buses) {
+      if (bus.new_shel_t !== h.sh_id) continue
+      const eta = etaToHalte(bus, h)
+      const etaMin = eta?.etaMin ?? null
+      incoming.push({
+        bus,
+        etaMin,
+        distM: eta?.distM ?? null,
+        arrivalAt: etaMin != null ? formatArrivalAt(etaMin) : null,
+        status: isTerminal ? 'last' : 'approaching',
+        stale: isStale(bus),
+      })
+    }
+    incoming.sort((a, b) => {
+      if (a.etaMin == null && b.etaMin == null) return 0
+      if (a.etaMin == null) return 1
+      if (b.etaMin == null) return -1
+      return a.etaMin - b.etaMin
+    })
+    out.push({ halte: h, incoming })
+  }
+  return out
+})
+
+function formatArrivalAt(etaMin: number): string {
+  const t = new Date(Date.now() + Math.max(0, etaMin) * 60_000)
+  return `${pad(t.getHours())}:${pad(t.getMinutes())}`
+}
+function pad(n: number) {
+  return n < 10 ? `0${n}` : String(n)
+}
+</script>
+
+<template>
+  <article v-if="corridor" class="flex flex-col gap-3">
+    <header class="flex items-center justify-between gap-2">
+      <div class="flex min-w-0 items-center gap-2">
+        <button
+          type="button"
+          class="grid h-8 w-8 shrink-0 place-items-center rounded-full text-bnc-stone-600 transition-colors hover:bg-bnc-stone-100 dark:text-bnc-stone-300 dark:hover:bg-bnc-stone-800"
+          :aria-label="t('a11y.back')"
+          @click="focus.clear()"
+        >
+          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M15 6l-6 6 6 6" />
+          </svg>
+        </button>
+        <span
+          class="grid h-7 w-7 shrink-0 place-items-center rounded-full font-mono text-[11px] font-extrabold text-white"
+          :style="{ background: accentColor }"
+          aria-hidden
+        >
+          {{ corridor.kor }}
+        </span>
+        <div class="min-w-0">
+          <p class="font-mono text-[10px] uppercase tracking-wider text-bnc-stone-500">
+            {{ t('route.detailTitle') }}
+          </p>
+          <h2 class="truncate font-display text-sm font-bold tracking-tight">
+            {{ corridor.origin }} – {{ corridor.toward }}
+          </h2>
+        </div>
+      </div>
+      <CopyLinkButton />
+    </header>
+
+    <!-- summary chips: halte count + active bus count -->
+    <div class="flex flex-wrap items-center gap-1.5">
+      <span
+        class="inline-flex items-center gap-1 rounded-full bg-bnc-stone-100 px-2 py-[3px] font-mono text-[10px] uppercase tracking-wider text-bnc-stone-600 dark:bg-bnc-stone-800 dark:text-bnc-stone-300"
+      >
+        <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden>
+          <circle cx="12" cy="10" r="3" />
+          <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" />
+        </svg>
+        {{ halteCount }} halte
+      </span>
+      <span
+        class="inline-flex items-center gap-1 rounded-full px-2 py-[3px] font-mono text-[10px] uppercase tracking-wider"
+        :class="
+          activeBusCount > 0
+            ? 'bg-bnc-accent/15 text-bnc-accent'
+            : 'bg-bnc-stone-100 text-bnc-stone-500 dark:bg-bnc-stone-800'
+        "
+      >
+        <span
+          class="h-1.5 w-1.5 rounded-full"
+          :style="{
+            background: activeBusCount > 0 ? 'var(--color-bnc-accent)' : 'var(--color-stale)',
+          }"
+          aria-hidden
+        />
+        {{ activeBusCount }} {{ t('route.busActive') }}
+      </span>
+    </div>
+
+    <!-- direction tabs -->
+    <div
+      v-if="directionAvailable.a || directionAvailable.b"
+      class="flex border-b border-bnc-stone-200 dark:border-bnc-stone-800"
+    >
+      <button
+        v-if="directionAvailable.a"
+        type="button"
+        class="flex-1 truncate px-2 pb-1.5 pt-1 font-mono text-[10px] font-bold uppercase tracking-wider transition-colors"
+        :class="
+          direction === 'a'
+            ? 'border-b-2 border-bnc-primary text-bnc-primary'
+            : 'text-bnc-stone-500 hover:text-bnc-stone-700 dark:hover:text-bnc-stone-300'
+        "
+        @click="focus.setDirection('a')"
+      >
+        {{ corridor.toward }}
+      </button>
+      <button
+        v-if="directionAvailable.b"
+        type="button"
+        class="flex-1 truncate px-2 pb-1.5 pt-1 font-mono text-[10px] font-bold uppercase tracking-wider transition-colors"
+        :class="
+          direction === 'b'
+            ? 'border-b-2 border-bnc-primary text-bnc-primary'
+            : 'text-bnc-stone-500 hover:text-bnc-stone-700 dark:hover:text-bnc-stone-300'
+        "
+        @click="focus.setDirection('b')"
+      >
+        {{ corridor.origin }}
+      </button>
+    </div>
+
+    <p
+      v-if="!directionAvailable.a || !directionAvailable.b"
+      class="rounded-md bg-bnc-stone-100 px-2 py-1.5 text-[10px] text-bnc-stone-600 dark:bg-bnc-stone-800 dark:text-bnc-stone-300"
+    >
+      {{ t('route.oneWayOnly') }}
+    </p>
+
+    <!-- timeline -->
+    <ol class="flex flex-col">
+      <HalteTimelineNode
+        v-for="(r, idx) in rows"
+        :key="r.halte.sh_id"
+        :haltename="r.halte.sh_name"
+        :accent-color="accentColor"
+        :is-first="idx === 0"
+        :is-last="idx === rows.length - 1"
+      >
+        <IncomingBusCard
+          v-for="ib in r.incoming"
+          :key="ib.bus.imei || ib.bus.id"
+          :kor="ib.bus.kor"
+          :corridor-color="accentColor"
+          :plate="ib.bus.plate_number ?? null"
+          :armada="ib.bus.name ?? null"
+          :eta-min="ib.etaMin"
+          :dist-m="ib.distM"
+          :arrival-at="ib.arrivalAt"
+          :status="ib.status"
+          :toward="r.halte.sh_name"
+          :stale="ib.stale"
+        />
+      </HalteTimelineNode>
+
+      <li
+        v-if="!rows.length"
+        class="rounded-md bg-bnc-stone-100 px-3 py-3 font-mono text-[11px] uppercase tracking-wider text-bnc-stone-500 dark:bg-bnc-stone-800"
+      >
+        {{ t('route.noHalte') }}
+      </li>
+    </ol>
+  </article>
+</template>

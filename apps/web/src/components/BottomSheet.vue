@@ -8,9 +8,12 @@
  * content swaps — e.g. opening a bus detail card auto-expands to
  * mid so the user sees the new content without dragging.
  */
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
-type Snap = 'peek' | 'mid' | 'full'
+// Two snaps only — peek (handle + first row) and mid (50 dvh, the
+// user-requested cap). No 'full' snap, so the sheet never covers
+// more than half the viewport and the map above always stays usable.
+type Snap = 'peek' | 'mid'
 
 const props = defineProps<{ forceSnap?: Snap | null }>()
 
@@ -33,7 +36,6 @@ let frame: number | null = null
 const heights: Record<Snap, string> = {
   peek: '88px',
   mid: '50dvh',
-  full: '88dvh',
 }
 
 const sheetStyle = computed(() => ({
@@ -73,25 +75,37 @@ function onPointerMove(e: PointerEvent) {
 function onPointerUp() {
   if (!dragging.value) return
   dragging.value = false
-  // snap to nearest of peek/mid/full by translate distance
+  // snap to whichever of peek/mid is nearest
   const px = currentTranslate
   const peekPx = pxOf('peek')
   const midPx = pxOf('mid')
-  const distances: Array<[Snap, number]> = [
-    ['peek', Math.abs(px - peekPx)],
-    ['mid', Math.abs(px - midPx)],
-    ['full', Math.abs(px)],
-  ]
-  distances.sort((a, b) => a[1] - b[1])
-  snap.value = distances[0][0]
+  snap.value = Math.abs(px - peekPx) < Math.abs(px - midPx) ? 'peek' : 'mid'
 }
 
 function cycle() {
-  snap.value = snap.value === 'peek' ? 'mid' : snap.value === 'mid' ? 'full' : 'peek'
+  snap.value = snap.value === 'peek' ? 'mid' : 'peek'
 }
+
+// Expose the sheet's snap-state height as a CSS variable on the
+// document root so CityView's map can reserve exactly the right
+// amount of bottom inset (and re-flow when the user drags). The map
+// frame will end at the sheet's top edge at every snap.
+function syncCssVar(value: Snap) {
+  if (typeof document === 'undefined') return
+  document.documentElement.style.setProperty('--sheet-h', heights[value])
+}
+
+onMounted(() => {
+  syncCssVar(snap.value)
+})
+
+watch(snap, syncCssVar)
 
 onBeforeUnmount(() => {
   if (frame) cancelAnimationFrame(frame)
+  if (typeof document !== 'undefined') {
+    document.documentElement.style.removeProperty('--sheet-h')
+  }
 })
 </script>
 
@@ -106,7 +120,7 @@ onBeforeUnmount(() => {
     <button
       type="button"
       class="grid h-6 shrink-0 place-items-center"
-      :aria-expanded="snap === 'full'"
+      :aria-expanded="snap === 'mid'"
       @click="cycle"
       @pointerdown="onPointerDown"
       @pointermove="onPointerMove"

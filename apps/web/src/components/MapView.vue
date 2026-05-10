@@ -295,6 +295,8 @@ function pruneBusMarkers(active: Map<string, BrtBus>) {
 
 
 let staleTicker: number | undefined
+let resizeObserver: ResizeObserver | undefined
+let resizeFrame: number | null = null
 
 onMounted(() => {
   initMap()
@@ -309,6 +311,21 @@ onMounted(() => {
   staleTicker = window.setInterval(() => {
     for (const bus of brt.buses.values()) upsertBusMarker(bus)
   }, 15_000)
+
+  // Container size changes (e.g. the mobile bottom sheet drags
+  // between snap states) need to be reflected back to Leaflet so
+  // its internal pane sizes match. invalidateSize on a rAF coalesces
+  // bursts during the drag.
+  if (containerEl.value && typeof ResizeObserver !== 'undefined') {
+    resizeObserver = new ResizeObserver(() => {
+      if (resizeFrame != null) cancelAnimationFrame(resizeFrame)
+      resizeFrame = requestAnimationFrame(() => {
+        resizeFrame = null
+        map?.invalidateSize({ animate: false })
+      })
+    })
+    resizeObserver.observe(containerEl.value)
+  }
 })
 
 watch(
@@ -475,6 +492,9 @@ watch(
 onBeforeUnmount(() => {
   if (staleTicker) window.clearInterval(staleTicker)
   staleTicker = undefined
+  if (resizeFrame != null) cancelAnimationFrame(resizeFrame)
+  resizeObserver?.disconnect()
+  resizeObserver = undefined
   clearAll()
   tileLayer?.remove()
   map?.remove()
