@@ -79,9 +79,12 @@ export interface BrtBus {
    *  dt_tracker is unreliable (UTC without timezone marker). */
   _receivedAt?: number
   /** Internal: wall-clock timestamp (ms) of the last meaningful position
-   *  change (>5 m). Used together with reported speed to flag a bus as
-   *  stalled (parked / engine off) rather than just slow-moving. */
+   *  change (>15 m, ignoring GPS jitter). Used together with reported
+   *  speed to flag a bus as stalled rather than just slow-moving. */
   _lastMovedAt?: number
+  /** Internal: wall-clock timestamp (ms) of when speed first dropped to
+   *  exactly 0 km/h. Reset to null whenever speed > 0 again. */
+  _zeroSpeedSince?: number | null
 }
 
 export type CitySlug = 'palu' | 'donggala'

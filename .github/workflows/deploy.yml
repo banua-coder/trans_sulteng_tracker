@@ -50,6 +50,20 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # The full prod env ships as ONE base64-encoded secret (ENV_B64).
+      # We decode it, then promote the VITE_* keys into the runner env so
+      # docker build-args can reference them. Backend-only keys (BRT_KEY
+      # etc.) are present in the file but never read on this job.
+      - name: Decode prod env
+        env:
+          ENV_B64: ${{ secrets.ENV_B64 }}
+        run: |
+          if [ -z "$ENV_B64" ]; then
+            echo "::error::ENV_B64 secret is missing"; exit 1
+          fi
+          printf '%s' "$ENV_B64" | base64 --decode > .env.prod
+          grep -E '^VITE_[A-Z0-9_]+=' .env.prod >> "$GITHUB_ENV"
+
       - id: meta
         uses: docker/metadata-action@v5
         with:
@@ -71,7 +85,7 @@ jobs:
           cache-to: type=gha,mode=max,scope=cektrans-web
           build-args: |
             VITE_BUILD_SHA=${{ github.sha }}
-            VITE_GA_ID=${{ vars.VITE_GA_ID }}
+            VITE_GA_ID=${{ env.VITE_GA_ID }}
 
   build-proxy:
     needs: resolve-version

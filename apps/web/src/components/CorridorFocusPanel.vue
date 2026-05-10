@@ -86,7 +86,7 @@ function pickBus(b: BrtBus) {
   <transition name="slide-up">
     <aside
       v-if="focus.isFocused"
-      class="pointer-events-auto fixed inset-x-3 bottom-3 z-[1000] mx-auto flex max-h-[78dvh] max-w-md flex-col overflow-hidden rounded-[var(--radius-md)] border border-bnc-stone-200 bg-white shadow-[var(--shadow-elevated)] sm:right-4 sm:left-auto sm:bottom-4 sm:max-w-md dark:border-bnc-stone-800 dark:bg-bnc-stone-900"
+      class="pointer-events-auto flex max-h-[60dvh] w-full max-w-md flex-col overflow-hidden rounded-[var(--radius-md)] border border-bnc-stone-200 bg-white shadow-[var(--shadow-elevated)] dark:border-bnc-stone-800 dark:bg-bnc-stone-900"
       role="dialog"
       :aria-label="'Koridor ' + (corridor?.kor ?? '')"
     >

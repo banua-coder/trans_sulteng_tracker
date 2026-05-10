@@ -67,9 +67,10 @@ export const useBrtStore = defineStore('brt', () => {
     const key = b.imei || b.id
     const prev = buses.get(key)
     const now = Date.now()
-    // _lastMovedAt only ticks forward when the bus actually moved >5m;
-    // otherwise we keep the previous timestamp so isStale can detect a
-    // bus that's been parked in the same spot for a while.
+
+    // _lastMovedAt only ticks forward when the bus moved beyond GPS
+    // jitter (~15 m), so a parked bus's timer keeps counting even
+    // though noise nudges its lat/lng by a few metres each ping.
     let lastMovedAt = prev?._lastMovedAt ?? now
     if (
       !prev ||
@@ -78,15 +79,28 @@ export const useBrtStore = defineStore('brt', () => {
       haversineMeters(
         { lat: prev.lat, lng: prev.lng },
         { lat: b.lat, lng: b.lng },
-      ) > 5
+      ) > 15
     ) {
       lastMovedAt = now
     }
+
+    // Track how long the bus has been reporting exactly 0 km/h — once
+    // that streak crosses ~60 s the bus is treated as stalled even if
+    // the data feed is otherwise healthy.
+    const speed = Number.isFinite(b.speed) ? Number(b.speed) : 0
+    let zeroSpeedSince: number | null = prev?._zeroSpeedSince ?? null
+    if (speed > 0) {
+      zeroSpeedSince = null
+    } else if (zeroSpeedSince === null) {
+      zeroSpeedSince = now
+    }
+
     buses.set(key, {
       ...prev,
       ...b,
       _receivedAt: now,
       _lastMovedAt: lastMovedAt,
+      _zeroSpeedSince: zeroSpeedSince,
     })
   }
 

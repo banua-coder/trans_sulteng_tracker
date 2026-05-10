@@ -56,33 +56,40 @@ export function etaMinutes(distMeters?: string | null, speedKmh?: number | null)
 
 /** True when a bus has stopped delivering useful state.
  *
- *  Two independent signals — either flips the bus to stale:
- *   1. **Data drought** — we haven't received an upsert from the server
- *      for `feedTimeoutSecs` (default 5 min). The feed is dead.
- *   2. **Stalled in place** — reported speed is < `stallSpeedKmh` AND
- *      the position hasn't moved meaningfully for `stallSecs`. The
- *      bus is parked / engine off.
+ *  Three independent signals — any one flips the bus to stale:
+ *   1. **Data drought** — no upsert from the server for
+ *      `feedTimeoutSecs` (default 5 min). The feed is dead.
+ *   2. **Sustained zero speed** — speed has been reported as exactly
+ *      0 km/h for `zeroSpeedSecs` (default 60 s). The driver has
+ *      stopped pinging at the wheel.
+ *   3. **Stalled in place** — speed < `stallSpeedKmh` AND the
+ *      position hasn't moved beyond GPS jitter for `stallSecs`
+ *      (default 90 s). Parked / engine off.
  *
- *  A fast-moving bus (speed ≥ 20 km/h) is *never* stale even if
- *  _lastMovedAt looks old, since the next fix will refresh it
- *  immediately. */
+ *  A bus moving > 0 km/h with fresh fixes never trips the test. */
 export function isStale(
   b: BrtBus,
   feedTimeoutSecs = 5 * 60,
   stallSpeedKmh = 20,
-  stallSecs = 2 * 60,
+  stallSecs = 90,
+  zeroSpeedSecs = 60,
 ): boolean {
   const now = Date.now()
+
+  // 1. Data drought
   const recv = b._receivedAt
   if (recv && now - recv > feedTimeoutSecs * 1000) return true
-
-  // No _receivedAt? Fall back to parsing dt_tracker for the drought test.
   if (!recv) {
     const a = ageSeconds(b.dt_tracker)
     if (a != null && a > feedTimeoutSecs) return true
   }
 
-  // Stalled-in-place test.
+  // 2. Sustained 0 km/h
+  if (b._zeroSpeedSince && now - b._zeroSpeedSince > zeroSpeedSecs * 1000) {
+    return true
+  }
+
+  // 3. Stalled in place at low speed
   const speed = Number.isFinite(b.speed) ? Number(b.speed) : 0
   const moved = b._lastMovedAt
   if (speed < stallSpeedKmh && moved && now - moved > stallSecs * 1000) {

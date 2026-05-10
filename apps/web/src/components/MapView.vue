@@ -294,12 +294,21 @@ function pruneBusMarkers(active: Map<string, BrtBus>) {
 }
 
 
+let staleTicker: number | undefined
+
 onMounted(() => {
   initMap()
   drawCorridors(corridors.value)
   drawHalte(halte.value)
   for (const b of buses.value.values()) upsertBusMarker(b)
   renderMe()
+
+  // isStale() flips on time-based thresholds even when no new payload
+  // arrives, so re-render every bus icon on a 15s tick to keep the
+  // stale visuals correct.
+  staleTicker = window.setInterval(() => {
+    for (const bus of brt.buses.values()) upsertBusMarker(bus)
+  }, 15_000)
 })
 
 watch(
@@ -464,6 +473,8 @@ watch(
 )
 
 onBeforeUnmount(() => {
+  if (staleTicker) window.clearInterval(staleTicker)
+  staleTicker = undefined
   clearAll()
   tileLayer?.remove()
   map?.remove()
