@@ -34,7 +34,18 @@ const busLayer = L.layerGroup()
 const meLayer = L.layerGroup()
 let meMarker: L.Marker | null = null
 let meAccuracyCircle: L.Circle | null = null
-const busMarkers = new Map<string, L.Marker>()
+
+/** Per-bus marker cache. We keep an `iconKey` so we can skip the
+ *  expensive `setIcon` (which detaches + recreates the divIcon DOM)
+ *  when only the position changed. `lastReceivedAt` lets the watcher
+ *  diff which buses actually had a fresh fix — without this, every
+ *  bus update re-renders every marker. */
+interface BusMarkerCache {
+  marker: L.Marker
+  iconKey: string
+}
+const busMarkers = new Map<string, BusMarkerCache>()
+const lastReceivedAt = new Map<string, number>()
 
 /** Polylines and halte tracked per (kor, leg) so the A↔B toggle can fit
  *  the map to one leg even though styling stays per-corridor. */
@@ -228,24 +239,39 @@ function upsertBusMarker(b: BrtBus) {
   const color = busColorFor(b)
   const stale = isStale(b)
   const angle = Number.isFinite(b.angle) ? b.angle : 0
-  const icon = busIcon({ color, code: b.kor || '·', angle, stale })
+  // Bucket the heading to 10° so GPS jitter doesn't churn the icon.
+  const angleBucket = Math.round(angle / 10) * 10
+  const iconKey = `${color}|${b.kor || '·'}|${stale ? 1 : 0}|${angleBucket}`
 
-  let m = busMarkers.get(key)
-  if (!m) {
-    m = L.marker([b.lat, b.lng], { icon, keyboard: false })
-    m.on('click', () => focusBus(key, b))
-    m.addTo(busLayer)
-    busMarkers.set(key, m)
+  let cache = busMarkers.get(key)
+  if (!cache) {
+    const icon = busIcon({ color, code: b.kor || '·', angle, stale })
+    const marker = L.marker([b.lat, b.lng], { icon, keyboard: false })
+    marker.on('click', () => focusBus(key, b))
+    marker.addTo(busLayer)
+    cache = { marker, iconKey }
+    busMarkers.set(key, cache)
   } else {
-    m.setLatLng([b.lat, b.lng])
-    m.setIcon(icon)
+    cache.marker.setLatLng([b.lat, b.lng])
+    // Only rebuild the DivIcon when the visual state actually changed
+    // (corridor color, kor label, stale flag, or heading bucket).
+    // Position-only updates skip setIcon entirely.
+    if (cache.iconKey !== iconKey) {
+      cache.marker.setIcon(
+        busIcon({ color, code: b.kor || '·', angle, stale }),
+      )
+      cache.iconKey = iconKey
+    }
   }
 
+  const m = cache.marker
   // Visibility per current focus state.
   const el = m.getElement()
   if (el) {
-    el.style.opacity = busOpacityFor(b)
-    el.style.pointerEvents = busOpacityFor(b) === '0' ? 'none' : ''
+    const op = busOpacityFor(b)
+    if (el.style.opacity !== op) el.style.opacity = op
+    const pe = op === '0' ? 'none' : ''
+    if (el.style.pointerEvents !== pe) el.style.pointerEvents = pe
   }
 
   // Bring focused / selected buses to the top of the marker pane so they
@@ -286,9 +312,10 @@ function recolorAllBuses() {
 function pruneBusMarkers(active: Map<string, BrtBus>) {
   for (const key of busMarkers.keys()) {
     if (!active.has(key)) {
-      const m = busMarkers.get(key)
-      if (m) busLayer.removeLayer(m)
+      const cache = busMarkers.get(key)
+      if (cache) busLayer.removeLayer(cache.marker)
       busMarkers.delete(key)
+      lastReceivedAt.delete(key)
     }
   }
 }
@@ -431,26 +458,43 @@ watch(
 )
 
 // Watching the selection store from the same component handles every
-// way a bus can become selected (marker click, halte card "Lihat",
-// focus panel, deep link). Entering bus mode snapshots the viewport;
-// leaving bus mode restores it.
+// way a bus or halte can become selected (marker click, focus panel
+// "Lihat", deep link). Entering a detail mode snapshots the viewport;
+// leaving it restores the snapshot.
 watch(
   () => [selection.kind, selection.id] as const,
   ([kind, id], oldValue) => {
     const prevKind = oldValue?.[0]
+    const isModal = kind === 'bus' || kind === 'halte'
+    const wasModal = prevKind === 'bus' || prevKind === 'halte'
+
+    if (isModal) {
+      if (!wasModal && !priorViewport && map) {
+        priorViewport = { center: map.getCenter(), zoom: map.getZoom() }
+      }
+    }
+
     if (kind === 'bus' && id) {
       const b = brt.buses.get(id)
       if (b && b.lat != null && b.lng != null && map) {
-        if (prevKind !== 'bus' && !priorViewport) {
-          priorViewport = { center: map.getCenter(), zoom: map.getZoom() }
-        }
         following = true
         const targetZoom = Math.max(map.getZoom(), 16)
         map.flyTo([b.lat, b.lng], targetZoom, { duration: 0.6 })
       }
+    } else if (kind === 'halte' && id) {
+      following = false
+      const h = brt.halte.find((x) => x.sh_id === id)
+      if (h && map) {
+        const hLat = typeof h.sh_lat === 'string' ? parseFloat(h.sh_lat) : h.sh_lat
+        const hLng = typeof h.sh_lng === 'string' ? parseFloat(h.sh_lng) : h.sh_lng
+        if (Number.isFinite(hLat) && Number.isFinite(hLng)) {
+          const targetZoom = Math.max(map.getZoom(), 16)
+          map.flyTo([hLat as number, hLng as number], targetZoom, { duration: 0.6 })
+        }
+      }
     } else {
       following = false
-      if (prevKind === 'bus' && priorViewport && map) {
+      if (wasModal && priorViewport && map) {
         map.flyTo(priorViewport.center, priorViewport.zoom, { duration: 0.6 })
         priorViewport = null
       }
@@ -483,7 +527,16 @@ watch(
   buses,
   (active) => {
     if (!map) return
-    for (const bus of active.values()) upsertBusMarker(bus)
+    // Only re-render markers whose `_receivedAt` advanced since the
+    // last time we drew them. Without this every single bus upsert
+    // re-renders every marker (~20-bus city = 400 marker updates per
+    // upstream tick), which is what made the map laggy.
+    for (const [key, bus] of active) {
+      const recv = bus._receivedAt ?? 0
+      if (lastReceivedAt.get(key) === recv) continue
+      lastReceivedAt.set(key, recv)
+      upsertBusMarker(bus)
+    }
     pruneBusMarkers(active)
   },
   { deep: true },

@@ -67,7 +67,17 @@ export function useUrlSync() {
       current.bus === (next.bus ?? undefined) &&
       current.halte === (next.halte ?? undefined)
     if (same) return
-    router.replace({ name: route.name ?? undefined, params: route.params, query: next })
+
+    // Treat any modal state (focused corridor, selected bus or halte)
+    // as a discrete history entry, so the browser back button closes
+    // the modal instead of leaving the city. Transitions within the
+    // same modal class (different bus, different halte) replace —
+    // otherwise rapid taps would pollute history. Closing a modal
+    // also replaces so we don't bounce forward into a stale entry.
+    const wasInModal = !!(current.kor || current.bus || current.halte)
+    const willBeInModal = !!(next.kor || next.bus || next.halte)
+    const method = !wasInModal && willBeInModal ? 'push' : 'replace'
+    router[method]({ name: route.name ?? undefined, params: route.params, query: next })
   }
 
   onMounted(() => {
