@@ -31,6 +31,11 @@ const CITY_CENTER: Record<string, L.LatLngTuple> = {
   '11': [-0.767792, 119.76567],
 }
 
+/** While true, every fix on the selected bus auto-pans the map to keep
+ *  the marker centered. The user breaks this lock by manually dragging,
+ *  zooming, or by clearing the selection. */
+let following = false
+
 function initMap() {
   if (!containerEl.value || map) return
 
@@ -46,6 +51,12 @@ function initMap() {
   corridorLayer.addTo(map)
   halteLayer.addTo(map)
   busLayer.addTo(map)
+
+  // Any user gesture breaks the follow lock — they're navigating,
+  // we shouldn't fight them.
+  map.on('dragstart zoomstart', () => {
+    following = false
+  })
 }
 
 function clearAll() {
@@ -113,13 +124,31 @@ function upsertBusMarker(b: BrtBus) {
   let m = busMarkers.get(key)
   if (!m) {
     m = L.marker([b.lat, b.lng], { icon, keyboard: false })
-    m.on('click', () => selection.selectBus(key))
+    m.on('click', () => focusBus(key, b))
     m.addTo(busLayer)
     busMarkers.set(key, m)
   } else {
     m.setLatLng([b.lat, b.lng])
     m.setIcon(icon)
   }
+
+  // If this is the bus the user is following, glide the map with it.
+  if (
+    following &&
+    selection.kind === 'bus' &&
+    selection.id === key &&
+    map
+  ) {
+    map.panTo([b.lat, b.lng], { animate: true, duration: 0.6 })
+  }
+}
+
+function focusBus(key: string, b: BrtBus) {
+  selection.selectBus(key)
+  if (!map) return
+  following = true
+  const targetZoom = Math.max(map.getZoom(), 16)
+  map.flyTo([b.lat, b.lng], targetZoom, { duration: 0.6 })
 }
 
 /** When corridors arrive after some buses, rebuild every bus icon so the
@@ -150,7 +179,27 @@ watch(
   () => city.pref,
   (pref) => {
     clearAll()
+    following = false
     if (map && CITY_CENTER[pref]) map.setView(CITY_CENTER[pref], 13)
+  },
+)
+
+// Watching the selection store from the same component is the easy way
+// to handle "select a bus from somewhere other than a marker click"
+// (e.g. via the halte detail card's bus list).
+watch(
+  () => [selection.kind, selection.id] as const,
+  ([kind, id]) => {
+    if (kind === 'bus' && id) {
+      const b = brt.buses.get(id)
+      if (b && b.lat != null && b.lng != null && map) {
+        following = true
+        const targetZoom = Math.max(map.getZoom(), 16)
+        map.flyTo([b.lat, b.lng], targetZoom, { duration: 0.6 })
+      }
+    } else {
+      following = false
+    }
   },
 )
 
