@@ -69,20 +69,20 @@ const passenger = computed(() =>
       role="dialog"
       :aria-label="t('bus.plate')"
     >
-      <header class="flex items-start gap-3">
+      <header class="flex items-start gap-2 sm:gap-3">
         <span
-          class="grid h-10 w-10 shrink-0 place-items-center rounded-full font-mono text-xs font-bold text-white"
+          class="grid h-8 w-8 shrink-0 place-items-center rounded-full font-mono text-[10px] font-bold text-white sm:h-10 sm:w-10 sm:text-xs"
           :style="{ background: corridorColor }"
           aria-hidden
         >
           {{ selectedBus.kor || '·' }}
         </span>
         <div class="min-w-0 flex-1">
-          <div class="flex items-center gap-2">
-            <PlateBadge :plate="selectedBus.plate_number" size="lg" />
+          <div class="flex flex-wrap items-center gap-1.5">
+            <PlateBadge :plate="selectedBus.plate_number" size="md" />
             <span
               v-if="selectedBus.name"
-              class="inline-flex items-center rounded-md bg-bnc-stone-100 px-1.5 py-[2px] font-mono text-[11px] font-bold tracking-wider text-bnc-ink dark:bg-bnc-stone-800 dark:text-bnc-paper"
+              class="inline-flex shrink-0 items-center whitespace-nowrap rounded bg-bnc-stone-100 px-1.5 py-[3px] font-mono text-[11px] font-bold leading-none tracking-wider text-bnc-ink dark:bg-bnc-stone-800 dark:text-bnc-paper"
             >
               {{ selectedBus.name }}
             </span>
