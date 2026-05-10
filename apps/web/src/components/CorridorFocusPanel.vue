@@ -49,7 +49,7 @@ const rows = computed<HalteRow[]>(() => {
       halte: h,
       next: best?.bus ?? null,
       etaMin: best?.eta ?? null,
-      fresh: best ? !isStale(best.bus.dt_tracker) : false,
+      fresh: best ? !isStale(best.bus) : false,
     })
   }
   return list

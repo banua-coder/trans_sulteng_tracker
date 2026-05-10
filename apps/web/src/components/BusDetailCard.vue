@@ -27,7 +27,7 @@ const corridorColor = computed(() =>
 )
 
 const stale = computed(() =>
-  selectedBus.value ? isStale(selectedBus.value.dt_tracker) : false,
+  selectedBus.value ? isStale(selectedBus.value) : false,
 )
 
 const updatedLabel = computed(() => {

@@ -63,7 +63,11 @@ export const useBrtStore = defineStore('brt', () => {
 
   function upsertBus(b: BrtBus) {
     if (b.lat == null || b.lng == null) return
-    buses.set(b.imei || b.id, { ...buses.get(b.imei || b.id), ...b })
+    const key = b.imei || b.id
+    // Stamp _receivedAt so the UI can decide freshness from wall-clock
+    // truth instead of relying on the upstream dt_tracker (which the
+    // server emits in UTC without a timezone marker).
+    buses.set(key, { ...buses.get(key), ...b, _receivedAt: Date.now() })
   }
 
   function clearBuses() {
