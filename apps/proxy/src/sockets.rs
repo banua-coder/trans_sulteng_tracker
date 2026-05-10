@@ -54,8 +54,8 @@ pub fn build_downstream(state: AppState) -> (socketioxide::layer::SocketIoLayer,
         let state = state_for_ns.clone();
         async move {
             let count = state.add_viewer().await;
-            s.emit("viewers", count).ok();
-            s.broadcast().emit("viewers", count).ok();
+            s.emit("viewers", &count).ok();
+            s.broadcast().emit("viewers", &count).ok();
 
             tracing::debug!(sid = %s.id, viewers = count, "client connected");
 
@@ -168,12 +168,14 @@ pub async fn spawn_upstream(
                 let value = match payload {
                     Payload::Text(values) => values.into_iter().next(),
                     Payload::Binary(_) => None,
-                    Payload::String(s) => serde_json::from_str(&s).ok(),
+                    // Other (deprecated) variants carry no JSON payload we
+                    // care about — drop silently.
+                    _ => None,
                 };
                 let Some(value) = value else { return };
 
                 let room = format!("room:{pref}");
-                if let Err(e) = io.to(room).emit("bus", value) {
+                if let Err(e) = io.to(room).emit("bus", &value) {
                     tracing::debug!(?e, %pref, "emit to room failed");
                 }
             })
