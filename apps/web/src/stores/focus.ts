@@ -35,17 +35,44 @@ export const useFocusStore = defineStore('focus', () => {
     )
   })
 
+  /** Halte counts per direction for the focused corridor. Lets the UI
+   *  hide / disable the reverse-direction tab when the operator's
+   *  upstream feed doesn't include halte for that leg (e.g. K2A in
+   *  Trans Palu currently has zero reverse halte). */
+  const halteCountByDirection = computed<{ a: number; b: number }>(() => {
+    const c = corridor.value
+    if (!c) return { a: 0, b: 0 }
+    let a = 0
+    let b = 0
+    for (const h of brt.halte) {
+      if (h.kor !== c.kor) continue
+      if (h.origin === c.origin && h.toward === c.toward) a++
+      else if (h.origin === c.toward && h.toward === c.origin) b++
+    }
+    return { a, b }
+  })
+
+  const directionAvailable = computed<{ a: boolean; b: boolean }>(() => {
+    const { a, b } = halteCountByDirection.value
+    return { a: a > 0, b: b > 0 }
+  })
+
   function focus(nextKor: string) {
     kor.value = nextKor
     direction.value = 'a'
   }
 
   function setDirection(d: Direction) {
+    // Refuse to switch to a direction with zero halte — keeps the
+    // current view intact instead of going blank.
+    if (!directionAvailable.value[d]) return
     direction.value = d
   }
 
   function toggleDirection() {
-    direction.value = direction.value === 'a' ? 'b' : 'a'
+    const next: Direction = direction.value === 'a' ? 'b' : 'a'
+    if (!directionAvailable.value[next]) return
+    direction.value = next
   }
 
   function clear() {
@@ -59,6 +86,8 @@ export const useFocusStore = defineStore('focus', () => {
     corridor,
     halte,
     isFocused,
+    halteCountByDirection,
+    directionAvailable,
     focus,
     setDirection,
     toggleDirection,
