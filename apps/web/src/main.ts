@@ -19,6 +19,8 @@ const i18n = createI18n({
   messages,
 })
 
+// Pre-paint dark mode before Vue mounts so we don't flash light → dark.
+// `useTheme` (VueUse useDark) handles ongoing toggling once the app is up.
 if (localStorage.getItem('cektrans:theme') === 'dark') {
   document.documentElement.classList.add('dark')
 }

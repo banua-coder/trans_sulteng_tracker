@@ -10,7 +10,8 @@ import { useCityStore } from '@/stores/city'
 import { useFocusStore } from '@/stores/focus'
 import { useSelectionStore } from '@/stores/selection'
 import { busIcon, halteMarker } from '@/lib/leaflet/markers'
-import { voyagerTiles } from '@/lib/leaflet/tiles'
+import { darkMatterTiles, voyagerTiles } from '@/lib/leaflet/tiles'
+import { useTheme } from '@/lib/theme'
 import { isStale } from '@/lib/format'
 import type { BrtBus, BrtCorridor, BrtHalte } from '@/types/brt'
 
@@ -18,6 +19,7 @@ const brt = useBrtStore()
 const city = useCityStore()
 const selection = useSelectionStore()
 const focus = useFocusStore()
+const { isDark } = useTheme()
 const { corridors, halte, buses } = storeToRefs(brt)
 
 const containerEl = shallowRef<HTMLElement | null>(null)
@@ -58,7 +60,7 @@ function initMap() {
   }).setView(CITY_CENTER[city.pref] ?? [-0.81, 119.85], 13)
 
   L.control.zoom({ position: 'bottomright' }).addTo(map)
-  tileLayer = voyagerTiles().addTo(map)
+  tileLayer = (isDark.value ? darkMatterTiles() : voyagerTiles()).addTo(map)
 
   corridorLayer.addTo(map)
   halteLayer.addTo(map)
@@ -293,6 +295,13 @@ watch(
     if (map && CITY_CENTER[pref]) map.setView(CITY_CENTER[pref], 13)
   },
 )
+
+// Swap the basemap when the theme toggles.
+watch(isDark, (dark) => {
+  if (!map) return
+  if (tileLayer) tileLayer.remove()
+  tileLayer = (dark ? darkMatterTiles() : voyagerTiles()).addTo(map)
+})
 
 // When focus changes, re-apply dimming + fit to the focused corridor's bounds.
 watch(
