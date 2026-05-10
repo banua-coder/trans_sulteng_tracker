@@ -30,7 +30,10 @@ use socketioxide::{
     SocketIo,
 };
 
-use crate::{config::Config, state::{AppState, UpstreamStatus}};
+use crate::{
+    config::Config,
+    state::{AppState, UpstreamStatus},
+};
 
 /// A `pref` value the proxy will forward. Restricted to known cities so
 /// the upstream firehose (which carries every BRT in Indonesia) doesn't
@@ -61,19 +64,22 @@ pub fn build_downstream(state: AppState) -> (socketioxide::layer::SocketIoLayer,
 
             // subscribe { pref } → join room:{pref}
             let state_for_sub = state.clone();
-            s.on("subscribe", move |s: SocketRef, Data::<SubscribeMsg>(msg)| {
-                let _state = state_for_sub.clone();
-                async move {
-                    if !ALLOWED_PREFS.contains(&msg.pref.as_str()) {
-                        tracing::debug!(pref = %msg.pref, "rejecting unknown pref");
-                        return;
+            s.on(
+                "subscribe",
+                move |s: SocketRef, Data::<SubscribeMsg>(msg)| {
+                    let _state = state_for_sub.clone();
+                    async move {
+                        if !ALLOWED_PREFS.contains(&msg.pref.as_str()) {
+                            tracing::debug!(pref = %msg.pref, "rejecting unknown pref");
+                            return;
+                        }
+                        let room = format!("room:{}", msg.pref);
+                        let _ = s.leave_all();
+                        s.join(room.clone()).ok();
+                        tracing::debug!(sid = %s.id, %room, "joined room");
                     }
-                    let room = format!("room:{}", msg.pref);
-                    let _ = s.leave_all();
-                    s.join(room.clone()).ok();
-                    tracing::debug!(sid = %s.id, %room, "joined room");
-                }
-            });
+                },
+            );
 
             s.on("unsubscribe", move |s: SocketRef| async move {
                 let _ = s.leave_all();

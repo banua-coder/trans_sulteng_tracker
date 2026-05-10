@@ -159,4 +159,3 @@ fn validate_pref(pref: &str) -> Result<(), AppError> {
     }
     Ok(())
 }
-
