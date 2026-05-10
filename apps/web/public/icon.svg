@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="cektrans">
+  <rect width="512" height="512" rx="64" fill="#0A0E14"/>
+  <g transform="translate(256 256)">
+    <circle cx="0" cy="0" r="120" fill="none" stroke="#1D9CD4" stroke-width="22"/>
+    <circle cx="0" cy="0" r="34" fill="#1D9CD4"/>
+    <g stroke="#F7F7F4" stroke-width="22" stroke-linecap="round">
+      <line x1="0" y1="-176" x2="0" y2="-150"/>
+      <line x1="0" y1="150" x2="0" y2="176"/>
+      <line x1="-176" y1="0" x2="-150" y2="0"/>
+      <line x1="150" y1="0" x2="176" y2="0"/>
+    </g>
+  </g>
+</svg>
