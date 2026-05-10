@@ -67,8 +67,14 @@ onBeforeUnmount(() => {
       </div>
     </aside>
 
-    <section class="relative min-h-0">
-      <MapView class="absolute inset-0" />
+    <!-- On mobile the bottom sheet is a fixed-position overlay anchored
+         to the viewport bottom. We reserve the sheet's peek height
+         (88 px) at the bottom of this section so the map's natural
+         frame ends right where the sheet begins instead of continuing
+         underneath it. lg:pb-0 restores full height on desktop where
+         the sheet is hidden. -->
+    <section class="relative min-h-0 pb-[88px] lg:pb-0">
+      <MapView class="absolute inset-x-0 top-0 bottom-[88px] lg:bottom-0" />
       <BusDataBadge />
       <MapLegend />
       <div class="pointer-events-none absolute right-3 top-3 z-[800] flex flex-col gap-2">
