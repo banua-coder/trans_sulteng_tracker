@@ -28,10 +28,10 @@ impl Config {
     }
 
     pub fn validate(&self) -> anyhow::Result<()> {
-        if self.brt_key.as_bytes().len() != 32 {
+        if self.brt_key.len() != 32 {
             anyhow::bail!(
                 "BRT_KEY must be exactly 32 UTF-8 bytes (got {})",
-                self.brt_key.as_bytes().len()
+                self.brt_key.len()
             );
         }
         Ok(())

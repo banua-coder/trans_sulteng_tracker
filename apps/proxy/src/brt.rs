@@ -154,10 +154,7 @@ impl BrtClient {
                     Err(e) => return Err(e),
                 };
                 req = req
-                    .header(
-                        header::CONTENT_TYPE,
-                        "application/x-www-form-urlencoded",
-                    )
+                    .header(header::CONTENT_TYPE, "application/x-www-form-urlencoded")
                     .body(ciphertext);
             }
             Ok(req)
@@ -197,21 +194,13 @@ impl BrtClient {
     }
 
     pub async fn get_corridor(&self, pref: &str) -> AppResult<Value> {
-        self.call(
-            Method::POST,
-            "getCorridor",
-            Some(form(&[("pref", pref)])),
-        )
-        .await
+        self.call(Method::POST, "getCorridor", Some(form(&[("pref", pref)])))
+            .await
     }
 
     pub async fn get_routes(&self, pref: &str) -> AppResult<Value> {
-        self.call(
-            Method::POST,
-            "getRoutes",
-            Some(form(&[("pref", pref)])),
-        )
-        .await
+        self.call(Method::POST, "getRoutes", Some(form(&[("pref", pref)])))
+            .await
     }
 
     pub async fn get_route_corridor(
@@ -246,14 +235,8 @@ mod tests {
     #[test]
     fn form_encodes_pairs() {
         assert_eq!(form(&[("pref", "12")]), "pref=12");
-        assert_eq!(
-            form(&[("pref", "12"), ("kor", "K1")]),
-            "pref=12&kor=K1"
-        );
+        assert_eq!(form(&[("pref", "12"), ("kor", "K1")]), "pref=12&kor=K1");
         // values are percent-encoded.
-        assert_eq!(
-            form(&[("toward", "PASAR INPRES")]),
-            "toward=PASAR+INPRES"
-        );
+        assert_eq!(form(&[("toward", "PASAR INPRES")]), "toward=PASAR+INPRES");
     }
 }
