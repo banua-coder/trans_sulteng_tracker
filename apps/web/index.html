@@ -18,8 +18,118 @@
     <meta name="twitter:description" content="Lacak bus TransPalu & Trans Donggala langsung dari peta." />
     <link rel="canonical" href="https://cektrans.banuacoder.com/" />
     <title>cektrans · Lacak TransPalu & Trans Donggala langsung</title>
+    <style>
+      /* Splash — visible during the JS download + Vue boot, then faded
+         out by main.ts via the `app-ready` class on <html>. Inlined so
+         it paints on the very first frame, before any module loads. */
+      :root { color-scheme: light dark; }
+      .ck-splash {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 24px;
+        padding: 32px;
+        background: #F7F7F4;
+        color: #0A0E14;
+        font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+        transition: opacity 320ms ease, visibility 0s linear 320ms;
+      }
+      @media (prefers-color-scheme: dark) {
+        .ck-splash { background: #0A0E14; color: #F7F7F4; }
+      }
+      html.app-ready .ck-splash {
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+      }
+      .ck-splash__brand {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 14px;
+        translate: 0 -2rem; /* slightly above true center for visual balance */
+      }
+      .ck-splash__title {
+        font-size: 17px;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+      }
+      .ck-splash__sub {
+        font-size: 12px;
+        font-family: ui-monospace, 'JetBrains Mono', Menlo, monospace;
+        text-transform: uppercase;
+        letter-spacing: 0.18em;
+        color: #78716C;
+      }
+      .ck-splash__pulse {
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: #1D9CD4;
+        animation: ck-splash-pulse 1.4s ease-in-out infinite;
+        margin-top: 4px;
+      }
+      @keyframes ck-splash-pulse {
+        0%, 100% { transform: scale(0.85); opacity: 0.55; }
+        50%      { transform: scale(1);    opacity: 1; }
+      }
+      .ck-splash__from {
+        position: absolute;
+        bottom: max(28px, env(safe-area-inset-bottom));
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+        opacity: 0.7;
+      }
+      .ck-splash__from-label {
+        font-size: 11px;
+        font-family: ui-monospace, 'JetBrains Mono', Menlo, monospace;
+        text-transform: uppercase;
+        letter-spacing: 0.2em;
+        color: #78716C;
+      }
+      .ck-splash__bnc {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+        font-weight: 600;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .ck-splash__pulse { animation: none; }
+        .ck-splash { transition: opacity 0s; }
+      }
+    </style>
   </head>
   <body>
+    <div class="ck-splash" aria-hidden="true">
+      <div class="ck-splash__brand">
+        <svg width="96" height="96" viewBox="0 0 512 512" aria-hidden="true">
+          <rect width="512" height="512" rx="96" fill="#0A0E14"/>
+          <path d="M 110 392 C 200 380, 220 248, 312 224 S 392 148, 392 148"
+                stroke="#1D9CD4" stroke-width="36" fill="none"
+                stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="110" cy="392" r="34" fill="#F7F7F4" stroke="#1D9CD4" stroke-width="14"/>
+          <circle cx="392" cy="148" r="48" fill="#1D9CD4" stroke="#F7F7F4" stroke-width="10"/>
+        </svg>
+        <div class="ck-splash__title">cektrans</div>
+        <div class="ck-splash__sub">Lacak TransPalu &amp; Trans Donggala</div>
+        <div class="ck-splash__pulse" aria-hidden="true"></div>
+      </div>
+
+      <div class="ck-splash__from">
+        <span class="ck-splash__from-label">From</span>
+        <div class="ck-splash__bnc">
+          <img src="/banuacoder-icon.svg" alt="" width="32" height="32" />
+          <span>Banuacoder</span>
+        </div>
+      </div>
+    </div>
     <div id="app"></div>
     <script type="module" src="/src/main.ts"></script>
   </body>

@@ -1,9 +1,14 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useUiStore } from '@/stores/ui'
 
 const { t } = useI18n()
-const open = ref(true)
+const ui = useUiStore()
+const open = computed<boolean>({
+  get: () => ui.legendOpen,
+  set: (v) => ui.setLegendOpen(v),
+})
 </script>
 
 <template>
