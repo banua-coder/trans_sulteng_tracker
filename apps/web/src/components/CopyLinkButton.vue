@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { trackEvent } from '@/lib/analytics'
 
 const { t } = useI18n()
 const copied = ref(false)
@@ -9,6 +10,7 @@ async function copy() {
   try {
     await navigator.clipboard.writeText(window.location.href)
     copied.value = true
+    trackEvent('share_copy')
     setTimeout(() => (copied.value = false), 1500)
   } catch {
     // Fallback: select-and-copy via a hidden textarea

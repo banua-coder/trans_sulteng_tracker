@@ -71,6 +71,7 @@ jobs:
           cache-to: type=gha,mode=max,scope=cektrans-web
           build-args: |
             VITE_BUILD_SHA=${{ github.sha }}
+            VITE_GA_ID=${{ vars.VITE_GA_ID }}
 
   build-proxy:
     needs: resolve-version

@@ -5,6 +5,7 @@ import { createI18n } from 'vue-i18n'
 import App from './App.vue'
 import router from './router'
 import { messages, type Locale } from './i18n'
+import { initAnalytics, trackPageView } from './lib/analytics'
 
 import './styles/global.css'
 import 'leaflet/dist/leaflet.css'
@@ -29,4 +30,10 @@ const app = createApp(App)
 app.use(createPinia())
 app.use(router)
 app.use(i18n)
+
+initAnalytics()
+router.afterEach((to) => {
+  trackPageView(to.fullPath)
+})
+
 app.mount('#app')

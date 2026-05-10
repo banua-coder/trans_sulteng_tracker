@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useGeoStore } from '@/stores/geo'
+import { trackEvent } from '@/lib/analytics'
 
 const { t } = useI18n()
 const geo = useGeoStore()
@@ -18,8 +19,10 @@ const tooltip = computed(() => {
   }
 })
 
-function trigger() {
-  void geo.request()
+async function trigger() {
+  await geo.request()
+  if (geo.status === 'granted') trackEvent('geo_grant')
+  else if (geo.status === 'denied') trackEvent('geo_denied')
 }
 </script>
 
