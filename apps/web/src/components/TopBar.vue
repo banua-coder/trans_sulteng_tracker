@@ -17,6 +17,13 @@ const city = useCityStore()
 // Switcher only matters when the user is actually on a city map.
 const showCitySwitcher = computed(() => route.name === 'city')
 
+// "Rute" entry point — the TJ-style routes flow only makes sense
+// inside a city context, so only surface the button when one is
+// active. Mobile-only via lg:hidden in the template.
+const showRoutesLink = computed(
+  () => route.name === 'city' || route.name === 'routes-index' || route.name === 'route-detail' || route.name === 'route-map',
+)
+
 const statusKey = computed(() => {
   switch (socket.state) {
     case 'live':
@@ -107,6 +114,31 @@ function pickCity(slug: CitySlug) {
     </transition>
 
     <div class="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-3">
+      <!-- TJ-style "Rute" entry point — mobile only. Desktop already
+           has a full sidebar that shows the same data. -->
+      <router-link
+        v-if="showRoutesLink"
+        :to="{ name: 'routes-index', params: { city: city.slug } }"
+        class="inline-flex items-center gap-1.5 rounded-full bg-bnc-primary px-3 py-1.5 font-mono text-[11px] font-bold uppercase tracking-wider text-white transition-opacity hover:opacity-90 lg:hidden"
+        :aria-label="t('route.openRoutes')"
+      >
+        <svg
+          class="h-3.5 w-3.5"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden
+        >
+          <line x1="3" y1="6" x2="21" y2="6" />
+          <line x1="3" y1="12" x2="21" y2="12" />
+          <line x1="3" y1="18" x2="21" y2="18" />
+        </svg>
+        {{ t('route.openRoutes') }}
+      </router-link>
+
       <span
         class="flex items-center gap-2 rounded-full bg-bnc-stone-100 px-2 py-1 font-mono text-[11px] uppercase tracking-wider text-bnc-stone-600 sm:px-3 dark:bg-bnc-stone-800 dark:text-bnc-stone-300"
         :title="t(statusKey)"
