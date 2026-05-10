@@ -3,9 +3,9 @@ FROM rust:1.82-slim AS build
 WORKDIR /build
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    pkg-config ca-certificates && rm -rf /var/lib/apt/lists/*
+    pkg-config ca-certificates libssl-dev && rm -rf /var/lib/apt/lists/*
 
-COPY apps/proxy/Cargo.toml apps/proxy/rust-toolchain.toml ./apps/proxy/
+COPY apps/proxy/Cargo.toml apps/proxy/Cargo.lock apps/proxy/rust-toolchain.toml ./apps/proxy/
 COPY apps/proxy/src ./apps/proxy/src
 
 WORKDIR /build/apps/proxy

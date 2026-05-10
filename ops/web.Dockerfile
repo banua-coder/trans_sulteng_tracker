@@ -4,7 +4,7 @@ WORKDIR /app
 
 # Cache deps separately from source for faster rebuilds.
 RUN corepack enable && corepack prepare pnpm@10.0.0 --activate
-COPY pnpm-workspace.yaml package.json ./
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
 COPY apps/web/package.json apps/web/package.json
 RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store \
     pnpm fetch && \
