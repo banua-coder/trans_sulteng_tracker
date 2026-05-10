@@ -82,6 +82,7 @@ impl BrtClient {
     }
 
     /// Force a token refresh — useful for `/api/health` probes.
+    #[allow(dead_code)] // wired up by T6.x health probe work.
     pub async fn refresh_token(&self) -> AppResult<()> {
         let bearer = self.fetch_token().await?;
         *self.token.write().await = Some(bearer);

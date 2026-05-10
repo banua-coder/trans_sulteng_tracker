@@ -9,7 +9,10 @@ mod state;
 
 use std::time::Duration;
 
-use axum::{http::HeaderValue, middleware as axum_mw};
+use axum::{
+    http::{HeaderValue, StatusCode},
+    middleware as axum_mw,
+};
 use tower_http::{
     compression::CompressionLayer, cors::CorsLayer, timeout::TimeoutLayer, trace::TraceLayer,
 };
@@ -49,7 +52,10 @@ async fn main() -> anyhow::Result<()> {
         .layer(origin_mw)
         .layer(cors)
         .layer(CompressionLayer::new())
-        .layer(TimeoutLayer::new(Duration::from_secs(15)))
+        .layer(TimeoutLayer::with_status_code(
+            StatusCode::REQUEST_TIMEOUT,
+            Duration::from_secs(15),
+        ))
         .layer(TraceLayer::new_for_http());
 
     let listener = tokio::net::TcpListener::bind(&cfg.bind_addr).await?;

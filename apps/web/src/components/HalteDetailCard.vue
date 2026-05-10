@@ -1,0 +1,162 @@
+<script setup lang="ts">
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { storeToRefs } from 'pinia'
+import { useSelectionStore } from '@/stores/selection'
+import { useBrtStore } from '@/stores/brt'
+import { etaMinutes, formatDistance, isStale } from '@/lib/format'
+import type { BrtBus } from '@/types/brt'
+
+const { t } = useI18n()
+const selection = useSelectionStore()
+const brt = useBrtStore()
+const { selectedHalte } = storeToRefs(selection)
+
+// Force re-render every 15 s so ETAs stay close to wall-clock truth even if
+// no new bus updates arrive (rare, but possible during operating-hours edges).
+const tick = ref(0)
+let timer: number | undefined
+onMounted(() => {
+  timer = window.setInterval(() => {
+    tick.value += 1
+  }, 15_000)
+})
+onBeforeUnmount(() => {
+  if (timer) window.clearInterval(timer)
+})
+
+interface Arrival {
+  bus: BrtBus
+  etaMin: number | null
+  fresh: boolean
+}
+
+const arrivals = computed<Arrival[]>(() => {
+  void tick.value
+  const halte = selectedHalte.value
+  if (!halte) return []
+  const candidates: Arrival[] = []
+  for (const bus of brt.buses.values()) {
+    if (bus.kor !== halte.kor) continue
+    if (bus.new_shel_t !== halte.sh_id) continue
+    const eta = etaMinutes(bus.dist_shel ?? null, bus.speed ?? null)
+    candidates.push({
+      bus,
+      etaMin: eta,
+      fresh: !isStale(bus.dt_tracker),
+    })
+  }
+  candidates.sort((a, b) => {
+    if (a.etaMin == null && b.etaMin == null) return 0
+    if (a.etaMin == null) return 1
+    if (b.etaMin == null) return -1
+    return a.etaMin - b.etaMin
+  })
+  return candidates.slice(0, 3)
+})
+
+const corridorColor = computed(() =>
+  selectedHalte.value ? brt.colorForKor(selectedHalte.value.kor) : '#0EA5E9',
+)
+
+function pickBus(imei: string) {
+  selection.selectBus(imei)
+}
+</script>
+
+<template>
+  <transition name="slide-up">
+    <article
+      v-if="selectedHalte"
+      class="pointer-events-auto fixed inset-x-3 bottom-3 z-30 mx-auto max-w-md rounded-[var(--radius-md)] border border-bnc-stone-200 bg-white p-4 shadow-[var(--shadow-elevated)] sm:right-4 sm:left-auto sm:bottom-4 sm:max-w-sm dark:border-bnc-stone-800 dark:bg-bnc-stone-900"
+      role="dialog"
+      :aria-label="selectedHalte.sh_name"
+    >
+      <header class="flex items-start gap-3">
+        <span
+          class="mt-1 h-3 w-3 shrink-0 rounded-full border-2 border-white"
+          :style="{ background: corridorColor, boxShadow: '0 0 0 1px ' + corridorColor }"
+          aria-hidden
+        />
+        <div class="min-w-0 flex-1">
+          <p class="font-mono text-[11px] uppercase tracking-wider text-bnc-stone-500">
+            Halte · {{ selectedHalte.kor }}
+          </p>
+          <h3 class="truncate font-display text-base font-semibold tracking-tight">
+            {{ selectedHalte.sh_name }}
+          </h3>
+          <p class="truncate text-xs text-bnc-stone-500">
+            {{ selectedHalte.origin }} → {{ selectedHalte.toward }}
+          </p>
+        </div>
+        <button
+          type="button"
+          class="rounded-full p-1 text-bnc-stone-500 transition-colors hover:bg-bnc-stone-100 hover:text-bnc-ink dark:hover:bg-bnc-stone-800 dark:hover:text-bnc-paper"
+          aria-label="Tutup"
+          @click="selection.clear()"
+        >
+          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <path d="M6 6l12 12M6 18L18 6" />
+          </svg>
+        </button>
+      </header>
+
+      <section class="mt-3 border-t border-bnc-stone-200 pt-3 dark:border-bnc-stone-800">
+        <h4 class="font-mono text-[11px] uppercase tracking-wider text-bnc-stone-500">
+          Bus berikutnya
+        </h4>
+        <ul v-if="arrivals.length" class="mt-2 flex flex-col gap-2">
+          <li
+            v-for="a in arrivals"
+            :key="a.bus.imei || a.bus.id"
+          >
+            <button
+              type="button"
+              class="flex w-full items-center gap-3 rounded-md border border-bnc-stone-200 bg-bnc-stone-50 px-2 py-2 text-left transition-colors hover:border-bnc-stone-300 dark:border-bnc-stone-800 dark:bg-bnc-stone-800/50 dark:hover:border-bnc-stone-700"
+              @click="pickBus(a.bus.imei || a.bus.id)"
+            >
+              <span class="font-mono text-xs font-bold text-bnc-ink dark:text-bnc-paper">
+                {{ a.bus.plate_number || a.bus.name || a.bus.kor }}
+              </span>
+              <span class="ml-auto font-mono text-sm tabular-nums">
+                <template v-if="a.etaMin != null">
+                  ~ {{ Math.max(1, Math.round(a.etaMin)) }} {{ t('units.minutes') }}
+                </template>
+                <template v-else-if="a.bus.speed === 0">
+                  · approaching
+                </template>
+                <template v-else>
+                  —
+                </template>
+              </span>
+              <span
+                v-if="!a.fresh"
+                class="rounded-full bg-bnc-stone-200 px-1.5 py-0.5 font-mono text-[10px] uppercase text-bnc-stone-600 dark:bg-bnc-stone-700 dark:text-bnc-stone-300"
+              >
+                stale
+              </span>
+            </button>
+            <p class="mt-1 px-2 font-mono text-[10px] text-bnc-stone-500">
+              {{ formatDistance(a.bus.dist_shel) }} away
+            </p>
+          </li>
+        </ul>
+        <p v-else class="mt-2 text-xs text-bnc-stone-500">
+          Tidak ada bus terdekat menuju halte ini.
+        </p>
+      </section>
+    </article>
+  </transition>
+</template>
+
+<style scoped>
+.slide-up-enter-active,
+.slide-up-leave-active {
+  transition: opacity 200ms ease, transform 250ms ease;
+}
+.slide-up-enter-from,
+.slide-up-leave-to {
+  opacity: 0;
+  transform: translateY(12px);
+}
+</style>
