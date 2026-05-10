@@ -6,6 +6,7 @@ import { useSelectionStore } from '@/stores/selection'
 import { useBrtStore } from '@/stores/brt'
 import { ageSeconds, etaToHalte, formatAge, formatDistance, formatSpeed, isStale, parsePassenger } from '@/lib/format'
 import CopyLinkButton from '@/components/CopyLinkButton.vue'
+import PlateBadge from '@/components/PlateBadge.vue'
 
 const { t } = useI18n()
 const selection = useSelectionStore()
@@ -77,21 +78,20 @@ const passenger = computed(() =>
           {{ selectedBus.kor || '·' }}
         </span>
         <div class="min-w-0 flex-1">
-          <div class="flex items-center gap-1.5">
+          <div class="flex items-center gap-2">
+            <PlateBadge :plate="selectedBus.plate_number" size="lg" />
             <span
               v-if="selectedBus.name"
-              class="inline-flex items-center rounded-md bg-bnc-stone-100 px-1.5 py-[1px] font-mono text-[10px] font-bold tracking-wider text-bnc-ink dark:bg-bnc-stone-800 dark:text-bnc-paper"
+              class="inline-flex items-center rounded-md bg-bnc-stone-100 px-1.5 py-[2px] font-mono text-[11px] font-bold tracking-wider text-bnc-ink dark:bg-bnc-stone-800 dark:text-bnc-paper"
             >
               {{ selectedBus.name }}
             </span>
-            <p class="font-mono text-[11px] uppercase tracking-wider text-bnc-stone-500">
-              {{ t('bus.corridor') }} {{ selectedBus.kor || '—' }}
-            </p>
           </div>
-          <h3 class="truncate font-display text-base font-semibold tracking-tight">
-            {{ selectedBus.plate_number || '—' }}
-          </h3>
-          <p class="truncate text-xs text-bnc-stone-500">
+          <p class="mt-1 truncate text-xs text-bnc-stone-500">
+            <span class="font-mono uppercase tracking-wider">
+              {{ t('bus.corridor') }} {{ selectedBus.kor || '—' }}
+            </span>
+            <span class="mx-1">·</span>
             → {{ selectedBus.toward || '—' }}
           </p>
         </div>

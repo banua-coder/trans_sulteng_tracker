@@ -9,6 +9,7 @@ import { useUiStore } from '@/stores/ui'
 import { ageSeconds, formatAge, formatSpeed, isStale } from '@/lib/format'
 import type { BrtBus } from '@/types/brt'
 import CollapsibleSection from '@/components/CollapsibleSection.vue'
+import PlateBadge from '@/components/PlateBadge.vue'
 
 const { t } = useI18n()
 const brt = useBrtStore()
@@ -166,17 +167,21 @@ function pick(bus: BrtBus) {
           </span>
           <div class="min-w-0 flex-1">
             <div class="flex items-center gap-1.5">
+              <PlateBadge v-if="r.plate" :plate="r.plate" size="sm" />
+              <span
+                v-else
+                class="font-display text-sm font-semibold tracking-tight"
+              >
+                {{ r.bus.kor || '—' }}
+              </span>
               <span
                 v-if="r.armada"
                 class="inline-flex items-center rounded bg-bnc-stone-100 px-1 py-[1px] font-mono text-[9px] font-bold tracking-wider dark:bg-bnc-stone-800"
               >
                 {{ r.armada }}
               </span>
-              <p class="truncate font-display text-sm font-semibold tracking-tight">
-                {{ r.plate || r.bus.kor || '—' }}
-              </p>
             </div>
-            <p class="truncate font-mono text-[10px] text-bnc-stone-500">
+            <p class="mt-0.5 truncate font-mono text-[10px] text-bnc-stone-500">
               {{ r.nextHalteName ?? r.bus.toward ?? '—' }}
             </p>
           </div>
