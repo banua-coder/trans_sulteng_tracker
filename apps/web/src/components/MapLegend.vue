@@ -14,7 +14,8 @@ const open = computed<boolean>({
 
 <template>
   <div
-    class="pointer-events-auto absolute bottom-24 left-3 z-[800] flex flex-col gap-1.5 lg:bottom-3"
+    class="pointer-events-auto absolute left-3 z-[800] flex flex-col gap-1.5 transition-[bottom] duration-300 ease-out"
+    :style="{ bottom: 'calc(var(--sheet-h, 88px) + 12px)' }"
     aria-label="Map legend"
   >
     <button
