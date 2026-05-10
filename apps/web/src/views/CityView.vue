@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onBeforeUnmount, watch } from 'vue'
+import { computed, onBeforeUnmount, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useBrtStore } from '@/stores/brt'
 import { useCityStore } from '@/stores/city'
@@ -28,6 +28,12 @@ const { kind: selectionKind } = storeToRefs(selection)
 const { isFocused } = storeToRefs(focus)
 
 useUrlSync()
+
+// Auto-expand the mobile bottom sheet to mid the moment a detail/route
+// becomes active; null lets the user control the snap freely.
+const sheetForceSnap = computed<'mid' | null>(() =>
+  selectionKind.value || isFocused.value ? 'mid' : null,
+)
 
 watch(
   () => city.pref,
@@ -70,20 +76,26 @@ onBeforeUnmount(() => {
       </div>
     </section>
 
-    <!-- Mobile bottom sheet -->
-    <BottomSheet>
-      <div class="flex flex-col gap-5">
+    <!-- Mobile bottom sheet — swaps content with the active detail
+         instead of stacking another card on top. The forceSnap prop
+         auto-expands to "mid" the moment a detail opens so the user
+         sees the swap without dragging. -->
+    <BottomSheet :force-snap="sheetForceSnap">
+      <BusDetailCard v-if="selectionKind === 'bus'" />
+      <HalteDetailCard v-else-if="selectionKind === 'halte'" />
+      <CorridorFocusPanel v-else-if="isFocused" />
+      <div v-else class="flex flex-col gap-5">
         <NearbyHaltePanel />
         <CorridorPanel />
         <BusListPanel />
       </div>
     </BottomSheet>
 
-    <!-- Bottom-right info column. Cards stack vertically when more than
-         one is active so a focused corridor and a selected bus can both
-         show their info — bus on top, route info underneath. -->
+    <!-- Desktop info column — only on lg+. Stacks corridor focus +
+         bus/halte card so a focused route and a selected bus can both
+         be visible at once (bus on top, focus underneath). -->
     <div
-      class="pointer-events-none fixed inset-x-3 bottom-3 z-[1000] flex flex-col-reverse items-stretch gap-3 sm:left-auto sm:right-4 sm:bottom-4 sm:max-w-md"
+      class="pointer-events-none fixed bottom-4 right-4 z-[1000] hidden flex-col-reverse items-stretch gap-3 lg:flex lg:max-w-md"
     >
       <CorridorFocusPanel v-if="isFocused" />
       <BusDetailCard v-if="selectionKind === 'bus'" />

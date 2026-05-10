@@ -96,8 +96,9 @@ The workflow:
 1. Resolves the version once (input or tag suffix).
 2. Builds + pushes both images to GHCR with `latest` and the version
    tag, using GHA cache.
-3. SSHs the VPS via `appleboy/ssh-action` and runs
-   `/opt/cektrans/deploy.sh <version>`.
+3. SSHs the VPS via `webfactory/ssh-agent` + raw `ssh -p $DEPLOY_PORT`,
+   refreshes `/opt/cektrans/.env` from the `ENV_B64` secret, and runs
+   `./deploy.sh <version>`.
 4. Runs `scripts/smoke.sh` against `https://cektrans.banuacoder.com`
    for a final go/no-go.
 
@@ -107,13 +108,18 @@ green, then `docker image prune -f` for housekeeping.
 
 ## Required GitHub Actions secrets / variables
 
+Mirrors the **pico-api-go** deploy pattern, with secrets shared at the
+banua-coder org level:
+
 | Name | Scope | Purpose |
 |---|---|---|
-| `WORKFLOW_TOKEN` | **banua-coder org** | SSH private key matching the `~/.ssh/authorized_keys` entry on the VPS. Shared with the Archipelago deploy. |
-| `SSH_HOST` | secret (org or repo) | VPS hostname (e.g. `vps.banuacoder.com`) |
-| `SSH_USERNAME` | secret (org or repo) | unprivileged deploy user with docker access |
-| `VITE_GA_ID` | **variable** (not secret) | GA4 measurement ID baked into the web image at build time. Public-by-design — kept as a `vars.*` value, not a secret. |
-| `GITHUB_TOKEN` | auto | issued per-run; pushes images to GHCR |
+| `DEPLOY_SSH_KEY` | **banua-coder org** | SSH private key consumed by `webfactory/ssh-agent`. The matching public key sits in the deploy user's `~/.ssh/authorized_keys` on the VPS. |
+| `DEPLOY_HOST` | org | VPS hostname / IP |
+| `DEPLOY_PORT` | org | SSH port (custom, not 22) |
+| `DEPLOY_USER` | org | deploy user with docker compose rights |
+| `DEPLOY_PATH` | repo | absolute path to this app on the VPS, e.g. `/opt/cektrans` |
+| `ENV_B64` | repo | base64-encoded full prod `.env` (proxy + frontend keys in one blob). Decoded by `build-web` for `VITE_*` vars and rewritten on the VPS during deploy. |
+| `GITHUB_TOKEN` | auto | issued per-run; pushes images to GHCR. |
 
 `BRT_KEY` and the upstream URLs are **not** GitHub secrets — they live
 only in `/opt/cektrans/.env` on the VPS.

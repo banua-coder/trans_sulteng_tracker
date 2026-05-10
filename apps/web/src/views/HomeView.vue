@@ -5,7 +5,7 @@ import { RouterLink } from 'vue-router'
 import { api } from '@/lib/api'
 import type { BrtCity, CitySlug } from '@/types/brt'
 import { CITY_PREF, PREF_CITY } from '@/types/brt'
-import BanuacoderLogo from '@/components/BanuacoderLogo.vue'
+import BanuacoderIcon from '@/components/BanuacoderIcon.vue'
 
 const { t } = useI18n()
 
@@ -127,8 +127,11 @@ const year = computed(() => new Date().getFullYear())
             />
           </span>
           <div class="min-w-0 flex-1">
-            <p class="font-mono text-[11px] uppercase tracking-wider text-bnc-stone-500">
-              pref {{ c.pref }} · {{ c.city }}
+            <p
+              v-if="c.city"
+              class="font-mono text-[11px] uppercase tracking-wider text-bnc-stone-500"
+            >
+              {{ c.city }}
             </p>
             <h2 class="mt-1 font-display text-2xl font-semibold tracking-tight">
               {{ c.name }}
@@ -169,11 +172,13 @@ const year = computed(() => new Date().getFullYear())
         href="https://banuacoder.com"
         target="_blank"
         rel="noopener"
-        class="inline-flex items-center gap-2 text-bnc-ink transition-colors hover:text-bnc-accent dark:text-bnc-paper"
+        class="inline-flex items-center gap-2 text-bnc-ink transition-opacity hover:opacity-80 dark:text-bnc-paper"
         aria-label="Banua Coder · banuacoder.com"
       >
-        <BanuacoderLogo :size="18" />
-        <span class="font-mono uppercase tracking-wider">© {{ year }} Banuacoder</span>
+        <BanuacoderIcon :size="22" />
+        <span class="font-mono text-[11px] uppercase tracking-wider text-bnc-stone-500">
+          © {{ year }} Banuacoder
+        </span>
       </a>
     </footer>
   </section>

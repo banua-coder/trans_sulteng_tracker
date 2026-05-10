@@ -37,3 +37,11 @@ router.afterEach((to) => {
 })
 
 app.mount('#app')
+
+// Fade out the inline splash defined in index.html. Wait one frame so
+// the first paint has Vue content, then flag the document — the CSS
+// transition handles the cross-fade and removes the splash from the
+// pointer flow once it's invisible.
+requestAnimationFrame(() => {
+  document.documentElement.classList.add('app-ready')
+})

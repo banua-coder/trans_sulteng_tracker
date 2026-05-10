@@ -41,8 +41,7 @@ async fn main() -> anyhow::Result<()> {
 
     // Lifetime-erase the configured allow-origin so the middleware closure
     // can be plain Fn + Copy. Allocating once at startup is fine.
-    let allow_origin: &'static str =
-        Box::leak(cfg.allow_origin.clone().into_boxed_str());
+    let allow_origin: &'static str = Box::leak(cfg.allow_origin.clone().into_boxed_str());
     let origin_mw = axum_mw::from_fn(move |req, next| async move {
         middleware::origin_gate(allow_origin, req, next).await
     });

@@ -151,6 +151,14 @@ export const messages = {
     a11y: {
       toggleTheme: 'Toggle dark/light theme',
       toggleLang: 'Toggle language',
+      myLocation: 'My location',
+    },
+    nearby: {
+      title: 'Nearby stops',
+      empty: 'No nearby stops',
+      denied: 'Location access denied',
+      pending: 'Getting your location…',
+      retry: 'Try again',
     },
     footer: {
       data: 'Data: BRT Nusantara · Ministry of Transportation',
