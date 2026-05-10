@@ -85,7 +85,7 @@ onBeforeUnmount(() => {
 <template>
   <aside
     ref="sheetEl"
-    class="pointer-events-auto fixed inset-x-0 bottom-0 z-20 flex flex-col rounded-t-[var(--radius-lg)] border-t border-bnc-stone-200 bg-bnc-paper shadow-[var(--shadow-elevated)] dark:border-bnc-stone-800 dark:bg-bnc-stone-900 lg:hidden"
+    class="pointer-events-auto fixed inset-x-0 bottom-0 z-[900] flex flex-col rounded-t-[var(--radius-lg)] border-t border-bnc-stone-200 bg-bnc-paper shadow-[var(--shadow-elevated)] dark:border-bnc-stone-800 dark:bg-bnc-stone-900 lg:hidden"
     :style="sheetStyle"
     role="dialog"
     aria-label="Panel koridor"
