@@ -5,16 +5,18 @@ import { storeToRefs } from 'pinia'
 import { useBrtStore } from '@/stores/brt'
 import { useFocusStore } from '@/stores/focus'
 import { useSelectionStore } from '@/stores/selection'
+import { useUiStore } from '@/stores/ui'
 import { ageSeconds, formatAge, formatSpeed, isStale } from '@/lib/format'
 import type { BrtBus } from '@/types/brt'
+import CollapsibleSection from '@/components/CollapsibleSection.vue'
 
 const { t } = useI18n()
 const brt = useBrtStore()
 const selection = useSelectionStore()
 const focus = useFocusStore()
+const ui = useUiStore()
 const { buses, halte } = storeToRefs(brt)
-
-const search = ref('')
+const { busSearch: search } = storeToRefs(ui)
 
 const tick = ref(0)
 let timer: number | undefined
@@ -93,14 +95,7 @@ function pick(bus: BrtBus) {
 </script>
 
 <template>
-  <section class="flex flex-col gap-2">
-    <header class="flex items-baseline gap-2">
-      <h3 class="font-display text-base font-semibold tracking-tight">
-        {{ t('bus.listTitle') }}
-      </h3>
-      <span class="font-mono text-[11px] text-bnc-stone-500">{{ totalCount }}</span>
-    </header>
-
+  <CollapsibleSection name="buses" :title="t('bus.listTitle')" :count="totalCount">
     <label class="relative block">
       <span class="sr-only">{{ t('bus.search') }}</span>
       <input
@@ -137,18 +132,18 @@ function pick(bus: BrtBus) {
 
     <p
       v-if="!totalCount"
-      class="rounded-md bg-bnc-stone-100 px-3 py-2 font-mono text-[11px] uppercase tracking-wider text-bnc-stone-500 dark:bg-bnc-stone-800"
+      class="mt-2 rounded-md bg-bnc-stone-100 px-3 py-2 font-mono text-[11px] uppercase tracking-wider text-bnc-stone-500 dark:bg-bnc-stone-800"
     >
       {{ t('bus.empty') }}
     </p>
     <p
       v-else-if="!rows.length"
-      class="rounded-md bg-bnc-stone-100 px-3 py-2 font-mono text-[11px] uppercase tracking-wider text-bnc-stone-500 dark:bg-bnc-stone-800"
+      class="mt-2 rounded-md bg-bnc-stone-100 px-3 py-2 font-mono text-[11px] uppercase tracking-wider text-bnc-stone-500 dark:bg-bnc-stone-800"
     >
       {{ t('bus.noMatch') }}
     </p>
 
-    <ul v-else class="flex flex-col gap-1.5">
+    <ul v-else class="mt-2 flex flex-col gap-1.5">
       <li v-for="r in rows" :key="r.bus.imei || r.bus.id">
         <button
           type="button"
@@ -185,5 +180,5 @@ function pick(bus: BrtBus) {
         </button>
       </li>
     </ul>
-  </section>
+  </CollapsibleSection>
 </template>

@@ -7,6 +7,7 @@ import { useGeoStore } from '@/stores/geo'
 import { useSelectionStore } from '@/stores/selection'
 import { etaMinutes, formatDistance, haversineMeters, isStale } from '@/lib/format'
 import type { BrtBus, BrtHalte } from '@/types/brt'
+import CollapsibleSection from '@/components/CollapsibleSection.vue'
 
 const { t } = useI18n()
 const brt = useBrtStore()
@@ -70,24 +71,19 @@ function pick(h: BrtHalte) {
 
 <template>
   <transition name="nearby">
-    <section
+    <CollapsibleSection
       v-if="geo.isGranted && rows.length"
-      class="flex flex-col gap-2"
+      name="nearby"
+      :title="t('nearby.title')"
+      :count="rows.length"
     >
-      <header class="flex items-center gap-2">
-        <span class="grid h-6 w-6 place-items-center rounded-full bg-bnc-accent/15 text-bnc-accent">
-          <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+      <template #leading>
+        <span class="grid h-5 w-5 place-items-center rounded-full bg-bnc-accent/15 text-bnc-accent">
+          <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
             <circle cx="12" cy="12" r="3" /><path d="M12 3v3M12 18v3M3 12h3M18 12h3" />
           </svg>
         </span>
-        <h3 class="font-display text-base font-semibold tracking-tight">
-          {{ t('nearby.title') }}
-        </h3>
-        <span class="ml-auto font-mono text-[11px] text-bnc-stone-500">
-          {{ rows.length }}
-        </span>
-      </header>
-
+      </template>
       <ul class="flex flex-col gap-1.5">
         <li v-for="r in rows" :key="r.halte.sh_id">
           <button
@@ -126,7 +122,7 @@ function pick(h: BrtHalte) {
           </button>
         </li>
       </ul>
-    </section>
+    </CollapsibleSection>
   </transition>
 </template>
 

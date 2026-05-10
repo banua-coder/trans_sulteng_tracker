@@ -8,6 +8,7 @@ import { useFocusStore } from '@/stores/focus'
 import { useSocketStore } from '@/stores/socket'
 import { operatingState } from '@/lib/operating'
 import { isStale } from '@/lib/format'
+import CollapsibleSection from '@/components/CollapsibleSection.vue'
 
 const { t } = useI18n()
 const brt = useBrtStore()
@@ -127,43 +128,45 @@ const busStatusLabel = computed(() => {
       {{ busStatusLabel }}
     </p>
 
-    <p v-if="loading" class="text-sm text-bnc-stone-500">{{ t('status.connecting') }}</p>
-    <p
-      v-else-if="error"
-      class="rounded-md border border-bnc-stone-300 bg-white p-3 text-sm text-bnc-stone-600 dark:border-bnc-stone-700 dark:bg-bnc-stone-900 dark:text-bnc-stone-300"
-    >
-      {{ t('errors.loadFailed') }} · {{ error }}
-    </p>
+    <CollapsibleSection name="corridors" title="Koridor" :count="corridors.length">
+      <p v-if="loading" class="text-sm text-bnc-stone-500">{{ t('status.connecting') }}</p>
+      <p
+        v-else-if="error"
+        class="rounded-md border border-bnc-stone-300 bg-white p-3 text-sm text-bnc-stone-600 dark:border-bnc-stone-700 dark:bg-bnc-stone-900 dark:text-bnc-stone-300"
+      >
+        {{ t('errors.loadFailed') }} · {{ error }}
+      </p>
 
-    <ul v-else class="flex flex-col gap-2">
-      <li v-for="c in corridors" :key="c.id">
-        <button
-          type="button"
-          class="block w-full rounded-md border bg-white p-3 text-left transition-colors hover:border-bnc-stone-300 dark:bg-bnc-stone-900 dark:hover:border-bnc-stone-700"
-          :class="
-            focus.kor === c.kor
-              ? 'border-bnc-ink ring-2 ring-bnc-accent/40 dark:border-bnc-paper'
-              : 'border-bnc-stone-200 dark:border-bnc-stone-800'
-          "
-          :aria-pressed="focus.kor === c.kor"
-          @click="focus.kor === c.kor ? focus.clear() : focus.focus(c.kor)"
-        >
-          <div class="flex items-center gap-2">
-            <span
-              class="h-2 w-8 shrink-0 rounded-full"
-              :style="{ background: c.color || '#0EA5E9' }"
-              aria-hidden
-            />
-            <span class="font-mono text-xs font-bold uppercase">{{ c.kor }}</span>
-            <span class="ml-auto truncate font-mono text-[11px] text-bnc-stone-500">
-              {{ c.jam_operasional || '—' }}
-            </span>
-          </div>
-          <p class="mt-1 truncate text-xs text-bnc-stone-600 dark:text-bnc-stone-300">
-            {{ c.origin }} → {{ c.toward }}
-          </p>
-        </button>
-      </li>
-    </ul>
+      <ul v-else class="flex flex-col gap-2">
+        <li v-for="c in corridors" :key="c.id">
+          <button
+            type="button"
+            class="block w-full rounded-md border bg-white p-3 text-left transition-colors hover:border-bnc-stone-300 dark:bg-bnc-stone-900 dark:hover:border-bnc-stone-700"
+            :class="
+              focus.kor === c.kor
+                ? 'border-bnc-ink ring-2 ring-bnc-accent/40 dark:border-bnc-paper'
+                : 'border-bnc-stone-200 dark:border-bnc-stone-800'
+            "
+            :aria-pressed="focus.kor === c.kor"
+            @click="focus.kor === c.kor ? focus.clear() : focus.focus(c.kor)"
+          >
+            <div class="flex items-center gap-2">
+              <span
+                class="h-2 w-8 shrink-0 rounded-full"
+                :style="{ background: c.color || '#0EA5E9' }"
+                aria-hidden
+              />
+              <span class="font-mono text-xs font-bold uppercase">{{ c.kor }}</span>
+              <span class="ml-auto truncate font-mono text-[11px] text-bnc-stone-500">
+                {{ c.jam_operasional || '—' }}
+              </span>
+            </div>
+            <p class="mt-1 truncate text-xs text-bnc-stone-600 dark:text-bnc-stone-300">
+              {{ c.origin }} → {{ c.toward }}
+            </p>
+          </button>
+        </li>
+      </ul>
+    </CollapsibleSection>
   </div>
 </template>
