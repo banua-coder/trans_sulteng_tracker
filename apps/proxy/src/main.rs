@@ -4,6 +4,7 @@ mod crypto;
 mod error;
 mod middleware;
 mod routes;
+mod sockets;
 mod state;
 
 use std::time::Duration;
@@ -24,6 +25,12 @@ async fn main() -> anyhow::Result<()> {
 
     let state = AppState::new(&cfg)?;
 
+    // Build the Socket.IO bridge. The downstream layer goes onto the
+    // axum app; the upstream client runs as a long-lived background
+    // task that fans out BRT-{pref} events into per-pref rooms.
+    let (sio_layer, sio_io) = sockets::build_downstream(state.clone());
+    let _upstream_client = sockets::spawn_upstream(&cfg, sio_io.clone(), state.clone()).await?;
+
     // Strict CORS: a single allow-origin pulled from env. Wildcards
     // are intentionally NOT supported here — the proxy is meant to
     // serve cektrans.banuacoder.com only.
@@ -38,6 +45,7 @@ async fn main() -> anyhow::Result<()> {
     });
 
     let app = routes::router(state)
+        .layer(sio_layer)
         .layer(origin_mw)
         .layer(cors)
         .layer(CompressionLayer::new())
