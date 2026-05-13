@@ -51,7 +51,13 @@ const lastReceivedAt = new Map<string, number>()
  *  the map to one leg even though styling stays per-corridor. */
 type Leg = 'a' | 'b'
 const corridorLines = new Map<string, Record<Leg, L.Polyline[]>>()
-const halteByLeg = new Map<string, Record<Leg, L.CircleMarker[]>>()
+const halteByLeg = new Map<string, Record<Leg, L.Marker[]>>()
+/** Dedup map: coord key → marker instance. Prevents drawing multiple
+ *  overlapping icons when several corridors share a physical stop. */
+const halteSeen = new Map<string, L.Marker>()
+/** Reverse map: marker → set of kor codes that use this stop. Used by
+ *  applyFocus to show/dim correctly when a corridor is focused. */
+const halteMarkerKors = new Map<L.Marker, Set<string>>()
 
 const CITY_CENTER: Record<string, L.LatLngTuple> = {
   '12': [-0.814841, 119.875584],
@@ -76,6 +82,13 @@ function initMap() {
     preferCanvas: true,
   }).setView(CITY_CENTER[city.pref] ?? [-0.81, 119.85], 13)
 
+  // Custom panes: halte below buses so bus markers are always clickable on top.
+  // Leaflet sets pointer-events:none on custom panes by default — must re-enable.
+  const hp = map.createPane('haltePane')
+  hp.style.zIndex = '390'
+  const bp = map.createPane('busPane')
+  bp.style.zIndex = '450'
+
   L.control.zoom({ position: 'bottomright' }).addTo(map)
   tileLayer = (isDark.value ? darkMatterTiles() : voyagerTiles()).addTo(map)
 
@@ -98,6 +111,8 @@ function clearAll() {
   busMarkers.clear()
   corridorLines.clear()
   halteByLeg.clear()
+  halteSeen.clear()
+  halteMarkerKors.clear()
 }
 
 function drawCorridors(items: BrtCorridor[]) {
@@ -156,18 +171,28 @@ function halteLeg(h: BrtHalte, c: BrtCorridor | undefined): Leg {
 function drawHalte(items: BrtHalte[]) {
   halteLayer.clearLayers()
   halteByLeg.clear()
+  halteSeen.clear()
+  halteMarkerKors.clear()
   for (const h of items) {
     const lat = parseFloat(h.sh_lat)
     const lng = parseFloat(h.sh_lng)
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue
+    const coordKey = `${lat.toFixed(5)},${lng.toFixed(5)}`
+    let marker = halteSeen.get(coordKey)
+    if (!marker) {
+      marker = halteMarker([lat, lng], { pane: 'haltePane' })
+        .bindTooltip(h.sh_name, { direction: 'top', offset: [0, -6] })
+      marker.on('click', () => selection.selectHalte(h.sh_id))
+      marker.addTo(halteLayer)
+      halteSeen.set(coordKey, marker)
+    }
+    const kors = halteMarkerKors.get(marker) ?? new Set<string>()
+    kors.add(h.kor)
+    halteMarkerKors.set(marker, kors)
     const c = brt.corridorByKor.get(h.kor)
-    const marker = halteMarker([lat, lng], '#64748b')
-      .bindTooltip(h.sh_name, { direction: 'top', offset: [0, -6] })
-    marker.on('click', () => selection.selectHalte(h.sh_id))
-    marker.addTo(halteLayer)
     const leg = halteLeg(h, c)
     const slot = halteByLeg.get(h.kor) ?? { a: [], b: [] }
-    slot[leg].push(marker)
+    if (!slot[leg].includes(marker)) slot[leg].push(marker)
     halteByLeg.set(h.kor, slot)
   }
   applyFocus()
@@ -200,16 +225,11 @@ function applyFocus() {
     }
   }
 
-  // Halte — unified neutral color; only opacity changes with focus
+  // Halte — unified icon; opacity only changes with focus
   for (const [kor, byLeg] of halteByLeg.entries()) {
     const all = [...byLeg.a, ...byLeg.b]
-    if (fk === null || kor === fk) {
-      for (const m of all)
-        m.setStyle({ fillColor: '#64748b', color: '#fff', fillOpacity: 1, opacity: 1 })
-    } else {
-      for (const m of all)
-        m.setStyle({ fillColor: '#64748b', fillOpacity: 0.18, opacity: 0.25 })
-    }
+    const opacity = fk === null || kor === fk ? 1 : 0.2
+    for (const m of all) m.setOpacity(opacity)
   }
 
   // Buses
@@ -241,7 +261,7 @@ function upsertBusMarker(b: BrtBus) {
   let cache = busMarkers.get(key)
   if (!cache) {
     const icon = busIcon({ color, code: b.kor || '·', angle, stale })
-    const marker = L.marker([b.lat, b.lng], { icon, keyboard: false })
+    const marker = L.marker([b.lat, b.lng], { icon, keyboard: false, pane: 'busPane' })
     marker.on('click', () => focusBus(key, b))
     marker.addTo(busLayer)
     cache = { marker, iconKey }

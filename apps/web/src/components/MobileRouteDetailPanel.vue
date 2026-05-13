@@ -248,6 +248,7 @@ function pad(n: number) {
             :arrival-at="ib.arrivalAt"
             :status="ib.status"
             :toward="r.halte.sh_name"
+            :final-destination="ib.bus.toward ?? null"
             :stale="ib.stale"
           />
         </button>

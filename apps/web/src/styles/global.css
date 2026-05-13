@@ -190,11 +190,13 @@ html.dark .leaflet-container { background: var(--color-bnc-stone-900); }
   );
 }
 
-/* Halte marker — TransJakarta filled circle + white ring */
-.halte-marker {
-  border: 2px solid #fff;
-  border-radius: 9999px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.20);
+/* Halte marker — inline SVG bus-shelter DivIcon; reset Leaflet's default
+   white-box styles so only the SVG itself is visible. */
+.halte-icon {
+  background: none !important;
+  border: none !important;
+  box-shadow: none !important;
+  cursor: pointer;
 }
 
 /* "Me" marker — the user's geolocation pin. Blue dot with a soft

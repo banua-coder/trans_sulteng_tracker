@@ -41,6 +41,14 @@ const stats = computed(() => {
 
 const cityMeta = computed(() => brt.cityByPref.get(city.pref) ?? null)
 
+function busCountByKor(kor: string): number {
+  let n = 0
+  for (const b of buses.value.values()) {
+    if (b.kor === kor && !isStale(b)) n++
+  }
+  return n
+}
+
 const busStatusKey = computed<'connecting' | 'waiting' | 'sleeping' | null>(() => {
   if (stats.value.buses > 0) return null
   if (socket.state === 'connecting' || socket.state === 'idle') return 'connecting'
@@ -152,18 +160,25 @@ const busStatusLabel = computed(() => {
           >
             <div class="flex items-center gap-2">
               <span
-                class="h-2 w-8 shrink-0 rounded-full"
+                class="grid h-7 w-7 shrink-0 place-items-center rounded-full font-mono text-[10px] font-extrabold text-white"
                 :style="{ background: c.color || '#0EA5E9' }"
                 aria-hidden
-              />
-              <span class="font-mono text-xs font-bold uppercase">{{ c.kor }}</span>
-              <span class="ml-auto truncate font-mono text-[11px] text-bnc-stone-500">
-                {{ c.jam_operasional || '—' }}
+              >{{ c.kor }}</span>
+              <div class="min-w-0 flex-1">
+                <p class="truncate text-xs font-medium text-bnc-stone-700 dark:text-bnc-stone-200">
+                  {{ c.origin }} → {{ c.toward }}
+                </p>
+                <p class="mt-0.5 font-mono text-[10px] text-bnc-stone-500">
+                  {{ c.jam_operasional || '—' }}
+                </p>
+              </div>
+              <span
+                class="shrink-0 font-mono text-[10px] font-bold tabular-nums"
+                :class="busCountByKor(c.kor) > 0 ? 'text-bnc-accent' : 'text-bnc-stone-400'"
+              >
+                {{ busCountByKor(c.kor) }} bus
               </span>
             </div>
-            <p class="mt-1 truncate text-xs text-bnc-stone-600 dark:text-bnc-stone-300">
-              {{ c.origin }} → {{ c.toward }}
-            </p>
           </button>
         </li>
       </ul>

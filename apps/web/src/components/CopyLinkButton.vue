@@ -34,7 +34,7 @@ async function copy() {
 <template>
   <button
     type="button"
-    class="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-bnc-stone-100 px-2 py-1 font-mono text-[10px] uppercase tracking-wider text-bnc-stone-700 transition-colors hover:bg-bnc-stone-200 sm:px-2.5 dark:bg-bnc-stone-800 dark:text-bnc-stone-200 dark:hover:bg-bnc-stone-700"
+    class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-bnc-stone-500 transition-colors hover:bg-bnc-stone-100 hover:text-bnc-ink dark:hover:bg-bnc-stone-800 dark:hover:text-bnc-paper"
     :aria-live="copied ? 'polite' : 'off'"
     :aria-label="copied ? t('share.copied') : t('share.copy')"
     @click="copy"
@@ -64,6 +64,6 @@ async function copy() {
     >
       <path d="M5 12l5 5L20 7" />
     </svg>
-    <span class="hidden sm:inline">{{ copied ? t('share.copied') : t('share.copy') }}</span>
+    <span class="sr-only">{{ copied ? t('share.copied') : t('share.copy') }}</span>
   </button>
 </template>
