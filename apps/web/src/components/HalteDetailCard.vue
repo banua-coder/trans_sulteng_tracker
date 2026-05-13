@@ -36,14 +36,21 @@ interface Arrival {
 const corridorsAtHalte = computed(() => {
   const halte = selectedHalte.value
   if (!halte) return []
+
+  // Parse in_koridor and color_koridor the same way the Android app does:
+  // split by "|", pair each corridor code with its color, fall back to
+  // halte.color or the corridor store color if the color list is shorter.
+  const kors = halte.in_koridor ? halte.in_koridor.split('|').filter(Boolean) : [halte.kor]
+  const colors = halte.color_koridor ? halte.color_koridor.split('|') : []
+
   const seen = new Set<string>()
   const result: { kor: string; color: string }[] = []
-  for (const h of brt.halte) {
-    if (h.sh_name !== halte.sh_name) continue
-    if (seen.has(h.kor)) continue
-    seen.add(h.kor)
-    result.push({ kor: h.kor, color: brt.colorForKor(h.kor) || h.color || '#0EA5E9' })
-  }
+  kors.forEach((kor, i) => {
+    if (seen.has(kor)) return
+    seen.add(kor)
+    const pairedColor = colors[i] || halte.color || '#0EA5E9'
+    result.push({ kor, color: brt.colorForKor(kor) || pairedColor })
+  })
   return result
 })
 
