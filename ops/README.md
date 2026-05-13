@@ -15,7 +15,7 @@ Traefik (host)  ── traefik-public network
    └── cektrans-proxy  :8080 (Axum REST + Socket.IO)
                               │
                               ▼ HTTPS
-                        ${BRT_UPSTREAM_HOST}
+                        ${BRT_REST_BASE} / ${BRT_SOCKET_BASE}
 ```
 
 - A single host: `cektrans.banuacoder.com`. Traefik (already running on
