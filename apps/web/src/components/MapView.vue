@@ -82,13 +82,6 @@ function initMap() {
     preferCanvas: true,
   }).setView(CITY_CENTER[city.pref] ?? [-0.81, 119.85], 13)
 
-  // Custom panes: halte below buses so bus markers are always clickable on top.
-  // Leaflet sets pointer-events:none on custom panes by default — must re-enable.
-  const hp = map.createPane('haltePane')
-  hp.style.zIndex = '390'
-  const bp = map.createPane('busPane')
-  bp.style.zIndex = '450'
-
   L.control.zoom({ position: 'bottomright' }).addTo(map)
   tileLayer = (isDark.value ? darkMatterTiles() : voyagerTiles()).addTo(map)
 
@@ -180,7 +173,7 @@ function drawHalte(items: BrtHalte[]) {
     const coordKey = `${lat.toFixed(5)},${lng.toFixed(5)}`
     let marker = halteSeen.get(coordKey)
     if (!marker) {
-      marker = halteMarker([lat, lng], { pane: 'haltePane' })
+      marker = halteMarker([lat, lng])
         .bindTooltip(h.sh_name, { direction: 'top', offset: [0, -6] })
       marker.on('click', () => selection.selectHalte(h.sh_id))
       marker.addTo(halteLayer)
@@ -261,7 +254,7 @@ function upsertBusMarker(b: BrtBus) {
   let cache = busMarkers.get(key)
   if (!cache) {
     const icon = busIcon({ color, code: b.kor || '·', angle, stale })
-    const marker = L.marker([b.lat, b.lng], { icon, keyboard: false, pane: 'busPane' })
+    const marker = L.marker([b.lat, b.lng], { icon, keyboard: false })
     marker.on('click', () => focusBus(key, b))
     marker.addTo(busLayer)
     cache = { marker, iconKey }
