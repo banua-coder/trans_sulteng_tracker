@@ -3,6 +3,7 @@ import '@/lib/leaflet/setup'
 import L from 'leaflet'
 import polyline from '@mapbox/polyline'
 import { onBeforeUnmount, onMounted, shallowRef, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
 
 import { useBrtStore } from '@/stores/brt'
@@ -15,7 +16,7 @@ import type { PlanResult } from '@/lib/tripPlanner'
 import { busIcon, halteHaloMarker, halteMarker } from '@/lib/leaflet/markers'
 import { darkMatterTiles, voyagerTiles } from '@/lib/leaflet/tiles'
 import { useTheme } from '@/lib/theme'
-import { isStale } from '@/lib/format'
+import { haversineMeters, isStale } from '@/lib/format'
 import { trackEvent } from '@/lib/analytics'
 import type { BrtBus, BrtCorridor, BrtHalte } from '@/types/brt'
 
@@ -25,9 +26,10 @@ const selection = useSelectionStore()
 const focus = useFocusStore()
 const geo = useGeoStore()
 const trip = useTripStore()
+const { t } = useI18n()
 const { isDark } = useTheme()
 const { corridors, halte, buses } = storeToRefs(brt)
-const { selectedPlan: tripSelectedPlan, origin: tripOrigin, destination: tripDestination } = storeToRefs(trip)
+const { selectedPlan: tripSelectedPlan, origin: tripOrigin, destination: tripDestination, tapMode: tripTapMode } = storeToRefs(trip)
 
 const containerEl = shallowRef<HTMLElement | null>(null)
 let map: L.Map | null = null
@@ -897,12 +899,65 @@ watch(
   { deep: true },
 )
 
+/** Trip planner tap-on-map mode: while tripTapMode is non-null, the
+ *  next map click is intercepted and used to set the planner's
+ *  origin/destination. If the click lands within ~50m of an existing
+ *  halte, we snap to it (kind='halte') so transit routing still works
+ *  cleanly; otherwise it becomes a free-form pin (kind='pin'). */
+const SNAP_RADIUS_M = 50
+let tapClickHandler: ((e: L.LeafletMouseEvent) => void) | null = null
+
+function detachTapHandler() {
+  if (map && tapClickHandler) map.off('click', tapClickHandler)
+  tapClickHandler = null
+}
+
+watch(tripTapMode, (mode) => {
+  detachTapHandler()
+  if (!mode || !map) return
+  tapClickHandler = (ev: L.LeafletMouseEvent) => {
+    const lat = ev.latlng.lat
+    const lng = ev.latlng.lng
+    // Snap to nearest halte if within SNAP_RADIUS_M
+    let best: { sh_id: string; sh_name: string; lat: number; lng: number; d: number } | null = null
+    for (const h of brt.halte) {
+      const hLat = parseFloat(h.sh_lat)
+      const hLng = parseFloat(h.sh_lng)
+      if (!Number.isFinite(hLat) || !Number.isFinite(hLng)) continue
+      const d = haversineMeters({ lat, lng }, { lat: hLat, lng: hLng })
+      if (d <= SNAP_RADIUS_M && (!best || d < best.d)) {
+        best = { sh_id: h.sh_id, sh_name: h.sh_name, lat: hLat, lng: hLng, d }
+      }
+    }
+    const endpoint = best
+      ? { kind: 'halte' as const, label: best.sh_name, point: { lat: best.lat, lng: best.lng }, sh_id: best.sh_id }
+      : { kind: 'pin' as const, label: t('trip.pinLabel'), point: { lat, lng }, sh_id: null }
+    if (mode === 'origin') trip.setOrigin(endpoint)
+    else trip.setDestination(endpoint)
+    trip.setTapMode(null)
+  }
+  map.on('click', tapClickHandler)
+}, { immediate: false })
+
+// ESC to cancel tap mode.
+function onKeyDown(e: KeyboardEvent) {
+  if (e.key === 'Escape' && tripTapMode.value) {
+    trip.setTapMode(null)
+  }
+}
+
+onMounted(() => {
+  window.addEventListener('keydown', onKeyDown)
+})
+
 onBeforeUnmount(() => {
   if (staleTicker) window.clearInterval(staleTicker)
   staleTicker = undefined
   if (resizeFrame != null) cancelAnimationFrame(resizeFrame)
   resizeObserver?.disconnect()
   resizeObserver = undefined
+  window.removeEventListener('keydown', onKeyDown)
+  detachTapHandler()
   clearAll()
   tileLayer?.remove()
   map?.remove()
@@ -912,10 +967,34 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div ref="containerEl" class="h-full w-full" aria-label="Peta lokasi bus" role="region" />
+  <div class="relative h-full w-full">
+    <div
+      ref="containerEl"
+      :class="['h-full w-full', tripTapMode ? 'map-tap-mode' : '']"
+      aria-label="Peta lokasi bus"
+      role="region"
+    />
+    <!-- Tap-on-map mode banner. Top-center, non-interactive so it
+         doesn't swallow clicks meant for the map underneath. -->
+    <div
+      v-if="tripTapMode"
+      class="pointer-events-none absolute left-1/2 top-3 z-[900] -translate-x-1/2 rounded-full bg-bnc-ink/85 px-4 py-2 text-xs text-bnc-paper shadow-[var(--shadow-elevated)] backdrop-blur"
+      role="status"
+    >
+      <span class="font-mono uppercase tracking-wider">
+        {{ tripTapMode === 'origin' ? $t('trip.tapPrompt') : $t('trip.tapPrompt') }}
+      </span>
+      <span class="ml-2 font-mono text-[10px] text-bnc-stone-400">
+        {{ $t('trip.tapPromptCancel') }}
+      </span>
+    </div>
+  </div>
 </template>
 
 <style scoped>
+.map-tap-mode :deep(.leaflet-container) {
+  cursor: crosshair !important;
+}
 :deep(.leaflet-control-zoom) {
   border: none;
   border-radius: 9999px;

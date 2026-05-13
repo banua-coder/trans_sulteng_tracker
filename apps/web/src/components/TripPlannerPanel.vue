@@ -11,7 +11,11 @@ import type { Endpoint } from '@/stores/trip'
 const { t } = useI18n()
 const trip = useTripStore()
 const brt = useBrtStore()
-const { origin, destination, plans, loading, error } = storeToRefs(trip)
+const { origin, destination, plans, loading, error, tapMode } = storeToRefs(trip)
+
+function toggleTapMode(which: 'origin' | 'dest') {
+  trip.setTapMode(tapMode.value === which ? null : which)
+}
 
 // ── Popover positioning ────────────────────────────────────────────────────
 // Search popovers are Teleported to <body> so they can escape the
@@ -202,6 +206,26 @@ const showNoResults = computed(
         </svg>
       </button>
 
+      <!-- Tap-on-map toggle -->
+      <button
+        type="button"
+        class="grid h-8 w-8 shrink-0 place-items-center rounded-full transition-colors"
+        :class="
+          tapMode === 'origin'
+            ? 'bg-bnc-accent text-white'
+            : 'text-bnc-stone-600 hover:bg-bnc-stone-100 dark:text-bnc-stone-300 dark:hover:bg-bnc-stone-800'
+        "
+        :aria-label="t('trip.tapOnMap')"
+        :aria-pressed="tapMode === 'origin'"
+        :title="t('trip.tapOnMap')"
+        @click="toggleTapMode('origin')"
+      >
+        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden>
+          <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+          <circle cx="12" cy="10" r="3" />
+        </svg>
+      </button>
+
       <!-- GPS error inline -->
       <p v-if="gpsError" class="flex-1 text-xs text-red-500">{{ t('trip.gpsFailed') }}</p>
 
@@ -287,13 +311,25 @@ const showNoResults = computed(
 
     <!-- Destination row -->
     <div class="flex items-center gap-2">
-      <!-- Pin icon (visual alignment placeholder) -->
-      <span class="grid h-8 w-8 shrink-0 place-items-center text-bnc-stone-400" aria-hidden>
-        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <!-- Tap-on-map toggle -->
+      <button
+        type="button"
+        class="grid h-8 w-8 shrink-0 place-items-center rounded-full transition-colors"
+        :class="
+          tapMode === 'dest'
+            ? 'bg-bnc-primary text-white'
+            : 'text-bnc-stone-600 hover:bg-bnc-stone-100 dark:text-bnc-stone-300 dark:hover:bg-bnc-stone-800'
+        "
+        :aria-label="t('trip.tapOnMap')"
+        :aria-pressed="tapMode === 'dest'"
+        :title="t('trip.tapOnMap')"
+        @click="toggleTapMode('dest')"
+      >
+        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden>
           <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
           <circle cx="12" cy="10" r="3" />
         </svg>
-      </span>
+      </button>
 
       <!-- Chip when destination set -->
       <template v-if="destination">

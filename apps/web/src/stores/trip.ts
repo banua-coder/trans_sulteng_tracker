@@ -32,6 +32,10 @@ export const useTripStore = defineStore('trip', () => {
   const loading = ref(false)
   const error = ref<string | null>(null)
   const graphReady = ref(false)
+  /** When non-null, the next map click is consumed by the trip
+   *  planner — used to drop an origin/destination pin from the map.
+   *  MapView watches this and wires up a one-shot click handler. */
+  const tapMode = ref<'origin' | 'dest' | null>(null)
 
   let worker: Worker | null = null
   let nextId = 1
@@ -121,6 +125,7 @@ export const useTripStore = defineStore('trip', () => {
 
   function setOrigin(e: Endpoint | null) { origin.value = e }
   function setDestination(e: Endpoint | null) { destination.value = e }
+  function setTapMode(m: 'origin' | 'dest' | null) { tapMode.value = m }
   function swap() {
     const o = origin.value
     origin.value = destination.value
@@ -161,8 +166,10 @@ export const useTripStore = defineStore('trip', () => {
     loading,
     error,
     graphReady,
+    tapMode,
     setOrigin,
     setDestination,
+    setTapMode,
     swap,
     selectPlan,
     clear,
