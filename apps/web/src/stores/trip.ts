@@ -70,8 +70,19 @@ export const useTripStore = defineStore('trip', () => {
 
   /** Build (or rebuild) the graph from current brt store state. The
    *  per-leg halte lists are the authoritative source — bulk halte is
-   *  missing reverse-direction terminals (see beads 6ke). */
+   *  missing reverse-direction halte for some corridors (K2A has 0
+   *  reverse rows in bulk; per-leg returns 19). Prefetch all legs in
+   *  parallel before building so the worker gets the full picture. */
   async function buildGraph() {
+    graphReady.value = false
+    // Prefetch per-leg in parallel — covers bulk feed gaps.
+    const prefetches: Promise<unknown>[] = []
+    for (const c of brt.corridors) {
+      prefetches.push(brt.ensureHalteForLeg(c.kor, c.toward, c.origin).catch(() => {}))
+      prefetches.push(brt.ensureHalteForLeg(c.kor, c.origin, c.toward).catch(() => {}))
+    }
+    await Promise.all(prefetches)
+
     const halteByLeg: import('@/types/brt').BrtHalte[][] = []
     for (const c of brt.corridors) {
       const a = brt.getHalteForLeg(c.kor, c.toward, c.origin)
@@ -79,7 +90,6 @@ export const useTripStore = defineStore('trip', () => {
       if (a.length) halteByLeg.push(a)
       if (b.length) halteByLeg.push(b)
     }
-    graphReady.value = false
     try {
       // Strip Vue reactive Proxies before crossing the worker boundary.
       // postMessage uses structured clone, which can't clone Proxies.

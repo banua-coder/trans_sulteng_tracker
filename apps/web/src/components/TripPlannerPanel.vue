@@ -1,17 +1,36 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
 import { onClickOutside, useEventListener } from '@vueuse/core'
 import { useTripStore } from '@/stores/trip'
 import { useBrtStore } from '@/stores/brt'
+import { useCityStore } from '@/stores/city'
 import TripResultCard from '@/components/TripResultCard.vue'
 import type { Endpoint } from '@/stores/trip'
 
 const { t } = useI18n()
 const trip = useTripStore()
 const brt = useBrtStore()
+const city = useCityStore()
 const { origin, destination, plans, loading, error, tapMode } = storeToRefs(trip)
+
+/** Per-city service-area bounding box. GPS reads outside this box
+ *  trigger a 'you are not in the service area' warning rather than
+ *  silently setting a useless origin. Boxes are generous (~10 km
+ *  padding around the actual corridor coverage). */
+const CITY_BBOX: Record<string, { south: number; north: number; west: number; east: number }> = {
+  '12': { south: -1.05, north: -0.65, west: 119.70, east: 120.00 }, // Palu
+  '11': { south: -1.05, north: -0.55, west: 119.55, east: 119.95 }, // Donggala
+}
+
+function isInServiceArea(lat: number, lng: number): boolean {
+  const bb = CITY_BBOX[city.pref]
+  if (!bb) return true
+  return lat >= bb.south && lat <= bb.north && lng >= bb.west && lng <= bb.east
+}
+
+const gpsOutOfRange = ref(false)
 
 function toggleTapMode(which: 'origin' | 'dest') {
   trip.setTapMode(tapMode.value === which ? null : which)
@@ -82,10 +101,16 @@ function useGps() {
   navigator.geolocation.getCurrentPosition(
     (pos) => {
       gpsLoading.value = false
+      const lat = pos.coords.latitude
+      const lng = pos.coords.longitude
+      if (!isInServiceArea(lat, lng)) {
+        gpsOutOfRange.value = true
+        return
+      }
       trip.setOrigin({
         kind: 'gps',
         label: t('trip.useGps'),
-        point: { lat: pos.coords.latitude, lng: pos.coords.longitude },
+        point: { lat, lng },
         sh_id: null,
       })
     },
@@ -428,4 +453,32 @@ const showNoResults = computed(
       </template>
     </div>
   </div>
+
+  <!-- GPS out-of-range dialog. Teleported to body so it overlays the
+       map + sheet without z-index gymnastics. -->
+  <Teleport to="body">
+    <div
+      v-if="gpsOutOfRange"
+      class="fixed inset-0 z-[1300] flex items-end justify-center bg-bnc-ink/40 p-4 backdrop-blur-sm sm:items-center"
+      role="dialog"
+      aria-modal="true"
+      @click.self="gpsOutOfRange = false"
+    >
+      <div class="w-full max-w-sm rounded-[var(--radius-md)] bg-bnc-paper p-4 shadow-[var(--shadow-elevated)] dark:bg-bnc-stone-900">
+        <h3 class="font-display text-base font-bold tracking-tight">
+          {{ t('trip.gpsOutOfRangeTitle') }}
+        </h3>
+        <p class="mt-2 text-sm text-bnc-stone-600 dark:text-bnc-stone-300">
+          {{ t('trip.gpsOutOfRangeBody') }}
+        </p>
+        <button
+          type="button"
+          class="mt-4 inline-flex items-center justify-center rounded-full bg-bnc-primary px-4 py-2 font-mono text-xs font-bold uppercase tracking-wider text-white"
+          @click="gpsOutOfRange = false"
+        >
+          {{ t('trip.gpsOutOfRangeOk') }}
+        </button>
+      </div>
+    </div>
+  </Teleport>
 </template>

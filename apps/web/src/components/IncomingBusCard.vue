@@ -117,7 +117,7 @@ function stripeStyle(): Record<string, string> {
         v-if="speedKmh != null"
         class="font-mono text-[10px] tabular-nums text-bnc-stone-500"
       >
-        <span class="font-bold text-bnc-stone-700 dark:text-bnc-stone-200">{{ formatSpeed(speedKmh) }}</span>
+        <span class="font-bold text-bnc-stone-700 dark:text-bnc-stone-200">{{ formatSpeed(typeof speedKmh === 'string' ? parseFloat(speedKmh) : speedKmh) }}</span>
         {{ t('units.kmh') }}
       </p>
     </div>

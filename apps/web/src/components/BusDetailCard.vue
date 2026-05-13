@@ -4,7 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
 import { useSelectionStore } from '@/stores/selection'
 import { useBrtStore } from '@/stores/brt'
-import { ageSeconds, etaToHalte, formatAge, formatDistance, formatSpeed, getEtaQuality, haversineMeters, isStale, parsePassenger } from '@/lib/format'
+import { ageSeconds, etaToHalte, formatAge, formatSpeed, getEtaQuality, haversineMeters, isStale, parsePassenger } from '@/lib/format'
 import CopyLinkButton from '@/components/CopyLinkButton.vue'
 import PlateBadge from '@/components/PlateBadge.vue'
 import EtaQualityGuide from '@/components/EtaQualityGuide.vue'
@@ -42,22 +42,6 @@ const updatedLabel = computed(() => {
   void now.value
   const a = ageSeconds(selectedBus.value.dt_tracker)
   return `${formatAge(a)} ${t('units.ago')}`
-})
-
-const nextHalteRecord = computed(() => {
-  const bus = selectedBus.value
-  if (!bus?.new_shel_t) return null
-  return brt.halte.find((x) => x.sh_id === bus.new_shel_t) ?? null
-})
-
-const nextHalte = computed(() => {
-  return nextHalteRecord.value?.sh_name ?? selectedBus.value?.new_shel_t ?? null
-})
-
-const nextEta = computed(() => {
-  const bus = selectedBus.value
-  if (!bus) return null
-  return etaToHalte(bus, nextHalteRecord.value)
 })
 
 const passenger = computed(() =>

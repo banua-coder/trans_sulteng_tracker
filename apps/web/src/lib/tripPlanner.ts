@@ -34,7 +34,7 @@ export const TRANSFER_RADIUS_M = 30
  *  in_koridor expansion connects to the nearest real node on the
  *  same kor via a fake ride edge, but only if within this distance.
  *  Keeps the bridge realistic. */
-export const SYNTH_BRIDGE_MAX_M = 1500
+export const SYNTH_BRIDGE_MAX_M = 2500
 
 export interface LatLng { lat: number; lng: number }
 
