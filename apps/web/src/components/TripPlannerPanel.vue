@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
-import { onClickOutside } from '@vueuse/core'
+import { onClickOutside, useEventListener } from '@vueuse/core'
 import { useTripStore } from '@/stores/trip'
 import { useBrtStore } from '@/stores/brt'
 import TripResultCard from '@/components/TripResultCard.vue'
@@ -13,15 +13,39 @@ const trip = useTripStore()
 const brt = useBrtStore()
 const { origin, destination, plans, loading, error } = storeToRefs(trip)
 
+// ── Popover positioning ────────────────────────────────────────────────────
+// Search popovers are Teleported to <body> so they can escape the
+// bottom sheet's `overflow-y-auto` clip + height cap (the previous
+// in-flow version was being cropped by the parent sheet).
+interface PopoverRect { top: number; left: number; width: number }
+
+function rectBelow(anchor: HTMLElement | null): PopoverRect {
+  if (!anchor) return { top: 0, left: 0, width: 0 }
+  const r = anchor.getBoundingClientRect()
+  return { top: r.bottom + 4, left: r.left, width: r.width }
+}
+
 // ── Origin search ──────────────────────────────────────────────────────────
 const originQuery = ref('')
 const originFocused = ref(false)
+const originRowEl = ref<HTMLElement | null>(null)
+const originInputEl = ref<HTMLElement | null>(null)
 const originPopoverEl = ref<HTMLElement | null>(null)
+const originPopoverRect = ref<PopoverRect>({ top: 0, left: 0, width: 0 })
 const gpsLoading = ref(false)
 const gpsError = ref(false)
 
-onClickOutside(originPopoverEl, () => {
+onClickOutside(originPopoverEl, (event) => {
+  // Don't fight a click that landed on the input itself.
+  if (originInputEl.value && originInputEl.value.contains(event.target as Node)) return
   originFocused.value = false
+})
+
+function syncOriginRect() {
+  originPopoverRect.value = rectBelow(originInputEl.value)
+}
+watch(originFocused, (v) => {
+  if (v) nextTick(syncOriginRect)
 })
 
 const originResults = computed(() => {
@@ -72,11 +96,29 @@ function useGps() {
 // ── Destination search ─────────────────────────────────────────────────────
 const destQuery = ref('')
 const destFocused = ref(false)
+const destInputEl = ref<HTMLElement | null>(null)
 const destPopoverEl = ref<HTMLElement | null>(null)
+const destPopoverRect = ref<PopoverRect>({ top: 0, left: 0, width: 0 })
 
-onClickOutside(destPopoverEl, () => {
+onClickOutside(destPopoverEl, (event) => {
+  if (destInputEl.value && destInputEl.value.contains(event.target as Node)) return
   destFocused.value = false
 })
+
+function syncDestRect() {
+  destPopoverRect.value = rectBelow(destInputEl.value)
+}
+watch(destFocused, (v) => {
+  if (v) nextTick(syncDestRect)
+})
+
+// Keep popover positions in sync with scroll / resize while open.
+function syncAll() {
+  if (originFocused.value) syncOriginRect()
+  if (destFocused.value) syncDestRect()
+}
+useEventListener('scroll', syncAll, { passive: true, capture: true })
+useEventListener('resize', syncAll)
 
 const destResults = computed(() => {
   const q = destQuery.value.trim().toLowerCase()
@@ -120,7 +162,7 @@ const showNoResults = computed(
 <template>
   <div class="flex flex-col gap-3">
     <!-- Origin row -->
-    <div ref="originPopoverEl" class="relative flex items-center gap-2">
+    <div ref="originRowEl" class="flex items-center gap-2">
       <!-- GPS button -->
       <button
         type="button"
@@ -186,6 +228,7 @@ const showNoResults = computed(
       <!-- Search input -->
       <input
         v-else
+        ref="originInputEl"
         v-model="originQuery"
         type="text"
         autocomplete="off"
@@ -193,11 +236,16 @@ const showNoResults = computed(
         class="flex-1 rounded-[var(--radius-md)] border border-bnc-stone-200 bg-bnc-stone-50 px-3 py-2 text-sm placeholder:text-bnc-stone-400 focus:border-bnc-accent focus:outline-none dark:border-bnc-stone-800 dark:bg-bnc-stone-800"
         @focus="originFocused = true"
       />
+    </div>
 
-      <!-- Origin popover -->
+    <!-- Origin popover (Teleported to body so it escapes the bottom
+         sheet's overflow-y-auto). -->
+    <Teleport to="body">
       <ul
         v-if="originFocused && originResults.length"
-        class="absolute left-10 right-0 top-full z-30 mt-1 max-h-52 overflow-y-auto rounded-[var(--radius-md)] border border-bnc-stone-200 bg-white shadow-md dark:border-bnc-stone-700 dark:bg-bnc-stone-900"
+        ref="originPopoverEl"
+        class="fixed z-[1200] max-h-60 overflow-y-auto rounded-[var(--radius-md)] border border-bnc-stone-200 bg-white shadow-[var(--shadow-elevated)] dark:border-bnc-stone-700 dark:bg-bnc-stone-900"
+        :style="{ top: originPopoverRect.top + 'px', left: originPopoverRect.left + 'px', width: originPopoverRect.width + 'px' }"
       >
         <li v-for="h in originResults" :key="h.sh_id">
           <button
@@ -215,7 +263,7 @@ const showNoResults = computed(
           </button>
         </li>
       </ul>
-    </div>
+    </Teleport>
 
     <!-- Swap button -->
     <div class="flex items-center gap-2">
@@ -238,7 +286,7 @@ const showNoResults = computed(
     </div>
 
     <!-- Destination row -->
-    <div ref="destPopoverEl" class="relative flex items-center gap-2">
+    <div class="flex items-center gap-2">
       <!-- Pin icon (visual alignment placeholder) -->
       <span class="grid h-8 w-8 shrink-0 place-items-center text-bnc-stone-400" aria-hidden>
         <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -270,6 +318,7 @@ const showNoResults = computed(
       <!-- Search input -->
       <input
         v-else
+        ref="destInputEl"
         v-model="destQuery"
         type="text"
         autocomplete="off"
@@ -277,11 +326,15 @@ const showNoResults = computed(
         class="flex-1 rounded-[var(--radius-md)] border border-bnc-stone-200 bg-bnc-stone-50 px-3 py-2 text-sm placeholder:text-bnc-stone-400 focus:border-bnc-accent focus:outline-none dark:border-bnc-stone-800 dark:bg-bnc-stone-800"
         @focus="destFocused = true"
       />
+    </div>
 
-      <!-- Destination popover -->
+    <!-- Destination popover -->
+    <Teleport to="body">
       <ul
         v-if="destFocused && destResults.length"
-        class="absolute left-10 right-0 top-full z-30 mt-1 max-h-52 overflow-y-auto rounded-[var(--radius-md)] border border-bnc-stone-200 bg-white shadow-md dark:border-bnc-stone-700 dark:bg-bnc-stone-900"
+        ref="destPopoverEl"
+        class="fixed z-[1200] max-h-60 overflow-y-auto rounded-[var(--radius-md)] border border-bnc-stone-200 bg-white shadow-[var(--shadow-elevated)] dark:border-bnc-stone-700 dark:bg-bnc-stone-900"
+        :style="{ top: destPopoverRect.top + 'px', left: destPopoverRect.left + 'px', width: destPopoverRect.width + 'px' }"
       >
         <li v-for="h in destResults" :key="h.sh_id">
           <button
@@ -299,7 +352,7 @@ const showNoResults = computed(
           </button>
         </li>
       </ul>
-    </div>
+    </Teleport>
 
     <!-- Results section -->
     <div class="mt-1 flex flex-col gap-2">
