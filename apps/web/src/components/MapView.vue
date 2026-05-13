@@ -236,8 +236,24 @@ function drawHalte(items: BrtHalte[]) {
  *                        slightly heavier polyline weight. Everything
  *                        else fades to ~10% so the focused route is
  *                        clearly the headliner. */
+/** Which corridor should the map spotlight right now?
+ *
+ *  - Explicit corridor focus wins (user tapped a route).
+ *  - Otherwise, if a bus is selected, spotlight that bus's corridor
+ *    (TJ Transjakarta's bus detail behavior — dim everything else so
+ *    the bus's path reads cleanly).
+ *  - Else null = no spotlight, everything at default opacity. */
+function spotlightKor(): string | null {
+  if (focus.kor) return focus.kor
+  if (selection.kind === 'bus' && selection.id) {
+    const bus = brt.buses.get(selection.id)
+    if (bus?.kor) return bus.kor
+  }
+  return null
+}
+
 function applyFocus() {
-  const fk = focus.kor
+  const fk = spotlightKor()
 
   // Corridors
   for (const [kor, byLeg] of corridorLines.entries()) {
@@ -278,7 +294,7 @@ function busColorFor(b: BrtBus): string {
 /** Element opacity: full when no focus or on-focused-corridor, faded
  *  otherwise so the focused corridor's buses are the obvious read. */
 function busOpacityFor(b: BrtBus): string {
-  const fk = focus.kor
+  const fk = spotlightKor()
   if (fk === null || b.kor === fk) return '1'
   return '0.18'
 }
@@ -550,6 +566,9 @@ watch(
       }
     }
 
+    // Selection toggles the spotlightKor — re-style corridors/halte to
+    // dim everything that isn't on the selected bus's route (TJ-style).
+    applyFocus()
     applySelectedHalte()
   },
 )
