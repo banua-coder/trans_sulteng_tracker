@@ -43,7 +43,7 @@ export const useUiStore = defineStore('ui', () => {
 
   const busSearch = ref<string>(readJson<string>(KEY_SEARCH, ''))
 
-  type MobileTab = 'routes' | 'halte'
+  type MobileTab = 'routes' | 'halte' | 'plan'
   const mobileTab = ref<MobileTab>(readJson<MobileTab>(KEY_MOBILE_TAB, 'routes'))
   const mobileScrollY = ref<number>(0)
 

@@ -18,6 +18,7 @@ import { useFocusStore } from '@/stores/focus'
 import { useSelectionStore } from '@/stores/selection'
 import { useUiStore } from '@/stores/ui'
 import RouteListItem from '@/components/RouteListItem.vue'
+import TripPlannerPanel from '@/components/TripPlannerPanel.vue'
 
 const { t } = useI18n()
 const brt = useBrtStore()
@@ -129,10 +130,25 @@ function pickHalte(shId: string) {
       >
         {{ t('route.tabHalte') }}
       </button>
+      <button
+        type="button"
+        class="flex-1 rounded-full px-4 py-1.5 font-mono text-xs font-bold uppercase tracking-wider transition-colors"
+        :class="
+          tab === 'plan'
+            ? 'bg-bnc-primary text-white shadow-sm'
+            : 'bg-bnc-stone-100 text-bnc-stone-600 dark:bg-bnc-stone-800 dark:text-bnc-stone-300'
+        "
+        @click="tab = 'plan'"
+      >
+        {{ t('route.tabPlan') }}
+      </button>
     </div>
 
+    <!-- trip planner tab -->
+    <TripPlannerPanel v-if="tab === 'plan'" />
+
     <!-- search (shared with BusListPanel via ui store so search persists across swaps) -->
-    <label class="relative block shrink-0">
+    <label v-if="tab !== 'plan'" class="relative block shrink-0">
       <span class="sr-only">{{ t('route.search') }}</span>
       <input
         v-model="busSearch"
@@ -176,7 +192,7 @@ function pickHalte(shId: string) {
       </li>
     </ul>
 
-    <ul v-else class="flex flex-col gap-2">
+    <ul v-else-if="tab === 'halte'" class="flex flex-col gap-2">
       <li v-for="h in filteredHalte" :key="h.sh_id">
         <button
           type="button"
