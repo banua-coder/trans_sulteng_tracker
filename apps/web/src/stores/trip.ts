@@ -104,10 +104,15 @@ export const useTripStore = defineStore('trip', () => {
     loading.value = true
     error.value = null
     try {
+      // Strip reactive Proxies before postMessage — structured clone
+      // can't handle them. origin/destination.point is a Vue reactive
+      // {lat, lng} so even the inner object needs unwrapping.
+      const o = origin.value.point
+      const d = destination.value.point
       const resp = await call<{ type: 'plan'; paths: PlanResult[] }>({
         type: 'plan',
-        origin: origin.value.point,
-        dest: destination.value.point,
+        origin: { lat: o.lat, lng: o.lng },
+        dest: { lat: d.lat, lng: d.lng },
         k: 5,
       })
       plans.value = resp.paths
