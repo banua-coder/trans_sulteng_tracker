@@ -7,6 +7,7 @@ import { useBrtStore } from '@/stores/brt'
 import { etaToHalte, formatDistance, getEtaQuality, isStale, parsePassenger } from '@/lib/format'
 import CopyLinkButton from '@/components/CopyLinkButton.vue'
 import PlateBadge from '@/components/PlateBadge.vue'
+import EtaQualityGuide from '@/components/EtaQualityGuide.vue'
 import type { BrtBus } from '@/types/brt'
 
 const { t } = useI18n()
@@ -174,8 +175,9 @@ function openDirections() {
       </div>
 
       <section class="border-t border-bnc-stone-200 pt-3 dark:border-bnc-stone-800">
-        <h4 class="font-mono text-[11px] uppercase tracking-wider text-bnc-stone-500">
+        <h4 class="flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-wider text-bnc-stone-500">
           {{ t('halte.incomingBuses') }}
+          <EtaQualityGuide />
         </h4>
         <ul v-if="arrivals.length" class="mt-2 flex flex-col gap-2">
           <li

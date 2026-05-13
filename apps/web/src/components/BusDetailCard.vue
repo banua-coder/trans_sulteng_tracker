@@ -7,6 +7,7 @@ import { useBrtStore } from '@/stores/brt'
 import { ageSeconds, etaToHalte, formatAge, formatDistance, formatSpeed, getEtaQuality, haversineMeters, isStale, parsePassenger } from '@/lib/format'
 import CopyLinkButton from '@/components/CopyLinkButton.vue'
 import PlateBadge from '@/components/PlateBadge.vue'
+import EtaQualityGuide from '@/components/EtaQualityGuide.vue'
 
 const { t } = useI18n()
 const selection = useSelectionStore()
@@ -206,8 +207,9 @@ const upcomingStops = computed<UpcomingStop[]>(() => {
         v-if="upcomingStops.length"
         class="border-t border-bnc-stone-200 pt-3 dark:border-bnc-stone-800"
       >
-        <h4 class="font-mono text-[10px] uppercase tracking-wider text-bnc-stone-500">
+        <h4 class="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-bnc-stone-500">
           {{ t('route.estimatedArrival') }}
+          <EtaQualityGuide />
         </h4>
         <ul class="mt-2 flex flex-col divide-y divide-bnc-stone-100 dark:divide-bnc-stone-800">
           <li

@@ -18,6 +18,7 @@ import { etaToHalte, getEtaQuality, isStale, parseProgress } from '@/lib/format'
 import HalteTimelineNode from '@/components/HalteTimelineNode.vue'
 import IncomingBusCard from '@/components/IncomingBusCard.vue'
 import CopyLinkButton from '@/components/CopyLinkButton.vue'
+import EtaQualityGuide from '@/components/EtaQualityGuide.vue'
 import type { BrtBus, BrtHalte } from '@/types/brt'
 
 const { t } = useI18n()
@@ -175,6 +176,7 @@ function pad(n: number) {
         />
         {{ activeBusCount }} {{ t('route.busActive') }}
       </span>
+      <EtaQualityGuide />
     </div>
 
     <!-- direction tabs -->
