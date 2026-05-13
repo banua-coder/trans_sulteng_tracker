@@ -166,7 +166,23 @@ function drawHalte(items: BrtHalte[]) {
   halteByLeg.clear()
   halteSeen.clear()
   halteMarkerKors.clear()
-  for (const h of items) {
+
+  const fk = focus.kor
+  let effectiveItems = items
+  if (fk) {
+    const corridor = brt.corridorByKor.get(fk)
+    if (corridor) {
+      const legA = brt.getHalteForLeg(fk, corridor.toward, corridor.origin)
+      const legB = brt.getHalteForLeg(fk, corridor.origin, corridor.toward)
+      const perLeg = [...legA, ...legB]
+      if (perLeg.length > 0) {
+        // Replace bulk halte for the focused corridor with per-leg data.
+        effectiveItems = [...items.filter((h) => h.kor !== fk), ...perLeg]
+      }
+    }
+  }
+
+  for (const h of effectiveItems) {
     const lat = parseFloat(h.sh_lat)
     const lng = parseFloat(h.sh_lng)
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue
@@ -529,6 +545,15 @@ watch(
     drawHalte(items)
   },
   { immediate: false },
+)
+
+watch(
+  () => brt.halteByLeg,
+  () => {
+    if (!map) return
+    drawHalte(halte.value)
+  },
+  { deep: true },
 )
 
 watch(

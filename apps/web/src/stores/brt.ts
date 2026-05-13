@@ -1,14 +1,25 @@
 import { defineStore } from 'pinia'
-import { computed, reactive, ref } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import { api } from '@/lib/api'
 import { haversineMeters } from '@/lib/format'
 import type { BrtBus, BrtCity, BrtCorridor, BrtHalte } from '@/types/brt'
+import { useCityStore } from './city'
 
 export const useBrtStore = defineStore('brt', () => {
+  const city = useCityStore()
+
   const cities = ref<BrtCity[]>([])
   const corridors = ref<BrtCorridor[]>([])
   const halte = ref<BrtHalte[]>([])
   const buses = reactive<Map<string, BrtBus>>(new Map())
+
+  // Per-leg halte cache. Key = `${kor}|${toward}|${origin}`.
+  // Populated lazily when focus/bus detail asks for a specific leg —
+  // the bulk /halte feed is missing reverse-direction stops for K2A and
+  // the terminal stops on K1 reverse, so we go via the per-leg endpoint
+  // (upstream getRouteCorridor) which is authoritative.
+  const halteByLeg = ref(new Map<string, BrtHalte[]>())
+  const inflightHalteLeg = new Map<string, Promise<BrtHalte[]>>()
 
   const loading = ref(false)
   const error = ref<string | null>(null)
@@ -108,6 +119,48 @@ export const useBrtStore = defineStore('brt', () => {
     buses.clear()
   }
 
+  function legKey(kor: string, toward: string, origin: string): string {
+    return `${kor}|${toward}|${origin}`
+  }
+
+  async function ensureHalteForLeg(
+    kor: string,
+    toward: string,
+    origin: string,
+  ): Promise<BrtHalte[]> {
+    const key = legKey(kor, toward, origin)
+    const cached = halteByLeg.value.get(key)
+    if (cached) return cached
+    const inflight = inflightHalteLeg.get(key)
+    if (inflight) return inflight
+
+    const p = api
+      .halteByCorridor(city.pref, kor, toward, origin)
+      .then((list) => {
+        halteByLeg.value.set(key, list)
+        inflightHalteLeg.delete(key)
+        return list
+      })
+      .catch((err) => {
+        inflightHalteLeg.delete(key)
+        throw err
+      })
+    inflightHalteLeg.set(key, p)
+    return p
+  }
+
+  function getHalteForLeg(kor: string, toward: string, origin: string): BrtHalte[] {
+    return halteByLeg.value.get(legKey(kor, toward, origin)) ?? []
+  }
+
+  watch(
+    () => city.pref,
+    () => {
+      halteByLeg.value.clear()
+      inflightHalteLeg.clear()
+    },
+  )
+
   return {
     cities,
     corridors,
@@ -122,5 +175,8 @@ export const useBrtStore = defineStore('brt', () => {
     loadRoutes,
     upsertBus,
     clearBuses,
+    halteByLeg,
+    ensureHalteForLeg,
+    getHalteForLeg,
   }
 })

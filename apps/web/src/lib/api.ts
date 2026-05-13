@@ -14,7 +14,9 @@ export const api = {
   cities: () => getJson<BrtCity[]>('/cities'),
   corridors: (pref: string) => getJson<BrtCorridor[]>(`/cities/${pref}/corridors`),
   halte: (pref: string) => getJson<BrtHalte[]>(`/cities/${pref}/halte`),
-  halteByCorridor: (pref: string, kor: string) =>
-    getJson<BrtHalte[]>(`/cities/${pref}/halte/${encodeURIComponent(kor)}`),
+  halteByCorridor: (pref: string, kor: string, toward: string, origin: string) =>
+    getJson<BrtHalte[]>(
+      `/cities/${pref}/halte/${encodeURIComponent(kor)}?toward=${encodeURIComponent(toward)}&origin=${encodeURIComponent(origin)}`,
+    ),
   health: () => getJson<{ status: string; upstream: string; token: string }>('/health'),
 }

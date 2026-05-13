@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
 import { useSelectionStore } from '@/stores/selection'
@@ -74,18 +74,26 @@ function wallClock(etaMin: number): string {
   return `${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
+watch(
+  selectedBus,
+  (bus) => {
+    if (!bus?.kor) return
+    const corridor = brt.corridorByKor.get(bus.kor)
+    if (!corridor) return
+    const originName = bus.toward === corridor.toward ? corridor.origin : corridor.toward
+    brt.ensureHalteForLeg(bus.kor, bus.toward, originName).catch(() => {})
+  },
+  { immediate: true },
+)
+
 const upcomingStops = computed<UpcomingStop[]>(() => {
   const bus = selectedBus.value
   if (!bus?.kor) return []
   const corridor = brt.corridorByKor.get(bus.kor)
   if (!corridor) return []
 
-  const dir = bus.toward === corridor.toward ? 'a' : 'b'
-  const wantOrigin = dir === 'a' ? corridor.origin : corridor.toward
-  const wantToward = dir === 'a' ? corridor.toward : corridor.origin
-  const orderedHalte = brt.halte.filter(
-    (h) => h.kor === bus.kor && h.origin === wantOrigin && h.toward === wantToward,
-  )
+  const originName = bus.toward === corridor.toward ? corridor.origin : corridor.toward
+  const orderedHalte = brt.getHalteForLeg(bus.kor, bus.toward, originName)
 
   const startIdx = bus.new_shel_t
     ? orderedHalte.findIndex((h) => h.sh_id === bus.new_shel_t)

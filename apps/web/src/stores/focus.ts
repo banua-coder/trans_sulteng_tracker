@@ -28,40 +28,32 @@ export const useFocusStore = defineStore('focus', () => {
     if (!c) return []
     const wantOrigin = direction.value === 'a' ? c.origin : c.toward
     const wantToward = direction.value === 'a' ? c.toward : c.origin
-    return brt.halte.filter(
-      (h) =>
-        h.kor === c.kor &&
-        h.origin === wantOrigin &&
-        h.toward === wantToward,
-    )
+    return brt.getHalteForLeg(c.kor, wantToward, wantOrigin)
   })
 
-  /** Halte counts per direction for the focused corridor. Lets the UI
-   *  hide / disable the reverse-direction tab when the operator's
-   *  upstream feed doesn't include halte for that leg (e.g. K2A in
-   *  Trans Palu currently has zero reverse halte). */
   const halteCountByDirection = computed<{ a: number; b: number }>(() => {
     const c = corridor.value
     if (!c) return { a: 0, b: 0 }
-    let a = 0
-    let b = 0
-    for (const h of brt.halte) {
-      if (h.kor !== c.kor) continue
-      if (h.origin === c.origin && h.toward === c.toward) a++
-      else if (h.origin === c.toward && h.toward === c.origin) b++
+    return {
+      a: brt.getHalteForLeg(c.kor, c.toward, c.origin).length,
+      b: brt.getHalteForLeg(c.kor, c.origin, c.toward).length,
     }
-    return { a, b }
   })
 
   const directionAvailable = computed<{ a: boolean; b: boolean }>(() => {
-    const { a, b } = halteCountByDirection.value
-    return { a: a > 0, b: b > 0 }
+    return { a: corridor.value !== null, b: corridor.value !== null }
   })
 
   function focus(nextKor: string) {
     useSelectionStore().clear()
     kor.value = nextKor
     direction.value = 'a'
+    const c = brt.corridorByKor.get(nextKor)
+    if (c) {
+      // Fire-and-forget — both legs prefetched so direction toggle is instant.
+      brt.ensureHalteForLeg(c.kor, c.toward, c.origin).catch(() => {})
+      brt.ensureHalteForLeg(c.kor, c.origin, c.toward).catch(() => {})
+    }
   }
 
   function setDirection(d: Direction) {
