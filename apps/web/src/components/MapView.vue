@@ -12,7 +12,7 @@ import { useGeoStore } from '@/stores/geo'
 import { useSelectionStore } from '@/stores/selection'
 import { useTripStore } from '@/stores/trip'
 import type { PlanResult } from '@/lib/tripPlanner'
-import { busIcon, halteMarker } from '@/lib/leaflet/markers'
+import { busIcon, halteHaloMarker, halteMarker } from '@/lib/leaflet/markers'
 import { darkMatterTiles, voyagerTiles } from '@/lib/leaflet/tiles'
 import { useTheme } from '@/lib/theme'
 import { isStale } from '@/lib/format'
@@ -56,22 +56,31 @@ const lastReceivedAt = new Map<string, number>()
  *  the map to one leg even though styling stays per-corridor. */
 type Leg = 'a' | 'b'
 const corridorLines = new Map<string, Record<Leg, L.Polyline[]>>()
-const halteByLeg = new Map<string, Record<Leg, L.Marker[]>>()
+const halteByLeg = new Map<string, Record<Leg, L.CircleMarker[]>>()
 /** Dedup map: coord key → marker instance. Prevents drawing multiple
  *  overlapping icons when several corridors share a physical stop. */
-const halteSeen = new Map<string, L.Marker>()
+const halteSeen = new Map<string, L.CircleMarker>()
 /** Reverse map: marker → set of kor codes that use this stop. Used by
  *  applyFocus to show/dim correctly when a corridor is focused. */
-const halteMarkerKors = new Map<L.Marker, Set<string>>()
+const halteMarkerKors = new Map<L.CircleMarker, Set<string>>()
+/** Reverse map: marker → set of sh_ids that share this physical stop.
+ *  Lets the bus-spotlight pass identify which markers are "upcoming"
+ *  on the selected bus's leg vs already-passed. */
+const halteMarkerShIds = new Map<L.CircleMarker, Set<string>>()
 /** The currently highlighted halte marker, if any. Tracked separately
  *  from selection.id because markers are dedup'd by coordinate, so the
  *  same marker can serve multiple sh_id values. */
-let selectedHalteMarker: L.Marker | null = null
+let selectedHalteMarker: L.CircleMarker | null = null
+let selectedHalteHalo: L.Marker | null = null
 
 function applySelectedHalte() {
   if (selectedHalteMarker) {
-    selectedHalteMarker.getElement()?.classList.remove('selected')
+    selectedHalteMarker.setStyle({ radius: 5, fillColor: '#94a3b8', weight: 2 })
     selectedHalteMarker = null
+  }
+  if (selectedHalteHalo) {
+    selectedHalteHalo.remove()
+    selectedHalteHalo = null
   }
   if (selection.kind !== 'halte' || !selection.id) return
   const h = brt.halte.find((x) => x.sh_id === selection.id)
@@ -82,8 +91,12 @@ function applySelectedHalte() {
   const coordKey = `${lat.toFixed(5)},${lng.toFixed(5)}`
   const marker = halteSeen.get(coordKey)
   if (!marker) return
-  marker.getElement()?.classList.add('selected')
+  marker.setStyle({ radius: 8, fillColor: '#1D9CD4', weight: 2.5 })
+  marker.bringToFront()
   selectedHalteMarker = marker
+  if (map) {
+    selectedHalteHalo = halteHaloMarker([lat, lng]).addTo(map)
+  }
 }
 
 const CITY_CENTER: Record<string, L.LatLngTuple> = {
@@ -354,6 +367,7 @@ function drawHalte(items: BrtHalte[]) {
   halteByLeg.clear()
   halteSeen.clear()
   halteMarkerKors.clear()
+  halteMarkerShIds.clear()
 
   const fk = focus.kor
   let effectiveItems = items
@@ -386,6 +400,9 @@ function drawHalte(items: BrtHalte[]) {
     const kors = halteMarkerKors.get(marker) ?? new Set<string>()
     kors.add(h.kor)
     halteMarkerKors.set(marker, kors)
+    const shIds = halteMarkerShIds.get(marker) ?? new Set<string>()
+    shIds.add(h.sh_id)
+    halteMarkerShIds.set(marker, shIds)
     const c = brt.corridorByKor.get(h.kor)
     const leg = halteLeg(h, c)
     const slot = halteByLeg.get(h.kor) ?? { a: [], b: [] }
@@ -454,11 +471,11 @@ function applyFocus(force = false) {
     }
   }
 
-  // Halte — unified icon; opacity only changes with focus
+  // Halte — opacity only changes with focus
   for (const [kor, byLeg] of halteByLeg.entries()) {
     const all = [...byLeg.a, ...byLeg.b]
     const opacity = fk === null || kor === fk ? 1 : 0.2
-    for (const m of all) m.setOpacity(opacity)
+    for (const m of all) m.setStyle({ opacity, fillOpacity: opacity })
   }
 
   // Buses

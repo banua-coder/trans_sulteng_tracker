@@ -51,27 +51,19 @@ const open = computed<boolean>({
         <ul class="mt-2 flex flex-col gap-2 text-xs">
           <li class="flex items-center gap-2">
             <span class="legend-bus" aria-hidden>
-              <span class="legend-bus-disc" />
+              <span class="legend-bus-disc">K1</span>
             </span>
             <span>{{ t('legend.busLive') }}</span>
           </li>
           <li class="flex items-center gap-2">
             <span class="legend-bus stale" aria-hidden>
-              <span class="legend-bus-disc" />
+              <span class="legend-bus-disc">K1</span>
             </span>
             <span>{{ t('legend.busStale') }}</span>
           </li>
           <li class="flex items-center gap-2">
             <span class="legend-halte" aria-hidden>
-              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="17" viewBox="0 0 36 44">
-                <rect x="1" y="1" width="34" height="34" rx="7" fill="#94a3b8"/>
-                <path d="M14 34 L18 43 L22 34Z" fill="#94a3b8"/>
-                <rect x="6" y="6" width="24" height="5" rx="2" fill="white"/>
-                <rect x="8" y="12" width="7" height="10" rx="1" fill="white"/>
-                <rect x="21" y="12" width="7" height="10" rx="1" fill="white"/>
-                <rect x="8" y="23" width="3" height="5" rx="1" fill="white"/>
-                <rect x="25" y="23" width="3" height="5" rx="1" fill="white"/>
-              </svg>
+              <span class="legend-halte-dot" />
             </span>
             <span>{{ t('legend.halte') }}</span>
           </li>
@@ -99,12 +91,20 @@ const open = computed<boolean>({
   place-items: center;
 }
 .legend-bus-disc {
+  display: grid;
+  place-items: center;
   width: 18px;
   height: 18px;
   border-radius: 9999px;
   background: var(--color-bnc-accent);
   border: 2px solid #fff;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
+  color: #fff;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 8px;
+  letter-spacing: 0.02em;
+  line-height: 1;
 }
 .legend-bus.stale .legend-bus-disc {
   filter: grayscale(0.85) opacity(0.55);
@@ -115,10 +115,19 @@ const open = computed<boolean>({
   );
 }
 .legend-halte {
-  display: inline-flex;
-  align-items: center;
+  display: inline-grid;
+  place-items: center;
   width: 22px;
   height: 22px;
+}
+.legend-halte-dot {
+  display: block;
+  width: 10px;
+  height: 10px;
+  border-radius: 9999px;
+  background: #94a3b8;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
 }
 .legend-line {
   display: inline-block;

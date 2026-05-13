@@ -77,10 +77,12 @@ export const useTripStore = defineStore('trip', () => {
     }
     graphReady.value = false
     try {
+      // Strip Vue reactive Proxies before crossing the worker boundary.
+      // postMessage uses structured clone, which can't clone Proxies.
       await call<{ type: 'graphReady'; nodeCount: number }>({
         type: 'buildGraph',
-        corridors: brt.corridors,
-        halteByLeg,
+        corridors: JSON.parse(JSON.stringify(brt.corridors)),
+        halteByLeg: JSON.parse(JSON.stringify(halteByLeg)),
       })
       graphReady.value = true
     } catch (e) {

@@ -190,47 +190,35 @@ html.dark .leaflet-container { background: var(--color-bnc-stone-900); }
   );
 }
 
-/* Halte marker — inline SVG bus-shelter DivIcon; reset Leaflet's default
-   white-box styles so only the SVG itself is visible. */
-.halte-icon {
+/* Halte marker — drawn as L.circleMarker on the overlay pane (vector
+   layer that pans with the map natively). No CSS needed for the dot
+   itself; styling is applied via Leaflet's setStyle().
+
+   The selected-halte pulse ring is a separate divIcon marker placed
+   on top of the dot. Animated via CSS so the underlying CircleMarker
+   stays cheap. */
+.halte-halo {
   background: none !important;
   border: none !important;
   box-shadow: none !important;
-  cursor: pointer;
-  transition: transform 180ms ease;
+  pointer-events: none;
 }
-
-/* Focused halte — scale the icon up + animated cyan pulse ring so the
-   user can tell which stop they're currently looking at when multiple
-   halte sit inside the same viewport. */
-.halte-icon.selected {
-  z-index: 1000 !important;
-  transform: scale(1.4);
-}
-.halte-icon.selected::before {
-  content: '';
-  position: absolute;
-  left: 50%;
-  top: 100%;
-  width: 28px;
-  height: 28px;
-  margin-left: -14px;
-  margin-top: -14px;
+.halte-halo-ring {
+  display: block;
+  width: 100%;
+  height: 100%;
   border-radius: 9999px;
   background: var(--color-bnc-accent);
   opacity: 0.45;
   animation: halte-pulse 1.6s ease-out infinite;
-  pointer-events: none;
-  z-index: -1;
 }
 @keyframes halte-pulse {
-  0%   { transform: scale(0.6); opacity: 0.55; }
-  70%  { transform: scale(1.8); opacity: 0; }
-  100% { transform: scale(1.8); opacity: 0; }
+  0%   { transform: scale(0.5); opacity: 0.55; }
+  70%  { transform: scale(1.7); opacity: 0; }
+  100% { transform: scale(1.7); opacity: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .halte-icon.selected { transition: none; }
-  .halte-icon.selected::before { animation: none; opacity: 0.4; }
+  .halte-halo-ring { animation: none; opacity: 0.4; }
 }
 
 /* "Me" marker — the user's geolocation pin. Blue dot with a soft
