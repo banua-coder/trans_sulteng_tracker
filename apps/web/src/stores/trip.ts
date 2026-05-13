@@ -105,7 +105,9 @@ export const useTripStore = defineStore('trip', () => {
         k: 5,
       })
       plans.value = resp.paths
-      selectedPlanIdx.value = resp.paths.length ? 0 : null
+      // Don't auto-select — the user picks from the result list first
+      // (matches TJ Transjakarta's flow: list → tap → detail).
+      selectedPlanIdx.value = null
     } catch (e) {
       plans.value = []
       selectedPlanIdx.value = null

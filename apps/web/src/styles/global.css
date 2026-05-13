@@ -273,6 +273,31 @@ html.dark .leaflet-container { background: var(--color-bnc-stone-900); }
   .me-marker .me-pulse { animation: none; }
 }
 
+/* Trip preview numbered step disc — small red number badge sitting on
+   each halte the user passes through. interactive:false in Leaflet so
+   clicks fall through to the underlying halte marker. */
+.trip-step-disc {
+  background: none !important;
+  border: none !important;
+  display: grid;
+  place-items: center;
+}
+.trip-step-disc span {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 9999px;
+  background: #dc2626;
+  color: #fff;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 11px;
+  line-height: 1;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
+
 /* Live dot pulse — used for "connected" indicator */
 .live-dot {
   width: 8px;

@@ -20,21 +20,25 @@ import HalteDetailCard from '@/components/HalteDetailCard.vue'
 import CorridorFocusPanel from '@/components/CorridorFocusPanel.vue'
 import MobileRoutesPanel from '@/components/MobileRoutesPanel.vue'
 import MobileRouteDetailPanel from '@/components/MobileRouteDetailPanel.vue'
+import TripDetailPanel from '@/components/TripDetailPanel.vue'
+import { useTripStore } from '@/stores/trip'
 
 const city = useCityStore()
 const brt = useBrtStore()
 const socket = useSocketStore()
 const selection = useSelectionStore()
 const focus = useFocusStore()
+const trip = useTripStore()
 const { kind: selectionKind } = storeToRefs(selection)
 const { isFocused } = storeToRefs(focus)
+const { selectedPlan: tripSelectedPlan } = storeToRefs(trip)
 
 useUrlSync()
 
 // Auto-expand the mobile bottom sheet to mid the moment a detail/route
 // becomes active; null lets the user control the snap freely.
 const sheetForceSnap = computed<'mid' | null>(() =>
-  selectionKind.value || isFocused.value ? 'mid' : null,
+  selectionKind.value || isFocused.value || tripSelectedPlan.value ? 'mid' : null,
 )
 
 watch(
@@ -101,6 +105,7 @@ onBeforeUnmount(() => {
       <BusDetailCard v-if="selectionKind === 'bus'" />
       <HalteDetailCard v-else-if="selectionKind === 'halte'" />
       <MobileRouteDetailPanel v-else-if="isFocused" />
+      <TripDetailPanel v-else-if="tripSelectedPlan" />
       <MobileRoutesPanel v-else />
     </BottomSheet>
 
