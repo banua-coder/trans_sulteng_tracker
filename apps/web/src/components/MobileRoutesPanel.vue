@@ -44,8 +44,11 @@ onBeforeUnmount(() => {
 })
 
 const halteCountByKor = computed(() => {
-  // Distinct halte per corridor (a stop appears once per direction
-  // in the feed; we want a single number per route).
+  // Distinct halte per corridor — count by physical stop name, not
+  // sh_id. The bulk feed gives a separate sh_id row for each direction
+  // a stop is served in, so naive Set<sh_id> would double-count and
+  // disagree with the route-detail screen which shows one direction
+  // at a time (~25 vs ~48 for K1).
   const map = new Map<string, Set<string>>()
   for (const h of halte.value) {
     let set = map.get(h.kor)
@@ -53,7 +56,7 @@ const halteCountByKor = computed(() => {
       set = new Set()
       map.set(h.kor, set)
     }
-    set.add(h.sh_id)
+    set.add(h.sh_name)
   }
   const counts = new Map<string, number>()
   for (const [k, s] of map) counts.set(k, s.size)

@@ -133,90 +133,75 @@ const upcomingStops = computed<UpcomingStop[]>(() => {
   <transition name="slide-up">
     <article
       v-if="selectedBus"
-      class="pointer-events-auto w-full max-w-md rounded-[var(--radius-md)] border border-bnc-stone-200 bg-white p-4 shadow-[var(--shadow-elevated)] sm:max-w-sm dark:border-bnc-stone-800 dark:bg-bnc-stone-900"
+      class="pointer-events-auto flex w-full flex-col gap-3 sm:max-w-sm lg:max-w-md lg:rounded-[var(--radius-md)] lg:border lg:border-bnc-stone-200 lg:bg-white lg:p-4 lg:shadow-[var(--shadow-elevated)] dark:lg:border-bnc-stone-800 dark:lg:bg-bnc-stone-900"
       role="dialog"
       :aria-label="t('bus.plate')"
     >
-      <header class="flex items-start gap-2 sm:gap-3">
-        <span
-          class="grid h-8 w-8 shrink-0 place-items-center rounded-full font-mono text-[10px] font-bold text-white sm:h-10 sm:w-10 sm:text-xs"
-          :style="{ background: corridorColor }"
-          aria-hidden
-        >
-          {{ selectedBus.kor || '·' }}
-        </span>
-        <div class="min-w-0 flex-1">
-          <div class="flex flex-wrap items-center gap-1.5">
-            <PlateBadge :plate="selectedBus.plate_number" size="md" />
-            <span
-              v-if="selectedBus.name"
-              class="inline-flex shrink-0 items-center whitespace-nowrap rounded bg-bnc-stone-100 px-1.5 py-[3px] font-mono text-[11px] font-bold leading-none tracking-wider text-bnc-ink dark:bg-bnc-stone-800 dark:text-bnc-paper"
-            >
-              {{ selectedBus.name }}
-            </span>
-          </div>
-          <p class="mt-1 truncate text-xs text-bnc-stone-500">
-            <span class="font-mono uppercase tracking-wider">
-              {{ t('bus.corridor') }} {{ selectedBus.kor || '—' }}
-            </span>
-            <span class="mx-1">·</span>
-            → {{ selectedBus.toward || '—' }}
-          </p>
-        </div>
-        <div class="flex shrink-0 flex-col items-end gap-1">
+      <!-- Sticky header on mobile (inside the bottom sheet's scroll
+           context), static on desktop. Bg matches the sheet surface. -->
+      <div
+        class="sticky -top-1 z-20 -mx-4 flex flex-col gap-2 bg-bnc-paper px-4 pb-3 pt-2 shadow-[0_4px_8px_-6px_rgba(10,14,20,0.12)] dark:bg-bnc-stone-900 lg:static lg:mx-0 lg:bg-transparent lg:p-0 lg:shadow-none dark:lg:bg-transparent"
+      >
+        <header class="flex items-center gap-2">
           <button
             type="button"
-            class="rounded-full p-1 text-bnc-stone-500 transition-colors hover:bg-bnc-stone-100 hover:text-bnc-ink dark:hover:bg-bnc-stone-800 dark:hover:text-bnc-paper"
-            :aria-label="'Tutup'"
+            class="grid h-8 w-8 shrink-0 place-items-center rounded-full text-bnc-stone-600 transition-colors hover:bg-bnc-stone-100 dark:text-bnc-stone-300 dark:hover:bg-bnc-stone-800"
+            :aria-label="t('a11y.back')"
             @click="selection.clear()"
           >
-            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-              <path d="M6 6l12 12M6 18L18 6" />
+            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M15 6l-6 6 6 6" />
             </svg>
           </button>
-          <CopyLinkButton />
-        </div>
-      </header>
-
-      <dl
-        class="mt-3 grid gap-3 border-t border-bnc-stone-200 pt-3 text-xs dark:border-bnc-stone-800"
-        :class="passenger != null ? 'grid-cols-3' : 'grid-cols-2'"
-      >
-        <div>
-          <dt class="font-mono text-[10px] uppercase tracking-wider text-bnc-stone-500">
-            {{ t('bus.speed') }}
-          </dt>
-          <dd class="mt-0.5 font-mono text-base font-bold tabular-nums">
-            {{ formatSpeed(selectedBus.speed) }}
-            <span class="text-[10px] font-normal text-bnc-stone-500">{{ t('units.kmh') }}</span>
-          </dd>
-        </div>
-        <div v-if="passenger != null">
-          <dt class="font-mono text-[10px] uppercase tracking-wider text-bnc-stone-500">
-            {{ t('bus.passenger') }}
-          </dt>
-          <dd class="mt-0.5 font-mono text-base font-bold tabular-nums">
-            {{ passenger }}
-            <span class="text-[10px] font-normal text-bnc-stone-500">{{ t('bus.pax') }}</span>
-          </dd>
-        </div>
-        <div>
-          <dt class="font-mono text-[10px] uppercase tracking-wider text-bnc-stone-500">
-            {{ t('bus.lastUpdate') }}
-          </dt>
-          <dd
-            class="mt-0.5 font-mono text-sm tabular-nums"
-            :class="stale ? 'text-bnc-stone-500' : 'text-bnc-ink dark:text-bnc-paper'"
+          <span
+            class="grid h-7 w-7 shrink-0 place-items-center rounded-full font-mono text-[10px] font-bold text-white"
+            :style="{ background: corridorColor }"
+            aria-hidden
           >
-            {{ updatedLabel }}
-          </dd>
-        </div>
-      </dl>
+            {{ selectedBus.kor || '·' }}
+          </span>
+          <div class="min-w-0 flex-1">
+            <div class="flex flex-wrap items-center gap-1.5">
+              <PlateBadge :plate="selectedBus.plate_number" size="sm" />
+              <span
+                v-if="selectedBus.name"
+                class="inline-flex shrink-0 items-center whitespace-nowrap rounded bg-bnc-stone-100 px-1 py-[1px] font-mono text-[10px] font-bold leading-none tracking-wider text-bnc-ink dark:bg-bnc-stone-800 dark:text-bnc-paper"
+              >
+                {{ selectedBus.name }}
+              </span>
+            </div>
+            <p class="mt-0.5 truncate font-mono text-[10px] uppercase tracking-wider text-bnc-stone-500">
+              → {{ selectedBus.toward || '—' }}
+            </p>
+            <!-- Inline bus telemetry: speed + freshness + (optional) pax.
+                 Lives directly under the last-stop line so we don't waste
+                 a separate stats grid full of whitespace. -->
+            <p class="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 font-mono text-[10px] tabular-nums">
+              <span class="text-bnc-stone-700 dark:text-bnc-stone-200">
+                <span class="font-bold">{{ formatSpeed(selectedBus.speed) }}</span>
+                <span class="text-bnc-stone-500"> {{ t('units.kmh') }}</span>
+              </span>
+              <span class="text-bnc-stone-300 dark:text-bnc-stone-600">·</span>
+              <span :class="stale ? 'text-bnc-stone-500' : 'text-bnc-stone-700 dark:text-bnc-stone-200'">
+                {{ updatedLabel }}
+              </span>
+              <template v-if="passenger != null">
+                <span class="text-bnc-stone-300 dark:text-bnc-stone-600">·</span>
+                <span class="text-bnc-stone-700 dark:text-bnc-stone-200">
+                  <span class="font-bold">{{ passenger }}</span>
+                  <span class="text-bnc-stone-500"> {{ t('bus.pax') }}</span>
+                </span>
+              </template>
+            </p>
+          </div>
+          <CopyLinkButton />
+        </header>
+      </div>
 
       <!-- Upcoming stops -->
       <section
         v-if="upcomingStops.length"
-        class="mt-3 border-t border-bnc-stone-200 pt-3 dark:border-bnc-stone-800"
+        class="border-t border-bnc-stone-200 pt-3 dark:border-bnc-stone-800"
       >
         <h4 class="font-mono text-[10px] uppercase tracking-wider text-bnc-stone-500">
           {{ t('route.estimatedArrival') }}
@@ -259,7 +244,7 @@ const upcomingStops = computed<UpcomingStop[]>(() => {
 
       <p
         v-if="stale"
-        class="mt-3 rounded-md bg-bnc-stone-100 px-2 py-1 text-[11px] text-bnc-stone-600 dark:bg-bnc-stone-800 dark:text-bnc-stone-300"
+        class="rounded-md bg-bnc-stone-100 px-2 py-1 text-[11px] text-bnc-stone-600 dark:bg-bnc-stone-800 dark:text-bnc-stone-300"
       >
         {{ t('status.stale') }} · &gt; 5 {{ t('units.minutes') }}
       </p>

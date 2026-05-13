@@ -111,72 +111,67 @@ function openDirections() {
   <transition name="slide-up">
     <article
       v-if="selectedHalte"
-      class="pointer-events-auto w-full max-w-md rounded-[var(--radius-md)] border border-bnc-stone-200 bg-white p-4 shadow-[var(--shadow-elevated)] sm:max-w-sm dark:border-bnc-stone-800 dark:bg-bnc-stone-900"
+      class="pointer-events-auto flex w-full flex-col gap-3 sm:max-w-sm lg:max-w-md lg:rounded-[var(--radius-md)] lg:border lg:border-bnc-stone-200 lg:bg-white lg:p-4 lg:shadow-[var(--shadow-elevated)] dark:lg:border-bnc-stone-800 dark:lg:bg-bnc-stone-900"
       role="dialog"
       :aria-label="selectedHalte.sh_name"
     >
-      <header class="flex items-start gap-3">
-        <span
-          class="mt-1 h-3.5 w-3.5 shrink-0 rounded-full border-2 border-white bg-bnc-stone-400"
-          style="box-shadow: 0 0 0 1px #94a3b8"
-          aria-hidden
-        />
-        <div class="min-w-0 flex-1">
-          <p class="font-mono text-[11px] uppercase tracking-wider text-bnc-stone-500">
-            {{ t('bus.halte') }}
-          </p>
-          <h3 class="truncate font-display text-base font-semibold tracking-tight">
-            {{ selectedHalte.sh_name }}
-          </h3>
-          <!-- Corridor badges -->
-          <div v-if="corridorsAtHalte.length" class="mt-1 flex flex-wrap gap-1">
-            <span
-              v-for="c in corridorsAtHalte"
-              :key="c.kor"
-              class="inline-flex h-5 w-5 items-center justify-center rounded-full font-mono text-[9px] font-bold text-white"
-              :style="{ background: c.color }"
-            >
-              {{ c.kor }}
-            </span>
-          </div>
-        </div>
-        <div class="flex shrink-0 flex-col items-end gap-1">
+      <!-- Sticky on mobile (inside the bottom sheet's scroll context),
+           static on desktop where the article is already a floating card.
+           The bg matches the sheet surface so scrolling buses don't bleed
+           through. -->
+      <div
+        class="sticky -top-1 z-20 -mx-4 flex flex-col gap-2 bg-bnc-paper px-4 pb-3 pt-2 shadow-[0_4px_8px_-6px_rgba(10,14,20,0.12)] dark:bg-bnc-stone-900 lg:static lg:mx-0 lg:bg-transparent lg:p-0 lg:shadow-none dark:lg:bg-transparent"
+      >
+        <header class="flex items-center gap-2">
           <button
             type="button"
-            class="rounded-full p-1 text-bnc-stone-500 transition-colors hover:bg-bnc-stone-100 hover:text-bnc-ink dark:hover:bg-bnc-stone-800 dark:hover:text-bnc-paper"
-            aria-label="Tutup"
+            class="grid h-8 w-8 shrink-0 place-items-center rounded-full text-bnc-stone-600 transition-colors hover:bg-bnc-stone-100 dark:text-bnc-stone-300 dark:hover:bg-bnc-stone-800"
+            :aria-label="t('a11y.back') || 'Tutup'"
             @click="selection.clear()"
           >
-            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-              <path d="M6 6l12 12M6 18L18 6" />
+            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M15 6l-6 6 6 6" />
             </svg>
           </button>
-          <CopyLinkButton />
+          <div class="min-w-0 flex-1">
+            <p class="font-mono text-[10px] uppercase tracking-wider text-bnc-stone-500">
+              {{ t('bus.halte') }}
+            </p>
+            <h3 class="truncate font-display text-sm font-bold tracking-tight">
+              {{ selectedHalte.sh_name }}
+            </h3>
+          </div>
+          <div class="flex shrink-0 items-center gap-0.5">
+            <button
+              type="button"
+              class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-bnc-stone-500 transition-colors hover:bg-bnc-stone-100 hover:text-bnc-accent dark:hover:bg-bnc-stone-800"
+              :aria-label="t('halte.directions')"
+              :title="t('halte.directions')"
+              @click="openDirections"
+            >
+              <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden>
+                <path d="M3 11 22 2l-9 19-2-8z" />
+              </svg>
+            </button>
+            <CopyLinkButton />
+          </div>
+        </header>
+
+        <!-- Corridor badges — rounded rectangles, not circles, so the
+             code is readable when the user is on a multi-corridor stop. -->
+        <div v-if="corridorsAtHalte.length" class="flex flex-wrap gap-1">
+          <span
+            v-for="c in corridorsAtHalte"
+            :key="c.kor"
+            class="inline-flex items-center rounded-md px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-white"
+            :style="{ background: c.color }"
+          >
+            {{ c.kor }}
+          </span>
         </div>
-      </header>
+      </div>
 
-      <button
-        type="button"
-        class="mt-3 inline-flex items-center gap-1.5 self-start rounded-full bg-bnc-accent px-3 py-1.5 font-mono text-[11px] font-bold uppercase tracking-wider text-white shadow-sm transition-transform hover:scale-[1.02] active:scale-[0.98]"
-        :aria-label="t('halte.directions')"
-        @click="openDirections"
-      >
-        <svg
-          class="h-3.5 w-3.5"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          aria-hidden
-        >
-          <path d="M3 11 22 2l-9 19-2-8z" />
-        </svg>
-        {{ t('halte.directions') }}
-      </button>
-
-      <section class="mt-3 border-t border-bnc-stone-200 pt-3 dark:border-bnc-stone-800">
+      <section class="border-t border-bnc-stone-200 pt-3 dark:border-bnc-stone-800">
         <h4 class="font-mono text-[11px] uppercase tracking-wider text-bnc-stone-500">
           {{ t('halte.incomingBuses') }}
         </h4>
