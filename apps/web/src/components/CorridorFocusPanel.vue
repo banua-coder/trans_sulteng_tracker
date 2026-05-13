@@ -226,6 +226,7 @@ function pickBus(bus: BrtBus) {
               :status="ib.status"
               :toward="r.halte.sh_name"
               :final-destination="ib.bus.toward ?? null"
+              :speed-kmh="ib.bus.speed ?? null"
               :stale="ib.stale"
             />
           </button>

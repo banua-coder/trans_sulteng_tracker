@@ -44,22 +44,18 @@ onBeforeUnmount(() => {
 })
 
 const halteCountByKor = computed(() => {
-  // Distinct halte per corridor — count by physical stop name, not
-  // sh_id. The bulk feed gives a separate sh_id row for each direction
-  // a stop is served in, so naive Set<sh_id> would double-count and
-  // disagree with the route-detail screen which shows one direction
-  // at a time (~25 vs ~48 for K1).
-  const map = new Map<string, Set<string>>()
-  for (const h of halte.value) {
-    let set = map.get(h.kor)
-    if (!set) {
-      set = new Set()
-      map.set(h.kor, set)
-    }
-    set.add(h.sh_name)
-  }
+  // Count forward-direction halte only. The bulk feed has a separate
+  // row per direction per stop (a stop appears once as forward, once
+  // as reverse — with different sh_ids AND slightly different coords
+  // for opposite-side poles). Counting both ends up at 48 for K1 and
+  // sh_name dedupe still gives 41 (some terminals are missing in the
+  // reverse leg). Forward-only matches the per-leg detail screen.
   const counts = new Map<string, number>()
-  for (const [k, s] of map) counts.set(k, s.size)
+  const fwdKey = new Map(corridors.value.map((c) => [c.kor, `${c.origin}|${c.toward}`]))
+  for (const h of halte.value) {
+    if (`${h.origin}|${h.toward}` !== fwdKey.get(h.kor)) continue
+    counts.set(h.kor, (counts.get(h.kor) ?? 0) + 1)
+  }
   return counts
 })
 

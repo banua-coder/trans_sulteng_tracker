@@ -10,7 +10,7 @@
  */
 import { useI18n } from 'vue-i18n'
 import PlateBadge from '@/components/PlateBadge.vue'
-import { formatDistance } from '@/lib/format'
+import { formatDistance, formatSpeed } from '@/lib/format'
 
 type Status = 'last' | 'approaching'
 
@@ -35,6 +35,9 @@ const props = defineProps<{
    *  shows both an ETA and the absolute time; we do the same when
    *  the caller computes it. */
   arrivalAt?: string | null
+  /** Current bus speed (km/h) — rendered below the toward line so the
+   *  user can tell whether ETA is moving or stuck. */
+  speedKmh?: number | string | null
   status: Status
   stale?: boolean
 }>()
@@ -102,6 +105,13 @@ function stripeStyle(): Record<string, string> {
           {{ finalDestination }}
         </span>
       </div>
+      <p
+        v-if="speedKmh != null"
+        class="font-mono text-[10px] tabular-nums text-bnc-stone-500"
+      >
+        <span class="font-bold text-bnc-stone-700 dark:text-bnc-stone-200">{{ formatSpeed(speedKmh) }}</span>
+        {{ t('units.kmh') }}
+      </p>
     </div>
 
     <div class="flex shrink-0 flex-col items-end justify-center">
