@@ -38,9 +38,17 @@ const props = defineProps<{
   /** Current bus speed (km/h) — rendered below the toward line so the
    *  user can tell whether ETA is moving or stuck. */
   speedKmh?: number | string | null
+  /** ETA reliability (green/orange/gray) — mirrors TJ Transjakarta's
+   *  Bus Arrival Time Guide. Falls back to cyan accent when omitted. */
+  quality?: 'good' | 'warn' | 'stale'
   status: Status
   stale?: boolean
 }>()
+
+const etaColorStyle = (): Record<string, string> => {
+  if (!props.quality) return {}
+  return { color: `var(--color-${props.quality})` }
+}
 
 const { t } = useI18n()
 
@@ -118,7 +126,10 @@ function stripeStyle(): Record<string, string> {
       <span class="font-mono text-[9px] uppercase tracking-wider text-bnc-stone-500">
         {{ t('route.estimatedArrival') }}
       </span>
-      <span class="font-mono text-base font-extrabold tabular-nums leading-tight text-bnc-accent">
+      <span
+        class="font-mono text-base font-extrabold tabular-nums leading-tight text-bnc-accent"
+        :style="etaColorStyle()"
+      >
         <template v-if="etaMin != null">
           {{ Math.max(1, Math.round(etaMin)) }}
           <span class="text-[10px] font-medium text-bnc-stone-500">

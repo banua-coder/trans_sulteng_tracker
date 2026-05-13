@@ -14,7 +14,7 @@ import { storeToRefs } from 'pinia'
 import { useBrtStore } from '@/stores/brt'
 import { useFocusStore } from '@/stores/focus'
 import { useSelectionStore } from '@/stores/selection'
-import { etaToHalte, isStale, parseProgress } from '@/lib/format'
+import { etaToHalte, getEtaQuality, isStale, parseProgress } from '@/lib/format'
 import HalteTimelineNode from '@/components/HalteTimelineNode.vue'
 import IncomingBusCard from '@/components/IncomingBusCard.vue'
 import CopyLinkButton from '@/components/CopyLinkButton.vue'
@@ -250,6 +250,7 @@ function pad(n: number) {
             :toward="r.halte.sh_name"
             :final-destination="ib.bus.toward ?? null"
             :speed-kmh="ib.bus.speed ?? null"
+            :quality="getEtaQuality(ib.bus)"
             :stale="ib.stale"
           />
         </button>

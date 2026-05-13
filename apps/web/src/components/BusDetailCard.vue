@@ -4,7 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
 import { useSelectionStore } from '@/stores/selection'
 import { useBrtStore } from '@/stores/brt'
-import { ageSeconds, etaToHalte, formatAge, formatDistance, formatSpeed, haversineMeters, isStale, parsePassenger } from '@/lib/format'
+import { ageSeconds, etaToHalte, formatAge, formatDistance, formatSpeed, getEtaQuality, haversineMeters, isStale, parsePassenger } from '@/lib/format'
 import CopyLinkButton from '@/components/CopyLinkButton.vue'
 import PlateBadge from '@/components/PlateBadge.vue'
 
@@ -31,6 +31,9 @@ const corridorColor = computed(() =>
 const stale = computed(() =>
   selectedBus.value ? isStale(selectedBus.value) : false,
 )
+
+const etaQuality = computed(() => getEtaQuality(selectedBus.value ?? null))
+const etaColorStyle = computed(() => ({ color: `var(--color-${etaQuality.value})` }))
 
 const updatedLabel = computed(() => {
   if (!selectedBus.value?.dt_tracker) return '—'
@@ -226,7 +229,10 @@ const upcomingStops = computed<UpcomingStop[]>(() => {
               </span>
               <span class="min-w-0 flex-1 truncate text-xs font-medium">{{ stop.sh_name }}</span>
               <span class="shrink-0 text-right">
-                <span class="block font-mono text-sm font-extrabold tabular-nums text-bnc-accent">
+                <span
+                  class="block font-mono text-sm font-extrabold tabular-nums text-bnc-accent"
+                  :style="etaColorStyle"
+                >
                   <template v-if="stop.etaMin != null">
                     {{ Math.max(1, Math.round(stop.etaMin)) }}
                     <span class="text-[10px] font-normal text-bnc-stone-500">{{ t('units.minutes') }}</span>

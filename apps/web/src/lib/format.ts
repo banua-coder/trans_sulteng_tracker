@@ -153,6 +153,22 @@ export function isStale(
   return false
 }
 
+/** ETA reliability for the green/orange/gray "Bus Arrival Time Guide"
+ *  signal used by IncomingBusCard, BusDetailCard, and HalteDetailCard.
+ *
+ *  - 'good'   bus is moving (speed ≥ 5 km/h) and fresh → ETA is accurate.
+ *  - 'warn'   bus is fresh but stopped or crawling → ETA may slip a bit.
+ *  - 'stale'  isStale === true → ETA isn't reliable; don't trust to the minute.
+ *
+ *  Mirrors the TJ Transjakarta "Bus Arrival Time Guide" colors. */
+export function getEtaQuality(b: BrtBus | null | undefined): 'good' | 'warn' | 'stale' {
+  if (!b) return 'stale'
+  if (isStale(b)) return 'stale'
+  const speed = Number.isFinite(b.speed) ? Number(b.speed) : 0
+  if (speed >= 5) return 'good'
+  return 'warn'
+}
+
 /** Haversine distance in metres between two lat/lng points. */
 export function haversineMeters(
   a: { lat: number; lng: number },

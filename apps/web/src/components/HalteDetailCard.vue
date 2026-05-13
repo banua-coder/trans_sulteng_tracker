@@ -4,7 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
 import { useSelectionStore } from '@/stores/selection'
 import { useBrtStore } from '@/stores/brt'
-import { etaToHalte, formatDistance, isStale, parsePassenger } from '@/lib/format'
+import { etaToHalte, formatDistance, getEtaQuality, isStale, parsePassenger } from '@/lib/format'
 import CopyLinkButton from '@/components/CopyLinkButton.vue'
 import PlateBadge from '@/components/PlateBadge.vue'
 import type { BrtBus } from '@/types/brt'
@@ -31,6 +31,7 @@ interface Arrival {
   distM: number | null
   fresh: boolean
   corridorColor: string
+  quality: 'good' | 'warn' | 'stale'
 }
 
 const corridorsAtHalte = computed(() => {
@@ -77,6 +78,7 @@ const arrivals = computed<Arrival[]>(() => {
       distM: eta?.distM ?? null,
       fresh: !isStale(bus),
       corridorColor: brt.colorForKor(bus.kor) || '#0EA5E9',
+      quality: getEtaQuality(bus),
     })
   }
   candidates.sort((a, b) => {
@@ -221,7 +223,10 @@ function openDirections() {
                   </template>
                 </p>
               </div>
-              <span class="ml-auto font-mono text-sm font-bold tabular-nums text-bnc-accent">
+              <span
+                class="ml-auto font-mono text-sm font-bold tabular-nums text-bnc-accent"
+                :style="{ color: `var(--color-${a.quality})` }"
+              >
                 <template v-if="a.etaMin != null">
                   ~{{ Math.max(1, Math.round(a.etaMin)) }}<span class="text-[10px] font-normal text-bnc-stone-500">{{ t('units.minutes') }}</span>
                 </template>
