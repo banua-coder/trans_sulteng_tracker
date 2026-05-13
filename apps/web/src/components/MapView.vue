@@ -123,6 +123,26 @@ function initMap() {
   map.on('dragstart zoomstart', () => {
     following = false
   })
+
+  // Halte pile up into illegible clutter at overview zoom levels — and
+  // styling them on every focus change costs more than it earns when
+  // the user can't read them anyway. Detach the layer below zoom 12.
+  syncHalteVisibility()
+  map.on('zoomend', syncHalteVisibility)
+}
+
+const HALTE_MIN_ZOOM = 12
+let halteLayerAttached = true
+function syncHalteVisibility() {
+  if (!map) return
+  const visible = map.getZoom() >= HALTE_MIN_ZOOM
+  if (visible && !halteLayerAttached) {
+    halteLayer.addTo(map)
+    halteLayerAttached = true
+  } else if (!visible && halteLayerAttached) {
+    map.removeLayer(halteLayer)
+    halteLayerAttached = false
+  }
 }
 
 function clearAll() {
@@ -315,7 +335,7 @@ function drawCorridors(items: BrtCorridor[]) {
   if (map && allBounds.isValid()) {
     map.fitBounds(allBounds.pad(0.08), { animate: false })
   }
-  applyFocus()
+  applyFocus(true)
 }
 
 /** Which leg of the corridor a halte belongs to.
@@ -372,7 +392,7 @@ function drawHalte(items: BrtHalte[]) {
     if (!slot[leg].includes(marker)) slot[leg].push(marker)
     halteByLeg.set(h.kor, slot)
   }
-  applyFocus()
+  applyFocus(true)
 }
 
 /** Re-paint corridors / halte / buses based on the current focus state.
@@ -398,8 +418,24 @@ function spotlightKor(): string | null {
   return null
 }
 
-function applyFocus() {
+/** Cache of the last spotlightKor we styled the markers for. When the
+ *  spotlight hasn't changed, the corridor/halte sweep is a no-op — skip
+ *  it and just refresh bus markers (which can have independently fresh
+ *  fixes) + the selected-halte highlight. Callers that just rebuilt
+ *  markers (drawCorridors / drawHalte) pass `force=true` so the new
+ *  markers actually get their focus styling applied. */
+let lastSpotlight: string | null = null
+let lastSpotlightInit = false
+
+function applyFocus(force = false) {
   const fk = spotlightKor()
+  if (!force && lastSpotlightInit && fk === lastSpotlight) {
+    for (const bus of brt.buses.values()) upsertBusMarker(bus)
+    applySelectedHalte()
+    return
+  }
+  lastSpotlight = fk
+  lastSpotlightInit = true
 
   // Corridors
   for (const [kor, byLeg] of corridorLines.entries()) {
@@ -740,13 +776,17 @@ watch(
   { immediate: false },
 )
 
+// Watch the set of per-leg keys, not the deep contents. The per-leg
+// cache only grows (entries are added, never updated) so a fresh
+// signature signals that a new leg landed and we need to redraw to
+// pick up the new halte. A deep watcher would re-fire on irrelevant
+// reactivity churn.
 watch(
-  () => brt.halteByLeg,
+  () => [...brt.halteByLeg.keys()].sort().join('|'),
   () => {
     if (!map) return
     drawHalte(halte.value)
   },
-  { deep: true },
 )
 
 watch(
