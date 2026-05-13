@@ -478,6 +478,11 @@ function applyFocus(force = false) {
     for (const m of all) m.setStyle({ opacity, fillOpacity: opacity })
   }
 
+  // Bus-selected refinement: dim stops the bus has already passed so
+  // the user can scan only what's still ahead (TJ-style "upcoming
+  // halte" view, beads c1d).
+  applyUpcomingHalteFilter()
+
   // Buses
   for (const bus of brt.buses.values()) upsertBusMarker(bus)
 
@@ -488,6 +493,42 @@ function applyFocus(force = false) {
 
 function busColorFor(b: BrtBus): string {
   return brt.colorForKor(b.kor) || '#0EA5E9'
+}
+
+/** When a bus is selected, fade the halte the bus has already passed
+ *  on its current leg so the user can quickly read what's still
+ *  coming up — TJ-style. Markers whose sh_id set contains an
+ *  "upcoming" id stay at full opacity; passed-only markers drop. */
+function applyUpcomingHalteFilter() {
+  if (selection.kind !== 'bus' || !selection.id) return
+  const bus = brt.buses.get(selection.id)
+  if (!bus?.kor || !bus.new_shel_t) return
+  const corridor = brt.corridorByKor.get(bus.kor)
+  if (!corridor) return
+  const originName = bus.toward === corridor.toward ? corridor.origin : corridor.toward
+  const leg = brt.getHalteForLeg(bus.kor, bus.toward, originName)
+  if (!leg.length) return
+  const startIdx = leg.findIndex((h) => h.sh_id === bus.new_shel_t)
+  if (startIdx < 0) return
+
+  const upcoming = new Set<string>()
+  for (let i = startIdx; i < leg.length; i++) upcoming.add(leg[i].sh_id)
+
+  const slot = halteByLeg.get(bus.kor)
+  if (!slot) return
+  for (const m of [...slot.a, ...slot.b]) {
+    const shIds = halteMarkerShIds.get(m)
+    if (!shIds) continue
+    let isUpcoming = false
+    for (const id of shIds) {
+      if (upcoming.has(id)) { isUpcoming = true; break }
+    }
+    if (isUpcoming) {
+      m.setStyle({ opacity: 1, fillOpacity: 1 })
+    } else {
+      m.setStyle({ opacity: 0.25, fillOpacity: 0.25 })
+    }
+  }
 }
 
 /** Element opacity: full when no focus or on-focused-corridor, faded
@@ -765,10 +806,25 @@ watch(
       }
     }
 
-    // Selection toggles the spotlightKor — re-style corridors/halte to
-    // dim everything that isn't on the selected bus's route (TJ-style).
-    applyFocus()
+    // Selection toggles the spotlightKor + the upcoming-halte filter.
+    // force=true bypasses the memoization so the filter actually
+    // re-applies when bus selection changes within the same kor.
+    applyFocus(true)
     applySelectedHalte()
+  },
+)
+
+// As the selected bus advances along its leg, refresh the
+// upcoming-halte fade so previously-passed stops dim and the bus's
+// next stop stays bright.
+watch(
+  () => {
+    if (selection.kind !== 'bus' || !selection.id) return null
+    return brt.buses.get(selection.id)?.new_shel_t ?? null
+  },
+  (next, prev) => {
+    if (next === prev) return
+    applyUpcomingHalteFilter()
   },
 )
 
