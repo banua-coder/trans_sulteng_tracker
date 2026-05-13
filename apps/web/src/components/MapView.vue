@@ -437,6 +437,20 @@ function spotlightKor(): string | null {
   return null
 }
 
+/** When a trip plan is selected, return the set of corridor codes
+ *  the plan uses (ride steps only — walking and transfer don't
+ *  consume corridor visibility). Other corridors get dimmed so the
+ *  user can read the chosen path without map clutter. */
+function tripPlanKors(): Set<string> | null {
+  const plan = tripSelectedPlan.value
+  if (!plan) return null
+  const set = new Set<string>()
+  for (const step of plan.steps) {
+    if (step.kind === 'ride' && step.kor) set.add(step.kor)
+  }
+  return set
+}
+
 /** Cache of the last spotlightKor we styled the markers for. When the
  *  spotlight hasn't changed, the corridor/halte sweep is a no-op — skip
  *  it and just refresh bus markers (which can have independently fresh
@@ -448,12 +462,16 @@ let lastSpotlightInit = false
 
 function applyFocus(force = false) {
   const fk = spotlightKor()
-  if (!force && lastSpotlightInit && fk === lastSpotlight) {
+  const planKors = tripPlanKors()
+  // Cache key includes trip-plan kor set so the memoized fast-path
+  // also reacts to plan selection changes.
+  const cacheKey = planKors ? `plan:${[...planKors].sort().join(',')}` : `sk:${fk ?? ''}`
+  if (!force && lastSpotlightInit && cacheKey === lastSpotlight) {
     for (const bus of brt.buses.values()) upsertBusMarker(bus)
     applySelectedHalte()
     return
   }
-  lastSpotlight = fk
+  lastSpotlight = cacheKey
   lastSpotlightInit = true
 
   // Corridors
@@ -463,7 +481,15 @@ function applyFocus(force = false) {
     const baseDim = c && Number(c.is_ops) !== 1
     const all = [...byLeg.a, ...byLeg.b]
 
-    if (fk === null) {
+    if (planKors) {
+      // Trip plan active — only corridors used by the plan stay
+      // visible; everything else dims out so the chosen path reads.
+      if (planKors.has(kor)) {
+        for (const ln of all) ln.setStyle({ color: baseColor, opacity: 0.95, weight: 6 })
+      } else {
+        for (const ln of all) ln.setStyle({ color: baseColor, opacity: 0.05, weight: 1 })
+      }
+    } else if (fk === null) {
       const opacity = baseDim ? 0.35 : 0.85
       for (const ln of all) ln.setStyle({ color: baseColor, opacity, weight: 5 })
     } else if (kor === fk) {
@@ -473,10 +499,16 @@ function applyFocus(force = false) {
     }
   }
 
-  // Halte — opacity only changes with focus
+  // Halte — opacity only changes with focus.
+  // When trip plan active, also dim halte not on plan corridors.
   for (const [kor, byLeg] of halteByLeg.entries()) {
     const all = [...byLeg.a, ...byLeg.b]
-    const opacity = fk === null || kor === fk ? 1 : 0.2
+    let opacity: number
+    if (planKors) {
+      opacity = planKors.has(kor) ? 1 : 0.15
+    } else {
+      opacity = fk === null || kor === fk ? 1 : 0.2
+    }
     for (const m of all) m.setStyle({ opacity, fillOpacity: opacity })
   }
 
@@ -534,8 +566,12 @@ function applyUpcomingHalteFilter() {
 }
 
 /** Element opacity: full when no focus or on-focused-corridor, faded
- *  otherwise so the focused corridor's buses are the obvious read. */
+ *  otherwise so the focused corridor's buses are the obvious read.
+ *  When a trip plan is active, only buses on plan-used corridors
+ *  stay visible — the rest fade hard so they don't distract. */
 function busOpacityFor(b: BrtBus): string {
+  const planKors = tripPlanKors()
+  if (planKors) return planKors.has(b.kor) ? '1' : '0'
   const fk = spotlightKor()
   if (fk === null || b.kor === fk) return '1'
   return '0.18'
@@ -877,6 +913,9 @@ watch(
       priorViewport = null
     }
     drawTripPreview(plan ?? null)
+    // Plan selection changes which corridors should stay visible —
+    // re-apply focus so the dimming/highlighting refreshes.
+    applyFocus(true)
   },
 )
 
