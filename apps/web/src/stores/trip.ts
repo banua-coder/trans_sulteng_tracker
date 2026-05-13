@@ -105,13 +105,23 @@ export const useTripStore = defineStore('trip', () => {
     }
   }
 
+  /** Bump every time recompute starts; lets late-arriving worker
+   *  responses know they're stale and bail. Prevents an earlier
+   *  in-flight plan from overwriting a newer one. */
+  let recomputeSeq = 0
+
   async function recompute() {
+    // Clear stale plans immediately so the UI doesn't keep showing
+    // the previous destination's routes while we compute.
+    plans.value = []
+    selectedPlanIdx.value = null
     if (!origin.value || !destination.value) {
-      plans.value = []
-      selectedPlanIdx.value = null
+      loading.value = false
       return
     }
+    const seq = ++recomputeSeq
     if (!graphReady.value) await buildGraph()
+    if (seq !== recomputeSeq) return // a newer recompute superseded us
     loading.value = true
     error.value = null
     try {
@@ -126,6 +136,7 @@ export const useTripStore = defineStore('trip', () => {
         dest: { lat: d.lat, lng: d.lng },
         k: 5,
       })
+      if (seq !== recomputeSeq) return // newer recompute won, ignore
       plans.value = resp.paths
       // Don't auto-select — the user picks from the result list first
       // (matches TJ Transjakarta's flow: list → tap → detail).
