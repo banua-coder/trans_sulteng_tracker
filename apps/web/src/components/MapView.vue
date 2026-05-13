@@ -172,21 +172,24 @@ function clearAll() {
   tripPreviewLayer.clearLayers()
 }
 
-/** Draw a saved Plan onto the map:
- *   - Walk legs as dashed gray polylines.
- *   - Ride legs as bright corridor-colored polylines between halte (a
- *     straight segment between halte coords — keeps draw cost low; the
- *     underlying corridor polyline is already on the map).
- *   - Origin + destination pins (cyan + red).
- *   - Numbered red discs at each halte node the bus passes.
- *  Fits the map viewport to the plan bounds.
- *  Pass null to clear the layer. */
+/** Draw a saved Plan onto the map. We DON'T draw the route polyline
+ *  — the underlying corridor polylines are already visible (and other
+ *  corridors are dimmed by applyFocus when the plan is active), so
+ *  adding our own line just clutters the map. Just mark the
+ *  waypoints the user actually cares about:
+ *
+ *   - Origin pin (cyan disc).
+ *   - Destination pin (red disc).
+ *   - Numbered red discs at each boarding/alighting halte (start +
+ *     end of each ride step). Skips intermediate halte the bus rolls
+ *     through — the corridor polyline already shows the path.
+ *
+ *  Fits the map viewport to the waypoint bounds. */
 function drawTripPreview(plan: PlanResult | null) {
   tripPreviewLayer.clearLayers()
   if (!plan || !map) return
 
   const bounds = L.latLngBounds([])
-
   const originPt = tripOrigin.value?.point
   const destPt = tripDestination.value?.point
 
@@ -196,7 +199,7 @@ function drawTripPreview(plan: PlanResult | null) {
       radius: 8,
       color: '#fff',
       weight: 3,
-      fillColor: 'var(--color-bnc-accent)' === 'var(--color-bnc-accent)' ? '#1D9CD4' : '#1D9CD4',
+      fillColor: '#1D9CD4',
       fillOpacity: 1,
     }).addTo(tripPreviewLayer)
   }
@@ -211,64 +214,20 @@ function drawTripPreview(plan: PlanResult | null) {
     }).addTo(tripPreviewLayer)
   }
 
-  // Iterate plan.nodes pairs and draw segments. The first / last node
-  // are virtual; walk to/from real halte using origin/dest points.
-  let stepCursor = 0
-  for (let i = 0; i < plan.nodes.length - 1; i++) {
-    const fromId = plan.nodes[i]
-    const toId = plan.nodes[i + 1]
-    const fromCoord = nodeCoord(fromId, originPt, destPt)
-    const toCoord = nodeCoord(toId, originPt, destPt)
-    if (!fromCoord || !toCoord) continue
-    bounds.extend(fromCoord)
-    bounds.extend(toCoord)
-
-    const step = plan.steps[stepCursor]
-    const kind = step?.kind ?? 'ride'
-
-    if (kind === 'walk') {
-      L.polyline([fromCoord, toCoord], {
-        color: '#6b7280',
-        weight: 4,
-        opacity: 0.7,
-        dashArray: '6 6',
-        lineCap: 'round',
-      }).addTo(tripPreviewLayer)
-    } else if (kind === 'ride') {
-      const color = step.kor ? (brt.colorForKor(step.kor) || '#1D9CD4') : '#1D9CD4'
-      L.polyline([fromCoord, toCoord], {
-        color,
-        weight: 6,
-        opacity: 0.95,
-        lineCap: 'round',
-      }).addTo(tripPreviewLayer)
-    }
-    // 'transfer' edges connect two nodes at the same physical stop —
-    // skip drawing; the user's eye sees a colour change at the disc.
-
-    // The step cursor only advances when we cross a step boundary,
-    // which happens for every edge in plan.nodes (collapseToSteps
-    // groups consecutive ride hops but the underlying node list still
-    // walks each hop). To stay in sync with steps we step once per
-    // ride edge group: detect when the next edge changes its character.
-    if (i + 2 < plan.nodes.length) {
-      const nextFrom = plan.nodes[i + 1]
-      const nextTo = plan.nodes[i + 2]
-      if (segmentKind(fromId, toId) !== segmentKind(nextFrom, nextTo)) stepCursor++
-    }
-  }
-
-  // Numbered halte discs for each halte node along the path (skip
-  // virtual start/dest).
+  // Place a numbered marker at each boarding + alighting halte.
+  // Adjacent rides separated by a transfer share a name — dedupe so
+  // a single disc covers the transfer point.
+  const seen = new Set<string>()
   let counter = 1
-  for (const id of plan.nodes) {
-    if (id === '__start__' || id === '__dest__') continue
-    const sh_id = id.split('|')[1]
-    const h = brt.halte.find((x) => x.sh_id === sh_id)
-    if (!h) continue
+  function placeMarker(name: string, kor: string | undefined) {
+    if (seen.has(name)) return
+    seen.add(name)
+    const h = (kor && brt.halte.find((x) => x.sh_name === name && x.kor === kor))
+      ?? brt.halte.find((x) => x.sh_name === name)
+    if (!h) return
     const lat = parseFloat(h.sh_lat)
     const lng = parseFloat(h.sh_lng)
-    if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return
     bounds.extend([lat, lng])
     L.marker([lat, lng], {
       icon: L.divIcon({
@@ -283,32 +242,15 @@ function drawTripPreview(plan: PlanResult | null) {
     counter++
   }
 
+  for (const step of plan.steps) {
+    if (step.kind !== 'ride') continue
+    placeMarker(step.fromName, step.kor)
+    placeMarker(step.toName, step.kor)
+  }
+
   if (bounds.isValid()) {
     map.fitBounds(bounds.pad(0.2), { duration: 0.6, animate: true })
   }
-}
-
-function nodeCoord(
-  id: string,
-  originPt: { lat: number; lng: number } | undefined,
-  destPt: { lat: number; lng: number } | undefined,
-): L.LatLngTuple | null {
-  if (id === '__start__') return originPt ? [originPt.lat, originPt.lng] : null
-  if (id === '__dest__') return destPt ? [destPt.lat, destPt.lng] : null
-  const sh_id = id.split('|')[1]
-  const h = brt.halte.find((x) => x.sh_id === sh_id)
-  if (!h) return null
-  const lat = parseFloat(h.sh_lat)
-  const lng = parseFloat(h.sh_lng)
-  return Number.isFinite(lat) && Number.isFinite(lng) ? [lat, lng] : null
-}
-
-function segmentKind(fromId: string, toId: string): 'walk' | 'ride' | 'transfer' {
-  if (fromId === '__start__' || toId === '__dest__') return 'walk'
-  const fromKor = fromId.split('|')[0]
-  const toKor = toId.split('|')[0]
-  if (fromKor !== toKor) return 'transfer'
-  return 'ride'
 }
 
 function drawCorridors(items: BrtCorridor[]) {
