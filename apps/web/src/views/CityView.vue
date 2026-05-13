@@ -104,15 +104,14 @@ onBeforeUnmount(() => {
       <MobileRoutesPanel v-else />
     </BottomSheet>
 
-    <!-- Desktop info column — only on lg+. Stacks corridor focus +
-         bus/halte card so a focused route and a selected bus can both
-         be visible at once (bus on top, focus underneath). -->
+    <!-- Desktop info panel — only on lg+. Exclusive: only one detail
+         panel is visible at a time (stores enforce mutual exclusivity). -->
     <div
-      class="pointer-events-none fixed bottom-4 right-4 z-[1000] hidden flex-col-reverse items-stretch gap-3 lg:flex lg:max-w-md"
+      class="pointer-events-none fixed bottom-4 right-4 z-[1000] hidden lg:block lg:max-w-md"
     >
       <CorridorFocusPanel v-if="isFocused" />
-      <BusDetailCard v-if="selectionKind === 'bus'" />
-      <HalteDetailCard v-if="selectionKind === 'halte'" />
+      <BusDetailCard v-else-if="selectionKind === 'bus'" />
+      <HalteDetailCard v-else-if="selectionKind === 'halte'" />
     </div>
   </div>
 </template>

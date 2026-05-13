@@ -58,8 +58,8 @@ chmod +x deploy.sh
 # 2. Author the runtime env. Never commit this file.
 cat > .env <<'EOF'
 BIND_ADDR=0.0.0.0:8080
-BRT_REST_BASE=http://REDACTED_REST_BASE
-BRT_SOCKET_BASE=https://REDACTED_SOCKET_BASE/
+BRT_REST_BASE=<get-from-1password-or-team>
+BRT_SOCKET_BASE=<get-from-1password-or-team>
 BRT_KEY=<32-byte-utf8-secret>
 ALLOW_ORIGIN=https://cektrans.banuacoder.com
 RUST_LOG=info,cektrans_proxy=debug

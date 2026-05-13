@@ -155,40 +155,41 @@ function pick(bus: BrtBus) {
       <li v-for="r in rows" :key="r.bus.imei || r.bus.id">
         <button
           type="button"
-          class="flex w-full items-center gap-3 rounded-md border border-bnc-stone-200 bg-white px-2.5 py-2 text-left transition-colors hover:border-bnc-stone-300 dark:border-bnc-stone-800 dark:bg-bnc-stone-900 dark:hover:border-bnc-stone-700"
+          class="flex w-full items-stretch gap-3 rounded-[var(--radius-md)] border border-bnc-stone-200 bg-bnc-stone-50 px-3 py-2 text-left transition-colors hover:border-bnc-stone-300 dark:border-bnc-stone-800 dark:bg-bnc-stone-800/50 dark:hover:border-bnc-stone-700"
           @click="pick(r.bus)"
         >
+          <!-- left accent stripe -->
           <span
-            class="grid h-7 w-7 shrink-0 place-items-center rounded-full font-mono text-[10px] font-bold text-white"
-            :style="{ background: r.color, opacity: r.stale ? 0.55 : 1 }"
+            class="grid w-1 shrink-0 rounded-full"
+            :style="{ background: r.color, opacity: r.stale ? 0.4 : 1 }"
             aria-hidden
-          >
-            {{ r.bus.kor || '·' }}
-          </span>
-          <div class="min-w-0 flex-1">
-            <div class="flex items-center gap-1.5">
+          />
+
+          <div class="min-w-0 flex-1 flex flex-col gap-1">
+            <div class="flex flex-wrap items-center gap-1.5">
               <PlateBadge v-if="r.plate" :plate="r.plate" size="sm" />
               <span
-                v-else
-                class="font-display text-sm font-semibold tracking-tight"
-              >
-                {{ r.bus.kor || '—' }}
-              </span>
-              <span
                 v-if="r.armada"
-                class="inline-flex items-center rounded bg-bnc-stone-100 px-1 py-[1px] font-mono text-[9px] font-bold tracking-wider dark:bg-bnc-stone-800"
+                class="inline-flex items-center rounded bg-bnc-stone-200 px-1 py-[1px] font-mono text-[10px] font-bold tracking-wider text-bnc-ink dark:bg-bnc-stone-700 dark:text-bnc-paper"
               >
                 {{ r.armada }}
               </span>
+              <span
+                v-if="r.stale"
+                class="inline-flex items-center rounded-full bg-bnc-stone-200 px-1.5 py-[1px] font-mono text-[9px] uppercase tracking-wider text-bnc-stone-500 dark:bg-bnc-stone-700"
+              >
+                stale
+              </span>
             </div>
-            <p class="mt-0.5 truncate font-mono text-[10px] text-bnc-stone-500">
-              {{ r.nextHalteName ?? r.bus.toward ?? '—' }}
+            <p class="truncate font-mono text-[10px] text-bnc-stone-500">
+              → {{ r.nextHalteName ?? r.bus.toward ?? '—' }}
             </p>
           </div>
-          <div class="ml-auto text-right">
-            <p class="font-mono text-xs tabular-nums">
+
+          <div class="flex shrink-0 flex-col items-end justify-center gap-0.5">
+            <p class="font-mono text-base font-extrabold tabular-nums leading-tight text-bnc-accent">
               {{ formatSpeed(r.bus.speed) }}
-              <span class="text-[9px] text-bnc-stone-500">{{ t('units.kmh') }}</span>
+              <span class="text-[10px] font-medium text-bnc-stone-500">{{ t('units.kmh') }}</span>
             </p>
             <p
               class="font-mono text-[10px] tabular-nums"

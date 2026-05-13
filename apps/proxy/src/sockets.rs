@@ -8,7 +8,7 @@
 //!    events whenever upstream emits a position for that pref.
 //!
 //! 2. **Upstream** (`rust_socketio`) — a single long-lived Socket.IO v4
-//!    client to the BRT GpsApi (`REDACTED_SOCKET_BASE`). The
+//!    client to the BRT GpsApi (upstream socket endpoint). The
 //!    server emits `BRT-{pref}` (e.g. `BRT-12` for Palu, `BRT-11` for
 //!    Donggala) once per bus update; we forward those payloads to the
 //!    matching downstream room.

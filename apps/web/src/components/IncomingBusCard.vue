@@ -81,17 +81,11 @@ function stripeStyle(): Record<string, string> {
           stale
         </span>
       </div>
-      <div class="flex flex-wrap items-center gap-1.5">
+      <div v-if="status === 'last'" class="flex flex-wrap items-center gap-1.5">
         <span
           class="inline-flex items-center rounded bg-bnc-stone-200 px-1.5 py-[1px] font-mono text-[10px] uppercase tracking-wider text-bnc-stone-600 dark:bg-bnc-stone-700 dark:text-bnc-stone-300"
         >
-          {{ status === 'last' ? t('route.lastStop') : t('route.nextStop') }}
-        </span>
-        <span
-          v-if="toward"
-          class="truncate text-xs text-bnc-stone-700 dark:text-bnc-stone-200"
-        >
-          {{ toward }}
+          {{ t('route.lastStop') }}
         </span>
       </div>
     </div>

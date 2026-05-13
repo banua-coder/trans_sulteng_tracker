@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { useBrtStore } from './brt'
+import { useFocusStore } from './focus'
 
 export type SelectionKind = 'bus' | 'halte' | null
 
@@ -21,11 +22,13 @@ export const useSelectionStore = defineStore('selection', () => {
   })
 
   function selectBus(imei: string) {
+    useFocusStore().clear()
     kind.value = 'bus'
     id.value = imei
   }
 
   function selectHalte(sh_id: string) {
+    useFocusStore().clear()
     kind.value = 'halte'
     id.value = sh_id
   }

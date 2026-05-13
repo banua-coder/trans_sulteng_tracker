@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { useBrtStore } from './brt'
+import { useSelectionStore } from './selection'
 import type { BrtHalte } from '@/types/brt'
 
 /** Direction along a corridor:
@@ -58,6 +59,7 @@ export const useFocusStore = defineStore('focus', () => {
   })
 
   function focus(nextKor: string) {
+    useSelectionStore().clear()
     kor.value = nextKor
     direction.value = 'a'
   }
