@@ -58,6 +58,7 @@ export const messages = {
     halte: {
       incomingBuses: 'Bus menuju halte ini',
       noBuses: 'Tidak ada bus yang menuju halte ini.',
+      directions: 'Arahkan',
     },
     units: {
       kmh: 'km/jam',
@@ -167,6 +168,7 @@ export const messages = {
     halte: {
       incomingBuses: 'Buses heading here',
       noBuses: 'No buses approaching this stop.',
+      directions: 'Directions',
     },
     units: {
       kmh: 'km/h',

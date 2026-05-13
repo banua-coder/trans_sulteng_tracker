@@ -91,6 +91,20 @@ const arrivals = computed<Arrival[]>(() => {
 function pickBus(imei: string) {
   selection.selectBus(imei)
 }
+
+function openDirections() {
+  const h = selectedHalte.value
+  if (!h) return
+  const lat = parseFloat(h.sh_lat)
+  const lng = parseFloat(h.sh_lng)
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return
+  // Universal Google Maps directions link — Google's deep link resolver
+  // hands off to the native Maps app on iOS / Android and falls back to
+  // the web client elsewhere. `dir_action=navigate` jumps straight into
+  // turn-by-turn from the user's current location.
+  const url = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=walking&dir_action=navigate`
+  window.open(url, '_blank', 'noopener,noreferrer')
+}
 </script>
 
 <template>
@@ -140,6 +154,27 @@ function pickBus(imei: string) {
           <CopyLinkButton />
         </div>
       </header>
+
+      <button
+        type="button"
+        class="mt-3 inline-flex items-center gap-1.5 self-start rounded-full bg-bnc-accent px-3 py-1.5 font-mono text-[11px] font-bold uppercase tracking-wider text-white shadow-sm transition-transform hover:scale-[1.02] active:scale-[0.98]"
+        :aria-label="t('halte.directions')"
+        @click="openDirections"
+      >
+        <svg
+          class="h-3.5 w-3.5"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden
+        >
+          <path d="M3 11 22 2l-9 19-2-8z" />
+        </svg>
+        {{ t('halte.directions') }}
+      </button>
 
       <section class="mt-3 border-t border-bnc-stone-200 pt-3 dark:border-bnc-stone-800">
         <h4 class="font-mono text-[11px] uppercase tracking-wider text-bnc-stone-500">

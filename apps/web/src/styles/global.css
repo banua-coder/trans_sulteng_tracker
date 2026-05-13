@@ -197,6 +197,40 @@ html.dark .leaflet-container { background: var(--color-bnc-stone-900); }
   border: none !important;
   box-shadow: none !important;
   cursor: pointer;
+  transition: transform 180ms ease;
+}
+
+/* Focused halte — scale the icon up + animated cyan pulse ring so the
+   user can tell which stop they're currently looking at when multiple
+   halte sit inside the same viewport. */
+.halte-icon.selected {
+  z-index: 1000 !important;
+  transform: scale(1.4);
+}
+.halte-icon.selected::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  width: 28px;
+  height: 28px;
+  margin-left: -14px;
+  margin-top: -14px;
+  border-radius: 9999px;
+  background: var(--color-bnc-accent);
+  opacity: 0.45;
+  animation: halte-pulse 1.6s ease-out infinite;
+  pointer-events: none;
+  z-index: -1;
+}
+@keyframes halte-pulse {
+  0%   { transform: scale(0.6); opacity: 0.55; }
+  70%  { transform: scale(1.8); opacity: 0; }
+  100% { transform: scale(1.8); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .halte-icon.selected { transition: none; }
+  .halte-icon.selected::before { animation: none; opacity: 0.4; }
 }
 
 /* "Me" marker — the user's geolocation pin. Blue dot with a soft

@@ -58,6 +58,28 @@ const halteSeen = new Map<string, L.Marker>()
 /** Reverse map: marker → set of kor codes that use this stop. Used by
  *  applyFocus to show/dim correctly when a corridor is focused. */
 const halteMarkerKors = new Map<L.Marker, Set<string>>()
+/** The currently highlighted halte marker, if any. Tracked separately
+ *  from selection.id because markers are dedup'd by coordinate, so the
+ *  same marker can serve multiple sh_id values. */
+let selectedHalteMarker: L.Marker | null = null
+
+function applySelectedHalte() {
+  if (selectedHalteMarker) {
+    selectedHalteMarker.getElement()?.classList.remove('selected')
+    selectedHalteMarker = null
+  }
+  if (selection.kind !== 'halte' || !selection.id) return
+  const h = brt.halte.find((x) => x.sh_id === selection.id)
+  if (!h) return
+  const lat = parseFloat(h.sh_lat)
+  const lng = parseFloat(h.sh_lng)
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return
+  const coordKey = `${lat.toFixed(5)},${lng.toFixed(5)}`
+  const marker = halteSeen.get(coordKey)
+  if (!marker) return
+  marker.getElement()?.classList.add('selected')
+  selectedHalteMarker = marker
+}
 
 const CITY_CENTER: Record<string, L.LatLngTuple> = {
   '12': [-0.814841, 119.875584],
@@ -243,6 +265,10 @@ function applyFocus() {
 
   // Buses
   for (const bus of brt.buses.values()) upsertBusMarker(bus)
+
+  // Selected halte highlight — re-apply after markers may have been
+  // recreated by drawHalte.
+  applySelectedHalte()
 }
 
 function busColorFor(b: BrtBus): string {
@@ -523,6 +549,8 @@ watch(
         priorViewport = null
       }
     }
+
+    applySelectedHalte()
   },
 )
 
