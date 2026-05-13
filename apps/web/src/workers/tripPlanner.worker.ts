@@ -7,7 +7,7 @@ import { buildGraph, planTrip, type Graph, type LatLng } from '@/lib/tripPlanner
 import type { BrtCorridor, BrtHalte } from '@/types/brt'
 
 type Request =
-  | { id: number; type: 'buildGraph'; corridors: BrtCorridor[]; halteByLeg: BrtHalte[][] }
+  | { id: number; type: 'buildGraph'; corridors: BrtCorridor[]; halteByLeg: BrtHalte[][]; allHalte: BrtHalte[] }
   | { id: number; type: 'plan'; origin: LatLng; dest: LatLng; k?: number }
 
 let graph: Graph | null = null
@@ -17,7 +17,7 @@ self.onmessage = (event: MessageEvent<Request>) => {
   try {
     switch (msg.type) {
       case 'buildGraph': {
-        graph = buildGraph(msg.corridors, msg.halteByLeg)
+        graph = buildGraph(msg.corridors, msg.halteByLeg, msg.allHalte)
         ;(self as unknown as Worker).postMessage({
           id: msg.id,
           type: 'graphReady',

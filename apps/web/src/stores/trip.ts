@@ -87,6 +87,7 @@ export const useTripStore = defineStore('trip', () => {
         type: 'buildGraph',
         corridors: JSON.parse(JSON.stringify(brt.corridors)),
         halteByLeg: JSON.parse(JSON.stringify(halteByLeg)),
+        allHalte: JSON.parse(JSON.stringify(brt.halte)),
       })
       graphReady.value = true
     } catch (e) {
