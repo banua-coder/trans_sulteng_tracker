@@ -87,6 +87,12 @@ function stripeStyle(): Record<string, string> {
         >
           {{ t('route.lastStop') }}
         </span>
+        <span
+          v-if="toward"
+          class="truncate text-xs text-bnc-stone-700 dark:text-bnc-stone-200"
+        >
+          {{ toward }}
+        </span>
       </div>
     </div>
 

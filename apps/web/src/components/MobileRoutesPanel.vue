@@ -9,7 +9,7 @@
  * CityView's bottom sheet to swap content to MobileRouteDetailPanel.
  * Tapping a halte selects it, which swaps to HalteDetailCard.
  */
-import { computed, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
 import { useBrtStore } from '@/stores/brt'
@@ -26,10 +26,22 @@ const focus = useFocusStore()
 const selection = useSelectionStore()
 const ui = useUiStore()
 const { corridors, halte } = storeToRefs(brt)
-const { busSearch } = storeToRefs(ui)
+const { busSearch, mobileTab: tab, mobileScrollY } = storeToRefs(ui)
 
-type Tab = 'routes' | 'halte'
-const tab = ref<Tab>('routes')
+const scrollEl = ref<HTMLElement | null>(null)
+
+onMounted(() => {
+  if (mobileScrollY.value > 0) {
+    nextTick(() => {
+      scrollEl.value?.closest('[data-sheet-scroll]')?.scrollTo(0, mobileScrollY.value)
+    })
+  }
+})
+
+onBeforeUnmount(() => {
+  const el = scrollEl.value?.closest('[data-sheet-scroll]')
+  mobileScrollY.value = el ? (el as HTMLElement).scrollTop : 0
+})
 
 const halteCountByKor = computed(() => {
   // Distinct halte per corridor (a stop appears once per direction
@@ -91,7 +103,7 @@ function pickHalte(shId: string) {
 </script>
 
 <template>
-  <div class="flex flex-col gap-3">
+  <div ref="scrollEl" class="flex flex-col gap-3">
     <!-- tabs -->
     <div class="flex shrink-0 gap-2">
       <button

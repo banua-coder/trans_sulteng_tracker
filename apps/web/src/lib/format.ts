@@ -126,8 +126,8 @@ export function isStale(
   b: BrtBus,
   feedTimeoutSecs = 5 * 60,
   stallSpeedKmh = 20,
-  stallSecs = 90,
-  zeroSpeedSecs = 60,
+  stallSecs = 5 * 60,
+  zeroSpeedSecs = 5 * 60,
 ): boolean {
   const now = Date.now()
 

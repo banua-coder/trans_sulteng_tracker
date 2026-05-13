@@ -14,6 +14,7 @@ import { computed, reactive, ref, watch } from 'vue'
 const KEY_PANELS = 'cektrans:ui:panels'
 const KEY_LEGEND = 'cektrans:ui:legend'
 const KEY_SEARCH = 'cektrans:ui:busSearch'
+const KEY_MOBILE_TAB = 'cektrans:ui:mobileTab'
 
 function readJson<T>(key: string, fallback: T): T {
   try {
@@ -40,10 +41,11 @@ export const useUiStore = defineStore('ui', () => {
 
   const legendOpen = ref<boolean>(readJson<boolean>(KEY_LEGEND, true))
 
-  // Don't persist the search across reloads — it'd surprise users on
-  // their next visit. Just keep it shared between desktop sidebar and
-  // mobile bottom-sheet renders of BusListPanel.
   const busSearch = ref<string>(readJson<string>(KEY_SEARCH, ''))
+
+  type MobileTab = 'routes' | 'halte'
+  const mobileTab = ref<MobileTab>(readJson<MobileTab>(KEY_MOBILE_TAB, 'routes'))
+  const mobileScrollY = ref<number>(0)
 
   function isPanelOpen(name: string, defaultOpen = true): boolean {
     return panels[name] ?? defaultOpen
@@ -65,10 +67,10 @@ export const useUiStore = defineStore('ui', () => {
     busSearch.value = q
   }
 
-  // Persistence
   watch(panels, (v) => writeJson(KEY_PANELS, v), { deep: true })
   watch(legendOpen, (v) => writeJson(KEY_LEGEND, v))
   watch(busSearch, (v) => writeJson(KEY_SEARCH, v))
+  watch(mobileTab, (v) => writeJson(KEY_MOBILE_TAB, v))
 
   // Derived helpers (kept stable so consumers can pass directly to
   // collapsibles without spawning new refs).
@@ -82,6 +84,8 @@ export const useUiStore = defineStore('ui', () => {
     panels,
     legendOpen,
     busSearch,
+    mobileTab,
+    mobileScrollY,
     isPanelOpen,
     setPanelOpen,
     togglePanel,

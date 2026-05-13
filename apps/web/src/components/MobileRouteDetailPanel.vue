@@ -224,9 +224,11 @@ function pad(n: number) {
         v-for="(r, idx) in rows"
         :key="r.halte.sh_id"
         :haltename="r.halte.sh_name"
+        :halte-id="r.halte.sh_id"
         :accent-color="accentColor"
         :is-first="idx === 0"
         :is-last="idx === rows.length - 1"
+        @halte-click="selection.selectHalte($event)"
       >
         <button
           v-for="ib in r.incoming"

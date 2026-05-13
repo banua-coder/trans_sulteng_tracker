@@ -14,8 +14,6 @@ const selection = useSelectionStore()
 const brt = useBrtStore()
 const { selectedHalte } = storeToRefs(selection)
 
-// Force re-render every 15 s so ETAs stay close to wall-clock truth even if
-// no new bus updates arrive (rare, but possible during operating-hours edges).
 const tick = ref(0)
 let timer: number | undefined
 onMounted(() => {
@@ -32,22 +30,46 @@ interface Arrival {
   etaMin: number | null
   distM: number | null
   fresh: boolean
+  corridorColor: string
 }
+
+const corridorsAtHalte = computed(() => {
+  const halte = selectedHalte.value
+  if (!halte) return []
+  const seen = new Set<string>()
+  const result: { kor: string; color: string }[] = []
+  for (const h of brt.halte) {
+    if (h.sh_name !== halte.sh_name) continue
+    if (seen.has(h.kor)) continue
+    seen.add(h.kor)
+    result.push({ kor: h.kor, color: brt.colorForKor(h.kor) || h.color || '#0EA5E9' })
+  }
+  return result
+})
 
 const arrivals = computed<Arrival[]>(() => {
   void tick.value
   const halte = selectedHalte.value
   if (!halte) return []
+
+  // Collect sh_ids for all halte records sharing this physical stop (same name).
+  const shIds = new Set(
+    brt.halte
+      .filter((h) => h.sh_name === halte.sh_name)
+      .map((h) => h.sh_id),
+  )
+
   const candidates: Arrival[] = []
   for (const bus of brt.buses.values()) {
-    if (bus.kor !== halte.kor) continue
-    if (bus.new_shel_t !== halte.sh_id) continue
-    const eta = etaToHalte(bus, halte)
+    if (!bus.new_shel_t || !shIds.has(bus.new_shel_t)) continue
+    const targetHalte = brt.halte.find((h) => h.sh_id === bus.new_shel_t) ?? halte
+    const eta = etaToHalte(bus, targetHalte)
     candidates.push({
       bus,
       etaMin: eta?.etaMin ?? null,
       distM: eta?.distM ?? null,
       fresh: !isStale(bus),
+      corridorColor: brt.colorForKor(bus.kor) || '#0EA5E9',
     })
   }
   candidates.sort((a, b) => {
@@ -56,12 +78,8 @@ const arrivals = computed<Arrival[]>(() => {
     if (b.etaMin == null) return -1
     return a.etaMin - b.etaMin
   })
-  return candidates.slice(0, 3)
+  return candidates
 })
-
-const corridorColor = computed(() =>
-  selectedHalte.value ? brt.colorForKor(selectedHalte.value.kor) : '#0EA5E9',
-)
 
 function pickBus(imei: string) {
   selection.selectBus(imei)
@@ -78,20 +96,28 @@ function pickBus(imei: string) {
     >
       <header class="flex items-start gap-3">
         <span
-          class="mt-1 h-3 w-3 shrink-0 rounded-full border-2 border-white"
-          :style="{ background: corridorColor, boxShadow: '0 0 0 1px ' + corridorColor }"
+          class="mt-1 h-3.5 w-3.5 shrink-0 rounded-full border-2 border-white bg-bnc-stone-400"
+          style="box-shadow: 0 0 0 1px #94a3b8"
           aria-hidden
         />
         <div class="min-w-0 flex-1">
           <p class="font-mono text-[11px] uppercase tracking-wider text-bnc-stone-500">
-            Halte · {{ selectedHalte.kor }}
+            {{ t('bus.halte') }}
           </p>
           <h3 class="truncate font-display text-base font-semibold tracking-tight">
             {{ selectedHalte.sh_name }}
           </h3>
-          <p class="truncate text-xs text-bnc-stone-500">
-            {{ selectedHalte.origin }} → {{ selectedHalte.toward }}
-          </p>
+          <!-- Corridor badges -->
+          <div v-if="corridorsAtHalte.length" class="mt-1 flex flex-wrap gap-1">
+            <span
+              v-for="c in corridorsAtHalte"
+              :key="c.kor"
+              class="inline-flex h-5 w-5 items-center justify-center rounded-full font-mono text-[9px] font-bold text-white"
+              :style="{ background: c.color }"
+            >
+              {{ c.kor }}
+            </span>
+          </div>
         </div>
         <div class="flex shrink-0 flex-col items-end gap-1">
           <button
@@ -110,7 +136,7 @@ function pickBus(imei: string) {
 
       <section class="mt-3 border-t border-bnc-stone-200 pt-3 dark:border-bnc-stone-800">
         <h4 class="font-mono text-[11px] uppercase tracking-wider text-bnc-stone-500">
-          Bus berikutnya
+          {{ t('halte.incomingBuses') }}
         </h4>
         <ul v-if="arrivals.length" class="mt-2 flex flex-col gap-2">
           <li
@@ -122,6 +148,12 @@ function pickBus(imei: string) {
               class="flex w-full items-center gap-3 rounded-md border border-bnc-stone-200 bg-bnc-stone-50 px-2 py-2 text-left transition-colors hover:border-bnc-stone-300 dark:border-bnc-stone-800 dark:bg-bnc-stone-800/50 dark:hover:border-bnc-stone-700"
               @click="pickBus(a.bus.imei || a.bus.id)"
             >
+              <!-- Corridor dot -->
+              <span
+                class="h-2 w-2 shrink-0 rounded-full"
+                :style="{ background: a.corridorColor }"
+                aria-hidden
+              />
               <div class="flex min-w-0 flex-col">
                 <div class="flex items-center gap-1.5">
                   <PlateBadge v-if="a.bus.plate_number" :plate="a.bus.plate_number" size="sm" />
@@ -137,34 +169,32 @@ function pickBus(imei: string) {
                   >
                     {{ a.bus.name }}
                   </span>
+                  <span
+                    v-if="!a.fresh"
+                    class="rounded-full bg-bnc-stone-200 px-1.5 py-0.5 font-mono text-[10px] uppercase text-bnc-stone-600 dark:bg-bnc-stone-700 dark:text-bnc-stone-300"
+                  >
+                    stale
+                  </span>
                 </div>
+                <p class="mt-0.5 font-mono text-[10px] text-bnc-stone-500">
+                  <template v-if="a.distM != null">{{ formatDistance(a.distM) }}</template>
+                  <template v-else>—</template>
+                  <template v-if="parsePassenger(a.bus.passenger) != null">
+                    · {{ parsePassenger(a.bus.passenger) }} pax
+                  </template>
+                </p>
               </div>
               <span class="ml-auto font-mono text-sm font-bold tabular-nums text-bnc-accent">
                 <template v-if="a.etaMin != null">
-                  ~ {{ Math.max(1, Math.round(a.etaMin)) }} {{ t('units.minutes') }}
+                  ~{{ Math.max(1, Math.round(a.etaMin)) }}<span class="text-[10px] font-normal text-bnc-stone-500">{{ t('units.minutes') }}</span>
                 </template>
-                <template v-else>
-                  —
-                </template>
-              </span>
-              <span
-                v-if="!a.fresh"
-                class="rounded-full bg-bnc-stone-200 px-1.5 py-0.5 font-mono text-[10px] uppercase text-bnc-stone-600 dark:bg-bnc-stone-700 dark:text-bnc-stone-300"
-              >
-                stale
+                <template v-else>—</template>
               </span>
             </button>
-            <p class="mt-1 px-2 font-mono text-[10px] text-bnc-stone-500">
-              <template v-if="a.distM != null">{{ formatDistance(a.distM) }} away</template>
-              <template v-else>—</template>
-              <template v-if="parsePassenger(a.bus.passenger) != null">
-                · {{ parsePassenger(a.bus.passenger) }} pax
-              </template>
-            </p>
           </li>
         </ul>
         <p v-else class="mt-2 text-xs text-bnc-stone-500">
-          Tidak ada bus terdekat menuju halte ini.
+          {{ t('halte.noBuses') }}
         </p>
       </section>
     </article>

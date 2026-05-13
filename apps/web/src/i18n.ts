@@ -53,6 +53,11 @@ export const messages = {
       search: 'Cari pelat, koridor, halte…',
       empty: 'Belum ada bus aktif',
       noMatch: 'Tidak ada bus yang cocok',
+      halte: 'Halte',
+    },
+    halte: {
+      incomingBuses: 'Bus menuju halte ini',
+      noBuses: 'Tidak ada bus yang menuju halte ini.',
     },
     units: {
       kmh: 'km/jam',
@@ -157,6 +162,11 @@ export const messages = {
       search: 'Search plate, corridor, stop…',
       empty: 'No active buses yet',
       noMatch: 'No matching buses',
+      halte: 'Stop',
+    },
+    halte: {
+      incomingBuses: 'Buses heading here',
+      noBuses: 'No buses approaching this stop.',
     },
     units: {
       kmh: 'km/h',

@@ -161,10 +161,7 @@ function drawHalte(items: BrtHalte[]) {
     const lng = parseFloat(h.sh_lng)
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue
     const c = brt.corridorByKor.get(h.kor)
-    // Halte color tracks the corridor color so a glance tells you the route.
-    // Falls back to API-supplied h.color, then a final cyan if nothing else.
-    const color = brt.colorForKor(h.kor) || (h.color && h.color !== '' ? h.color : '#0EA5E9')
-    const marker = halteMarker([lat, lng], color)
+    const marker = halteMarker([lat, lng], '#64748b')
       .bindTooltip(h.sh_name, { direction: 'top', offset: [0, -6] })
     marker.on('click', () => selection.selectHalte(h.sh_id))
     marker.addTo(halteLayer)
@@ -203,17 +200,15 @@ function applyFocus() {
     }
   }
 
-  // Halte
+  // Halte — unified neutral color; only opacity changes with focus
   for (const [kor, byLeg] of halteByLeg.entries()) {
-    const c = brt.corridorByKor.get(kor)
-    const baseColor = brt.colorForKor(kor) || c?.color || '#0EA5E9'
     const all = [...byLeg.a, ...byLeg.b]
     if (fk === null || kor === fk) {
       for (const m of all)
-        m.setStyle({ fillColor: baseColor, color: '#fff', fillOpacity: 1, opacity: 1 })
+        m.setStyle({ fillColor: '#64748b', color: '#fff', fillOpacity: 1, opacity: 1 })
     } else {
       for (const m of all)
-        m.setStyle({ fillColor: baseColor, fillOpacity: 0.18, opacity: 0.25 })
+        m.setStyle({ fillColor: '#64748b', fillOpacity: 0.18, opacity: 0.25 })
     }
   }
 

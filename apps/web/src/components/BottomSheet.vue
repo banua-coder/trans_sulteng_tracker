@@ -131,7 +131,7 @@ onBeforeUnmount(() => {
       <span class="sr-only">Geser untuk membuka panel</span>
     </button>
 
-    <div class="overflow-y-auto px-4 pb-4">
+    <div class="overflow-y-auto px-4 pb-4" data-sheet-scroll>
       <slot />
     </div>
   </aside>

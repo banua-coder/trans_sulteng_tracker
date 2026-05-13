@@ -4,7 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
 import { useSelectionStore } from '@/stores/selection'
 import { useBrtStore } from '@/stores/brt'
-import { ageSeconds, etaToHalte, formatAge, formatDistance, formatSpeed, isStale, parsePassenger } from '@/lib/format'
+import { ageSeconds, etaToHalte, formatAge, formatDistance, formatSpeed, haversineMeters, isStale, parsePassenger } from '@/lib/format'
 import CopyLinkButton from '@/components/CopyLinkButton.vue'
 import PlateBadge from '@/components/PlateBadge.vue'
 
@@ -59,6 +59,66 @@ const nextEta = computed(() => {
 const passenger = computed(() =>
   selectedBus.value ? parsePassenger(selectedBus.value.passenger) : null,
 )
+
+interface UpcomingStop {
+  sh_id: string
+  sh_name: string
+  etaMin: number | null
+  distM: number | null
+  arrivalAt: string | null
+}
+
+function pad(n: number) { return n < 10 ? `0${n}` : String(n) }
+function wallClock(etaMin: number): string {
+  const d = new Date(Date.now() + Math.max(0, etaMin) * 60_000)
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+const upcomingStops = computed<UpcomingStop[]>(() => {
+  const bus = selectedBus.value
+  if (!bus?.kor) return []
+  const corridor = brt.corridorByKor.get(bus.kor)
+  if (!corridor) return []
+
+  const dir = bus.toward === corridor.toward ? 'a' : 'b'
+  const wantOrigin = dir === 'a' ? corridor.origin : corridor.toward
+  const wantToward = dir === 'a' ? corridor.toward : corridor.origin
+  const orderedHalte = brt.halte.filter(
+    (h) => h.kor === bus.kor && h.origin === wantOrigin && h.toward === wantToward,
+  )
+
+  const startIdx = bus.new_shel_t
+    ? orderedHalte.findIndex((h) => h.sh_id === bus.new_shel_t)
+    : -1
+  const slice = startIdx >= 0 ? orderedHalte.slice(startIdx) : orderedHalte.slice(0, 1)
+
+  return slice.slice(0, 6).map((h, i) => {
+    let distM: number | null = null
+    let etaMin: number | null = null
+
+    if (i === 0 && h.sh_id === bus.new_shel_t) {
+      const eta = etaToHalte(bus, h)
+      distM = eta?.distM ?? null
+      etaMin = eta?.etaMin ?? null
+    } else if (Number.isFinite(bus.lat) && Number.isFinite(bus.lng)) {
+      const hLat = typeof h.sh_lat === 'string' ? parseFloat(h.sh_lat) : Number(h.sh_lat)
+      const hLng = typeof h.sh_lng === 'string' ? parseFloat(h.sh_lng) : Number(h.sh_lng)
+      if (Number.isFinite(hLat) && Number.isFinite(hLng)) {
+        distM = haversineMeters({ lat: bus.lat!, lng: bus.lng! }, { lat: hLat, lng: hLng })
+        const spd = Number.isFinite(bus.speed) && Number(bus.speed) >= 5 ? Number(bus.speed) : 22
+        etaMin = (distM / 1000) / spd * 60
+      }
+    }
+
+    return {
+      sh_id: h.sh_id,
+      sh_name: h.sh_name,
+      etaMin,
+      distM,
+      arrivalAt: etaMin != null ? wallClock(etaMin) : null,
+    }
+  })
+})
 </script>
 
 <template>
@@ -112,7 +172,7 @@ const passenger = computed(() =>
 
       <dl
         class="mt-3 grid gap-3 border-t border-bnc-stone-200 pt-3 text-xs dark:border-bnc-stone-800"
-        :class="passenger != null ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-3'"
+        :class="passenger != null ? 'grid-cols-3' : 'grid-cols-2'"
       >
         <div>
           <dt class="font-mono text-[10px] uppercase tracking-wider text-bnc-stone-500">
@@ -143,33 +203,51 @@ const passenger = computed(() =>
             {{ updatedLabel }}
           </dd>
         </div>
-        <div class="min-w-0">
-          <dt class="font-mono text-[10px] uppercase tracking-wider text-bnc-stone-500">
-            {{ t('bus.nextHalte') }}
-          </dt>
-          <dd class="mt-0.5 text-sm">
-            <p class="truncate" :title="nextHalte ?? ''">{{ nextHalte ?? '—' }}</p>
-            <p
-              v-if="nextEta"
-              class="mt-0.5 whitespace-nowrap font-mono text-[11px] font-bold leading-tight text-bnc-accent"
-            >
-              ~ {{ Math.max(1, Math.round(nextEta.etaMin)) }} {{ t('units.minutes') }}
-            </p>
-            <p
-              v-if="nextEta"
-              class="whitespace-nowrap font-mono text-[10px] leading-tight text-bnc-stone-500"
-            >
-              {{ formatDistance(nextEta.distM) }}
-            </p>
-            <p
-              v-else-if="selectedBus.dist_shel"
-              class="mt-0.5 whitespace-nowrap font-mono text-[10px] text-bnc-stone-500"
-            >
-              {{ formatDistance(selectedBus.dist_shel) }}
-            </p>
-          </dd>
-        </div>
       </dl>
+
+      <!-- Upcoming stops -->
+      <section
+        v-if="upcomingStops.length"
+        class="mt-3 border-t border-bnc-stone-200 pt-3 dark:border-bnc-stone-800"
+      >
+        <h4 class="font-mono text-[10px] uppercase tracking-wider text-bnc-stone-500">
+          {{ t('route.estimatedArrival') }}
+        </h4>
+        <ul class="mt-2 flex flex-col divide-y divide-bnc-stone-100 dark:divide-bnc-stone-800">
+          <li
+            v-for="(stop, i) in upcomingStops"
+            :key="stop.sh_id"
+            class="group"
+          >
+            <button
+              type="button"
+              class="flex w-full items-center gap-3 py-2 text-left transition-colors hover:bg-bnc-stone-50 dark:hover:bg-bnc-stone-800/50"
+              @click="selection.selectHalte(stop.sh_id)"
+            >
+              <span
+                class="grid h-5 w-5 shrink-0 place-items-center rounded-full font-mono text-[9px] font-bold text-white"
+                :style="{ background: corridorColor }"
+                aria-hidden
+              >
+                {{ i + 1 }}
+              </span>
+              <span class="min-w-0 flex-1 truncate text-xs font-medium">{{ stop.sh_name }}</span>
+              <span class="shrink-0 text-right">
+                <span class="block font-mono text-sm font-extrabold tabular-nums text-bnc-accent">
+                  <template v-if="stop.etaMin != null">
+                    {{ Math.max(1, Math.round(stop.etaMin)) }}
+                    <span class="text-[10px] font-normal text-bnc-stone-500">{{ t('units.minutes') }}</span>
+                  </template>
+                  <template v-else>—</template>
+                </span>
+                <span v-if="stop.arrivalAt" class="block font-mono text-[10px] text-bnc-stone-500">
+                  {{ stop.arrivalAt }}
+                </span>
+              </span>
+            </button>
+          </li>
+        </ul>
+      </section>
 
       <p
         v-if="stale"

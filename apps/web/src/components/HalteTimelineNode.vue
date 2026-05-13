@@ -1,21 +1,14 @@
 <script setup lang="ts">
-/**
- * One halte node in the route detail timeline (vertical list).
- * Renders the dot + connector + halte name, and slots the incoming
- * buses (IncomingBusCard) underneath. Parent supplies positioning
- * context (first/last in list) so the connector line draws on the
- * correct side.
- */
 defineProps<{
   haltename: string
-  /** "Platform A-B-C" style descriptor when the upstream feed has
-   *  one; we don't currently get this from Trans Palu so it stays
-   *  optional. */
+  halteId?: string
   platform?: string | null
   accentColor: string
   isFirst?: boolean
   isLast?: boolean
 }>()
+
+const emit = defineEmits<{ halteClick: [id: string] }>()
 </script>
 
 <template>
@@ -42,7 +35,15 @@ defineProps<{
     />
 
     <div class="min-w-0 flex-1 pb-3">
-      <p class="truncate font-display text-sm font-semibold tracking-tight">
+      <button
+        v-if="halteId"
+        type="button"
+        class="truncate text-left font-display text-sm font-semibold tracking-tight hover:underline"
+        @click="emit('halteClick', halteId)"
+      >
+        {{ haltename }}
+      </button>
+      <p v-else class="truncate font-display text-sm font-semibold tracking-tight">
         {{ haltename }}
       </p>
       <p
