@@ -4,15 +4,20 @@ import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 import { useSocketStore } from '@/stores/socket'
 import { useCityStore } from '@/stores/city'
+import { useBrtStore } from '@/stores/brt'
 import { useTheme } from '@/lib/theme'
 import BanuacoderLogo from '@/components/BanuacoderLogo.vue'
 import CekTransLogo from '@/components/CekTransLogo.vue'
-import type { CitySlug } from '@/types/brt'
+import { CITY_PREF, type CitySlug } from '@/types/brt'
 
 const { t, locale } = useI18n()
 const route = useRoute()
 const socket = useSocketStore()
 const city = useCityStore()
+const brt = useBrtStore()
+
+const paluMeta = computed(() => brt.cityByPref.get(CITY_PREF.palu) ?? null)
+const donggalaMeta = computed(() => brt.cityByPref.get(CITY_PREF.donggala) ?? null)
 
 // Switcher only matters when the user is actually on a city map.
 const showCitySwitcher = computed(() => route.name === 'city')
@@ -81,27 +86,57 @@ function pickCity(slug: CitySlug) {
       >
         <button
           type="button"
-          class="shrink-0 rounded-full px-3 py-1.5 font-mono text-xs uppercase tracking-wider transition-colors"
+          class="grid h-9 w-9 shrink-0 place-items-center rounded-full p-1 transition-colors"
           :class="
             city.slug === 'palu'
-              ? 'bg-bnc-ink text-bnc-paper dark:bg-bnc-paper dark:text-bnc-ink'
-              : 'text-bnc-stone-600 hover:bg-bnc-stone-100 dark:text-bnc-stone-300 dark:hover:bg-bnc-stone-800'
+              ? 'bg-bnc-ink dark:bg-bnc-paper'
+              : 'hover:bg-bnc-stone-100 dark:hover:bg-bnc-stone-800'
           "
+          :aria-label="t('nav.palu')"
+          :aria-pressed="city.slug === 'palu'"
+          :title="paluMeta?.name ?? t('nav.palu')"
           @click="pickCity('palu')"
         >
-          {{ t('nav.palu') }}
+          <img
+            v-if="paluMeta?.icon"
+            :src="paluMeta.icon"
+            :alt="paluMeta.name + ' logo'"
+            loading="lazy"
+            decoding="async"
+            referrerpolicy="no-referrer"
+            class="h-full w-full rounded-full object-contain"
+            @error="(e) => ((e.target as HTMLImageElement).style.display = 'none')"
+          />
+          <span v-else class="font-mono text-[10px] uppercase tracking-wider">
+            {{ t('nav.palu') }}
+          </span>
         </button>
         <button
           type="button"
-          class="shrink-0 rounded-full px-3 py-1.5 font-mono text-xs uppercase tracking-wider transition-colors"
+          class="grid h-9 w-9 shrink-0 place-items-center rounded-full p-1 transition-colors"
           :class="
             city.slug === 'donggala'
-              ? 'bg-bnc-ink text-bnc-paper dark:bg-bnc-paper dark:text-bnc-ink'
-              : 'text-bnc-stone-600 hover:bg-bnc-stone-100 dark:text-bnc-stone-300 dark:hover:bg-bnc-stone-800'
+              ? 'bg-bnc-ink dark:bg-bnc-paper'
+              : 'hover:bg-bnc-stone-100 dark:hover:bg-bnc-stone-800'
           "
+          :aria-label="t('nav.donggala')"
+          :aria-pressed="city.slug === 'donggala'"
+          :title="donggalaMeta?.name ?? t('nav.donggala')"
           @click="pickCity('donggala')"
         >
-          {{ t('nav.donggala') }}
+          <img
+            v-if="donggalaMeta?.icon"
+            :src="donggalaMeta.icon"
+            :alt="donggalaMeta.name + ' logo'"
+            loading="lazy"
+            decoding="async"
+            referrerpolicy="no-referrer"
+            class="h-full w-full rounded-full object-contain"
+            @error="(e) => ((e.target as HTMLImageElement).style.display = 'none')"
+          />
+          <span v-else class="font-mono text-[10px] uppercase tracking-wider">
+            {{ t('nav.donggala') }}
+          </span>
         </button>
       </nav>
     </transition>
