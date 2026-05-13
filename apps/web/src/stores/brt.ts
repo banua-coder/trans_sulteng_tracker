@@ -150,7 +150,17 @@ export const useBrtStore = defineStore('brt', () => {
   }
 
   function getHalteForLeg(kor: string, toward: string, origin: string): BrtHalte[] {
-    return halteByLeg.value.get(legKey(kor, toward, origin)) ?? []
+    const cached = halteByLeg.value.get(legKey(kor, toward, origin))
+    if (cached) return cached
+    // Bulk-feed fallback: per-leg endpoint hasn't been hit for this
+    // (kor, toward, origin) yet (e.g. user opened the trip planner
+    // without focusing a corridor first). Filtering brt.halte by the
+    // same triple is good enough for graph construction — bulk has
+    // sequential order and only loses the K1-reverse terminals plus
+    // the entire K2A reverse, which transit planning can tolerate.
+    return halte.value.filter(
+      (h) => h.kor === kor && h.toward === toward && h.origin === origin,
+    )
   }
 
   watch(

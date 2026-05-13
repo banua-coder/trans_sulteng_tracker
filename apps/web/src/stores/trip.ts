@@ -155,6 +155,14 @@ export const useTripStore = defineStore('trip', () => {
     clear()
   })
 
+  // If per-leg halte data lands after the graph was built from the
+  // bulk fallback, mark the graph dirty so the next plan request
+  // rebuilds with higher-quality data.
+  watch(
+    () => [...brt.halteByLeg.keys()].sort().join('|'),
+    () => { graphReady.value = false },
+  )
+
   // Recompute plans when endpoints change. Debounced via a tiny timer.
   let debounceTimer: number | undefined
   watch([origin, destination], () => {
