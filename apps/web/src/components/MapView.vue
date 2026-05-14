@@ -16,7 +16,7 @@ import type { PlanResult } from '@/lib/tripPlanner'
 import { busIcon, halteHaloMarker, halteMarker } from '@/lib/leaflet/markers'
 import { darkMatterTiles, voyagerTiles } from '@/lib/leaflet/tiles'
 import { useTheme } from '@/lib/theme'
-import { isStale } from '@/lib/format'
+import { haversineMeters, isStale } from '@/lib/format'
 import { trackEvent } from '@/lib/analytics'
 import type { BrtBus, BrtCorridor, BrtHalte } from '@/types/brt'
 
@@ -172,19 +172,64 @@ function clearAll() {
   tripPreviewLayer.clearLayers()
 }
 
-/** Draw a saved Plan onto the map. We DON'T draw the route polyline
- *  — the underlying corridor polylines are already visible (and other
- *  corridors are dimmed by applyFocus when the plan is active), so
- *  adding our own line just clutters the map. Just mark the
- *  waypoints the user actually cares about:
+/** Slice a corridor polyline between two halte coordinates. Returns
+ *  the LatLngTuple sub-array running through every vertex the bus
+ *  actually drives over between the boarding and alighting halte —
+ *  not just a straight line between the two halte coords.
+ *
+ *  Tries both legs (points_a, points_b) and picks whichever yields
+ *  a forward (i.e. boarding-index < alighting-index) slice with the
+ *  smaller total snap distance. */
+function corridorSlice(
+  kor: string,
+  fromCoord: L.LatLngTuple,
+  toCoord: L.LatLngTuple,
+): L.LatLngTuple[] | null {
+  const c = brt.corridorByKor.get(kor)
+  if (!c) return null
+
+  function trySlice(enc: string | undefined | null): { slice: L.LatLngTuple[]; snap: number } | null {
+    if (!enc) return null
+    let pts: L.LatLngTuple[]
+    try { pts = polyline.decode(enc) as L.LatLngTuple[] } catch { return null }
+    if (pts.length < 2) return null
+    let fromIdx = 0
+    let fromDist = Infinity
+    let toIdx = 0
+    let toDist = Infinity
+    for (let i = 0; i < pts.length; i++) {
+      const p = { lat: pts[i][0], lng: pts[i][1] }
+      const df = haversineMeters({ lat: fromCoord[0], lng: fromCoord[1] }, p)
+      const dt = haversineMeters({ lat: toCoord[0], lng: toCoord[1] }, p)
+      if (df < fromDist) { fromDist = df; fromIdx = i }
+      if (dt < toDist) { toDist = dt; toIdx = i }
+    }
+    if (fromIdx >= toIdx) return null
+    return { slice: pts.slice(fromIdx, toIdx + 1), snap: fromDist + toDist }
+  }
+
+  const a = trySlice(c.points_a)
+  const b = trySlice(c.points_b)
+  if (!a && !b) return null
+  if (a && !b) return a.slice
+  if (!a && b) return b.slice
+  return a!.snap <= b!.snap ? a!.slice : b!.slice
+}
+
+/** Draw a saved Plan onto the map:
  *
  *   - Origin pin (cyan disc).
  *   - Destination pin (red disc).
- *   - Numbered red discs at each boarding/alighting halte (start +
- *     end of each ride step). Skips intermediate halte the bus rolls
- *     through — the corridor polyline already shows the path.
+ *   - For each ride step: a thick segment of the corresponding
+ *     corridor polyline, sliced from boarding halte to alighting
+ *     halte. Uses the corridor's real geometry (points_a/points_b),
+ *     not straight chords between halte.
+ *   - For each walk step: dashed gray line directly between
+ *     endpoints (walking has no corridor geometry).
+ *   - Numbered red discs at each boarding/alighting halte. Transfers
+ *     share a single disc.
  *
- *  Fits the map viewport to the waypoint bounds. */
+ *  Fits the map viewport to the plan bounds. */
 function drawTripPreview(plan: PlanResult | null) {
   tripPreviewLayer.clearLayers()
   if (!plan || !map) return
@@ -214,22 +259,67 @@ function drawTripPreview(plan: PlanResult | null) {
     }).addTo(tripPreviewLayer)
   }
 
-  // Place a numbered marker at each boarding + alighting halte.
-  // Adjacent rides separated by a transfer share a name — dedupe so
-  // a single disc covers the transfer point.
+  function halteCoordByName(name: string, kor: string | undefined): L.LatLngTuple | null {
+    const h = (kor && brt.halte.find((x) => x.sh_name === name && x.kor === kor))
+      ?? brt.halte.find((x) => x.sh_name === name)
+    if (!h) return null
+    const lat = parseFloat(h.sh_lat)
+    const lng = parseFloat(h.sh_lng)
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null
+    return [lat, lng]
+  }
+
+  let lastEndpoint: L.LatLngTuple | null = originPt ? [originPt.lat, originPt.lng] : null
+
+  for (const step of plan.steps) {
+    if (step.kind === 'ride' && step.kor) {
+      const from = halteCoordByName(step.fromName, step.kor)
+      const to = halteCoordByName(step.toName, step.kor)
+      if (from && to) {
+        const slice = corridorSlice(step.kor, from, to)
+        const path = slice ?? [from, to]
+        for (const p of path) bounds.extend(p)
+        const color = brt.colorForKor(step.kor) || '#1D9CD4'
+        L.polyline(path, {
+          color,
+          weight: 7,
+          opacity: 0.95,
+          lineCap: 'round',
+          lineJoin: 'round',
+        }).addTo(tripPreviewLayer)
+        lastEndpoint = to
+      }
+    } else if (step.kind === 'walk') {
+      // Best-effort: connect the last known endpoint to the next
+      // halte (if the step's toName matches one) or to the
+      // destination pin. Dashed line so it reads as walking.
+      const to = step.toName === 'Tujuan'
+        ? (destPt ? [destPt.lat, destPt.lng] as L.LatLngTuple : null)
+        : halteCoordByName(step.toName, undefined)
+      if (lastEndpoint && to) {
+        bounds.extend(to)
+        L.polyline([lastEndpoint, to], {
+          color: '#6b7280',
+          weight: 4,
+          opacity: 0.7,
+          dashArray: '6 6',
+          lineCap: 'round',
+        }).addTo(tripPreviewLayer)
+        lastEndpoint = to
+      }
+    }
+  }
+
+  // Numbered markers at each boarding / alighting halte.
   const seen = new Set<string>()
   let counter = 1
   function placeMarker(name: string, kor: string | undefined) {
     if (seen.has(name)) return
     seen.add(name)
-    const h = (kor && brt.halte.find((x) => x.sh_name === name && x.kor === kor))
-      ?? brt.halte.find((x) => x.sh_name === name)
-    if (!h) return
-    const lat = parseFloat(h.sh_lat)
-    const lng = parseFloat(h.sh_lng)
-    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return
-    bounds.extend([lat, lng])
-    L.marker([lat, lng], {
+    const c = halteCoordByName(name, kor)
+    if (!c) return
+    bounds.extend(c)
+    L.marker(c, {
       icon: L.divIcon({
         className: 'trip-step-disc',
         iconSize: [22, 22],
