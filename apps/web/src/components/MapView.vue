@@ -483,6 +483,37 @@ function tripPlanKors(): Set<string> | null {
   return set
 }
 
+/** Set of halte sh_name values on the trip's actual path. Built per
+ *  ride step by walking the corridor's leg sequence between the
+ *  boarding and alighting halte. Used to keep only the on-route
+ *  halte markers visible — everything else gets opacity 0. */
+function tripPlanHalteNames(): Set<string> | null {
+  const plan = tripSelectedPlan.value
+  if (!plan) return null
+  const names = new Set<string>()
+  for (const step of plan.steps) {
+    if (step.kind !== 'ride' || !step.kor) continue
+    const c = brt.corridorByKor.get(step.kor)
+    if (!c) continue
+    // Try both legs of the corridor; pick whichever yields a slice
+    // that contains both boarding and alighting names in order.
+    const legA = brt.getHalteForLeg(step.kor, c.toward, c.origin)
+    const legB = brt.getHalteForLeg(step.kor, c.origin, c.toward)
+    function collectSlice(leg: import('@/types/brt').BrtHalte[]) {
+      const fromIdx = leg.findIndex((h) => h.sh_name === step.fromName)
+      const toIdx = leg.findIndex((h) => h.sh_name === step.toName)
+      if (fromIdx < 0 || toIdx < 0 || fromIdx >= toIdx) return false
+      for (let i = fromIdx; i <= toIdx; i++) names.add(leg[i].sh_name)
+      return true
+    }
+    if (!collectSlice(legA)) collectSlice(legB)
+    // Belt-and-suspenders: always include the explicit step endpoints
+    names.add(step.fromName)
+    names.add(step.toName)
+  }
+  return names
+}
+
 /** Cache of the last spotlightKor we styled the markers for. When the
  *  spotlight hasn't changed, the corridor/halte sweep is a no-op — skip
  *  it and just refresh bus markers (which can have independently fresh
@@ -495,6 +526,7 @@ let lastSpotlightInit = false
 function applyFocus(force = false) {
   const fk = spotlightKor()
   const planKors = tripPlanKors()
+  const planNames = planKors ? tripPlanHalteNames() : null
   // Cache key includes trip-plan kor set so the memoized fast-path
   // also reacts to plan selection changes.
   const cacheKey = planKors ? `plan:${[...planKors].sort().join(',')}` : `sk:${fk ?? ''}`
@@ -514,13 +546,11 @@ function applyFocus(force = false) {
     const all = [...byLeg.a, ...byLeg.b]
 
     if (planKors) {
-      // Trip plan active — only corridors used by the plan stay
-      // visible; everything else dims out so the chosen path reads.
-      if (planKors.has(kor)) {
-        for (const ln of all) ln.setStyle({ color: baseColor, opacity: 0.95, weight: 6 })
-      } else {
-        for (const ln of all) ln.setStyle({ color: baseColor, opacity: 0.05, weight: 1 })
-      }
+      // Trip plan active — every corridor (including the plan's own)
+      // is hidden because drawTripPreview already paints the exact
+      // sliced segments the user actually rides through. Showing the
+      // full corridor lines would re-add the off-route portions.
+      for (const ln of all) ln.setStyle({ color: baseColor, opacity: 0, weight: 0 })
     } else if (fk === null) {
       const opacity = baseDim ? 0.35 : 0.85
       for (const ln of all) ln.setStyle({ color: baseColor, opacity, weight: 5 })
@@ -531,16 +561,27 @@ function applyFocus(force = false) {
     }
   }
 
-  // Halte — opacity only changes with focus.
-  // When trip plan active, also dim halte not on plan corridors.
+  // Halte — when trip plan active, only halte on the actual path
+  // (by sh_name) stay visible; everything else collapses to opacity
+  // 0 so the trip view shows just the stops we'll pass through.
   for (const [kor, byLeg] of halteByLeg.entries()) {
     const all = [...byLeg.a, ...byLeg.b]
-    let opacity: number
-    if (planKors) {
-      opacity = planKors.has(kor) ? 1 : 0.15
-    } else {
-      opacity = fk === null || kor === fk ? 1 : 0.2
+    if (planKors && planNames) {
+      for (const m of all) {
+        const shIds = halteMarkerShIds.get(m)
+        let onPath = false
+        if (shIds) {
+          for (const id of shIds) {
+            const h = brt.halte.find((x) => x.sh_id === id)
+            if (h && planNames.has(h.sh_name)) { onPath = true; break }
+          }
+        }
+        const op = onPath ? 1 : 0
+        m.setStyle({ opacity: op, fillOpacity: op })
+      }
+      continue
     }
+    const opacity = fk === null || kor === fk ? 1 : 0.2
     for (const m of all) m.setStyle({ opacity, fillOpacity: opacity })
   }
 
