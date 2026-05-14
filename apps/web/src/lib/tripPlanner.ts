@@ -339,15 +339,18 @@ function shortestPath(
     if (cur.node === DEST) break
     if (cur.weight !== dist.get(cur.node)) continue
 
-    const outEdges: Edge[] = cur.node === START
-      ? [...walkOut.values()]
-      : (graph.adj.get(cur.node) ?? [])
-
-    // The walk-into-dest edge applies to any halte node that's within
-    // walking radius of the destination.
-    if (cur.node !== START) {
-      const w = walkIn.get(cur.node)
-      if (w) outEdges.push(w)
+    // Read the base adjacency from the graph but NEVER push into it —
+    // graph.adj is shared across plan() calls in the worker, and a
+    // stray push of a walkIn edge pointing at __dest__ would leak into
+    // the next search (where __dest__ means a different point), then
+    // produce 0-min "teleport" plans or filter-rejected ones.
+    const w = cur.node !== START ? walkIn.get(cur.node) : undefined
+    let outEdges: Edge[]
+    if (cur.node === START) {
+      outEdges = [...walkOut.values()]
+    } else {
+      const base = graph.adj.get(cur.node) ?? []
+      outEdges = w ? [...base, w] : base
     }
 
     for (const edge of outEdges) {
