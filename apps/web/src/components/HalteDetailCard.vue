@@ -201,6 +201,7 @@ function openDirections() {
                 <path d="M3 11 22 2l-9 19-2-8z" />
               </svg>
             </button>
+            <EtaQualityGuide class="lg:hidden" />
             <CopyLinkButton />
           </div>
         </header>
@@ -222,7 +223,7 @@ function openDirections() {
       <section class="border-t border-bnc-stone-200 pt-3 dark:border-bnc-stone-800">
         <h4 class="flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-wider text-bnc-stone-500">
           {{ t('halte.incomingBuses') }}
-          <EtaQualityGuide />
+          <EtaQualityGuide class="hidden lg:inline-flex" />
         </h4>
         <ul v-if="arrivals.length" class="mt-2 flex max-h-[60vh] flex-col gap-2 overflow-y-auto pr-1">
           <li
