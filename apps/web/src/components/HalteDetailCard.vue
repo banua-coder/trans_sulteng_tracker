@@ -4,7 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
 import { useSelectionStore } from '@/stores/selection'
 import { useBrtStore } from '@/stores/brt'
-import { etaToHalte, formatDistance, getEtaQuality, haversineMeters, isStale, parsePassenger } from '@/lib/format'
+import { etaToHalte, formatDistance, formatSpeed, getEtaQuality, haversineMeters, isStale, parsePassenger } from '@/lib/format'
 import CopyLinkButton from '@/components/CopyLinkButton.vue'
 import PlateBadge from '@/components/PlateBadge.vue'
 import EtaQualityGuide from '@/components/EtaQualityGuide.vue'
@@ -132,6 +132,12 @@ const arrivals = computed<Arrival[]>(() => {
 
 function pickBus(imei: string) {
   selection.selectBus(imei)
+}
+
+function wallClockFor(etaMin: number): string {
+  const d = new Date(Date.now() + Math.max(0, etaMin) * 60_000)
+  const pad = (n: number) => (n < 10 ? `0${n}` : String(n))
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
 function openDirections() {
@@ -263,22 +269,36 @@ function openDirections() {
                     stale
                   </span>
                 </div>
-                <p class="mt-0.5 font-mono text-[10px] text-bnc-stone-500">
+                <p class="mt-0.5 font-mono text-[10px] tabular-nums text-bnc-stone-500">
                   <template v-if="a.distM != null">{{ formatDistance(a.distM) }}</template>
                   <template v-else>—</template>
+                  <span class="text-bnc-stone-300 dark:text-bnc-stone-600"> · </span>
+                  <span :class="a.fresh ? 'text-bnc-stone-700 dark:text-bnc-stone-200' : 'text-bnc-stone-500'">
+                    <span class="font-bold">{{ formatSpeed(a.bus.speed) }}</span>
+                    {{ t('units.kmh') }}
+                  </span>
                   <template v-if="parsePassenger(a.bus.passenger) != null">
-                    · {{ parsePassenger(a.bus.passenger) }} pax
+                    <span class="text-bnc-stone-300 dark:text-bnc-stone-600"> · </span>
+                    {{ parsePassenger(a.bus.passenger) }} pax
                   </template>
                 </p>
               </div>
-              <span
-                class="ml-auto font-mono text-sm font-bold tabular-nums text-bnc-accent"
-                :style="{ color: `var(--color-${a.quality})` }"
-              >
-                <template v-if="a.etaMin != null">
-                  ~{{ Math.max(1, Math.round(a.etaMin)) }}<span class="text-[10px] font-normal text-bnc-stone-500">{{ t('units.minutes') }}</span>
-                </template>
-                <template v-else>—</template>
+              <span class="ml-auto flex flex-col items-end">
+                <span
+                  class="font-mono text-sm font-bold tabular-nums text-bnc-accent"
+                  :style="{ color: `var(--color-${a.quality})` }"
+                >
+                  <template v-if="a.etaMin != null">
+                    ~{{ Math.max(1, Math.round(a.etaMin)) }}<span class="text-[10px] font-normal text-bnc-stone-500">{{ t('units.minutes') }}</span>
+                  </template>
+                  <template v-else>—</template>
+                </span>
+                <span
+                  v-if="a.etaMin != null"
+                  class="font-mono text-[10px] tabular-nums text-bnc-stone-500"
+                >
+                  {{ wallClockFor(a.etaMin) }}
+                </span>
               </span>
             </button>
           </li>
