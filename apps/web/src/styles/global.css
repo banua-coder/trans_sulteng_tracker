@@ -182,9 +182,9 @@ html.dark .leaflet-container { background: var(--color-bnc-stone-900); }
 .bus-marker.stale .bus-arrow {
   filter: grayscale(0.85) opacity(0.55);
 }
-/* Selected bus — animated cyan ring drawn behind the disc so the user
-   can tell which bus they're following when several same-color buses
-   are clustered nearby. */
+/* Selected bus — animated cyan ring drawn BEHIND the arrow + disc so the
+   directional arrow stays visible. Halo breathes around the marker
+   without covering the kor code or the heading indicator. */
 .bus-marker.selected::before {
   content: '';
   position: absolute;
@@ -201,12 +201,9 @@ html.dark .leaflet-container { background: var(--color-bnc-stone-900); }
     0 0 16px 2px rgba(29, 156, 212, 0.7);
   animation: bus-halo-pulse 1.6s ease-in-out infinite;
   pointer-events: none;
-  z-index: 3;
+  z-index: 0;
 }
-/* Lift the disc above the halo so the kor code stays readable while
-   the ring breathes around it. */
 .bus-marker.selected .bus-disc {
-  z-index: 4;
   transform: translate(-50%, -50%) scale(1.05);
 }
 @keyframes bus-halo-pulse {

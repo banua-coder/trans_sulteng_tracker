@@ -98,6 +98,10 @@ function applySelectedHalte() {
   selectedHalteMarker = marker
   if (map) {
     selectedHalteHalo = halteHaloMarker([lat, lng]).addTo(map)
+    // Bus markers go up to z-index 1500 when selected. Push the halte
+    // halo above them so the focused stop is never hidden by a bus
+    // parked at it.
+    selectedHalteHalo.setZIndexOffset(2000)
   }
 }
 
@@ -1116,10 +1120,10 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="relative h-full w-full">
+  <div :class="['relative h-full w-full', tripTapMode ? 'map-tap-mode' : '']">
     <div
       ref="containerEl"
-      :class="['h-full w-full', tripTapMode ? 'map-tap-mode' : '']"
+      class="h-full w-full"
       aria-label="Peta lokasi bus"
       role="region"
     />
