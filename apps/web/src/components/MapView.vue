@@ -618,39 +618,19 @@ function busColorFor(b: BrtBus): string {
   return brt.colorForKor(b.kor) || '#0EA5E9'
 }
 
-/** When a bus is selected, fade the halte the bus has already passed
- *  on its current leg so the user can quickly read what's still
- *  coming up — TJ-style. Markers whose sh_id set contains an
- *  "upcoming" id stay at full opacity; passed-only markers drop. */
+/** When a bus is selected, keep every halte on its leg at full opacity
+ *  — both the upcoming stops and the ones already passed. The user
+ *  wanted to see the whole route clearly; dimming the passed half made
+ *  shared-coordinate halte (multi-corridor stops) appear half-erased,
+ *  which read worse than it solved. */
 function applyUpcomingHalteFilter() {
   if (selection.kind !== 'bus' || !selection.id) return
   const bus = brt.buses.get(selection.id)
-  if (!bus?.kor || !bus.new_shel_t) return
-  const corridor = brt.corridorByKor.get(bus.kor)
-  if (!corridor) return
-  const originName = bus.toward === corridor.toward ? corridor.origin : corridor.toward
-  const leg = brt.getHalteForLeg(bus.kor, bus.toward, originName)
-  if (!leg.length) return
-  const startIdx = leg.findIndex((h) => h.sh_id === bus.new_shel_t)
-  if (startIdx < 0) return
-
-  const upcoming = new Set<string>()
-  for (let i = startIdx; i < leg.length; i++) upcoming.add(leg[i].sh_id)
-
+  if (!bus?.kor) return
   const slot = halteByLeg.get(bus.kor)
   if (!slot) return
   for (const m of [...slot.a, ...slot.b]) {
-    const shIds = halteMarkerShIds.get(m)
-    if (!shIds) continue
-    let isUpcoming = false
-    for (const id of shIds) {
-      if (upcoming.has(id)) { isUpcoming = true; break }
-    }
-    if (isUpcoming) {
-      m.setStyle({ opacity: 1, fillOpacity: 1 })
-    } else {
-      m.setStyle({ opacity: 0.25, fillOpacity: 0.25 })
-    }
+    m.setStyle({ opacity: 1, fillOpacity: 1 })
   }
 }
 

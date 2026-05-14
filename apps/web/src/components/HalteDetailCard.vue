@@ -263,12 +263,6 @@ function openDirections() {
                   >
                     {{ t('halte.atStop') }}
                   </span>
-                  <span
-                    v-if="!a.fresh"
-                    class="rounded-full bg-bnc-stone-200 px-1.5 py-0.5 font-mono text-[10px] uppercase text-bnc-stone-600 dark:bg-bnc-stone-700 dark:text-bnc-stone-300"
-                  >
-                    stale
-                  </span>
                 </div>
                 <p class="mt-0.5 font-mono text-[10px] tabular-nums text-bnc-stone-500">
                   <template v-if="a.distM != null">{{ formatDistance(a.distM) }}</template>
@@ -281,6 +275,10 @@ function openDirections() {
                   <template v-if="parsePassenger(a.bus.passenger) != null">
                     <span class="text-bnc-stone-300 dark:text-bnc-stone-600"> · </span>
                     {{ parsePassenger(a.bus.passenger) }} pax
+                  </template>
+                  <template v-if="!a.fresh">
+                    <span class="text-bnc-stone-300 dark:text-bnc-stone-600"> · </span>
+                    <span class="uppercase text-bnc-stone-500">stale</span>
                   </template>
                 </p>
               </div>
