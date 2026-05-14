@@ -224,7 +224,7 @@ function openDirections() {
           {{ t('halte.incomingBuses') }}
           <EtaQualityGuide />
         </h4>
-        <ul v-if="arrivals.length" class="mt-2 flex flex-col gap-2">
+        <ul v-if="arrivals.length" class="mt-2 flex max-h-[60vh] flex-col gap-2 overflow-y-auto pr-1">
           <li
             v-for="a in arrivals"
             :key="a.bus.imei || a.bus.id"

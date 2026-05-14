@@ -110,6 +110,14 @@ const CITY_CENTER: Record<string, L.LatLngTuple> = {
  *  the marker centered. The user breaks this lock by manually dragging,
  *  zooming, or by clearing the selection. */
 let following = false
+/** When true, a flyTo (the initial zoom-in on bus/halte selection) is
+ *  still animating. Follow-panTo calls suppress themselves while this
+ *  is set so they don't cancel the in-progress zoom. */
+let flyInProgress = false
+function markFlyInProgress(ms = 700) {
+  flyInProgress = true
+  setTimeout(() => { flyInProgress = false }, ms)
+}
 
 /** Snapshot of the map viewport before we entered bus-follow mode, so
  *  closing the bus info card returns the user to where they were. */
@@ -715,8 +723,11 @@ function upsertBusMarker(b: BrtBus) {
   }
 
   // If this is the bus the user is following, glide the map with it.
+  // Skip while the initial flyTo zoom-in is still animating — a panTo
+  // would cancel the zoom and leave us at the intermediate zoom level.
   if (
     following &&
+    !flyInProgress &&
     selection.kind === 'bus' &&
     selection.id === key &&
     map
@@ -912,6 +923,7 @@ watch(
       if (b && b.lat != null && b.lng != null && map) {
         following = true
         const targetZoom = Math.max(map.getZoom(), 16)
+        markFlyInProgress()
         map.flyTo([b.lat, b.lng], targetZoom, { duration: 0.6 })
       }
     } else if (kind === 'halte' && id) {
@@ -922,12 +934,14 @@ watch(
         const hLng = typeof h.sh_lng === 'string' ? parseFloat(h.sh_lng) : h.sh_lng
         if (Number.isFinite(hLat) && Number.isFinite(hLng)) {
           const targetZoom = Math.max(map.getZoom(), 16)
+          markFlyInProgress()
           map.flyTo([hLat as number, hLng as number], targetZoom, { duration: 0.6 })
         }
       }
     } else {
       following = false
       if (wasModal && priorViewport && map) {
+        markFlyInProgress()
         map.flyTo(priorViewport.center, priorViewport.zoom, { duration: 0.6 })
         priorViewport = null
       }

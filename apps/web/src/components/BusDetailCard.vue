@@ -197,7 +197,7 @@ const upcomingStops = computed<UpcomingStop[]>(() => {
           {{ t('route.estimatedArrival') }}
           <EtaQualityGuide />
         </h4>
-        <ul class="mt-2 flex flex-col divide-y divide-bnc-stone-100 dark:divide-bnc-stone-800">
+        <ul class="mt-2 flex max-h-[60vh] flex-col divide-y divide-bnc-stone-100 overflow-y-auto pr-1 dark:divide-bnc-stone-800">
           <li
             v-for="(stop, i) in upcomingStops"
             :key="stop.sh_id"
