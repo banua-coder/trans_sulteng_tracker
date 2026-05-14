@@ -29,7 +29,7 @@ const trip = useTripStore()
 const { t } = useI18n()
 const { isDark } = useTheme()
 const { corridors, halte, buses } = storeToRefs(brt)
-const { selectedPlan: tripSelectedPlan, origin: tripOrigin, destination: tripDestination, tapMode: tripTapMode } = storeToRefs(trip)
+const { selectedPlan: tripSelectedPlan, origin: tripOrigin, destination: tripDestination, tapMode: tripTapMode, focusedStop: tripFocusedStop } = storeToRefs(trip)
 
 const containerEl = shallowRef<HTMLElement | null>(null)
 let map: L.Map | null = null
@@ -643,8 +643,9 @@ function applyUpcomingHalteFilter() {
  *  When a trip plan is active, only buses on plan-used corridors
  *  stay visible — the rest fade hard so they don't distract. */
 function busOpacityFor(b: BrtBus): string {
-  const planKors = tripPlanKors()
-  if (planKors) return planKors.has(b.kor) ? '1' : '0'
+  // While a trip plan is active, hide every bus — they distract from
+  // the chosen route. The trip preview shows the path, not live ops.
+  if (tripPlanKors()) return '0'
   const fk = spotlightKor()
   if (fk === null || b.kor === fk) return '1'
   return '0.18'
@@ -983,6 +984,15 @@ watch(
     drawHalte(halte.value)
   },
 )
+
+// User tapping a step row in TripDetailPanel sets a focused-stop
+// point; pan + zoom to it. Clear immediately so the same point can
+// be re-tapped to re-zoom.
+watch(tripFocusedStop, (p) => {
+  if (!p || !map) return
+  map.flyTo([p.lat, p.lng], Math.max(map.getZoom(), 17), { duration: 0.5 })
+  trip.focusStop(null)
+})
 
 watch(
   tripSelectedPlan,

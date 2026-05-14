@@ -36,6 +36,9 @@ export const useTripStore = defineStore('trip', () => {
    *  planner — used to drop an origin/destination pin from the map.
    *  MapView watches this and wires up a one-shot click handler. */
   const tapMode = ref<'origin' | 'dest' | null>(null)
+  /** Transient "zoom to this point" trigger. TripDetailPanel sets it
+   *  when the user taps a step row; MapView watches and flyTo's. */
+  const focusedStop = ref<LatLng | null>(null)
 
   let worker: Worker | null = null
   let nextId = 1
@@ -171,6 +174,7 @@ export const useTripStore = defineStore('trip', () => {
   function setOrigin(e: Endpoint | null) { origin.value = e }
   function setDestination(e: Endpoint | null) { destination.value = e }
   function setTapMode(m: 'origin' | 'dest' | null) { tapMode.value = m }
+  function focusStop(p: LatLng | null) { focusedStop.value = p }
   function swap() {
     const o = origin.value
     origin.value = destination.value
@@ -220,9 +224,11 @@ export const useTripStore = defineStore('trip', () => {
     error,
     graphReady,
     tapMode,
+    focusedStop,
     setOrigin,
     setDestination,
     setTapMode,
+    focusStop,
     swap,
     selectPlan,
     clear,

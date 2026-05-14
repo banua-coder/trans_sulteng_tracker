@@ -32,6 +32,66 @@ const totalKm = computed(() => {
   if (!selectedPlan.value) return 0
   return (selectedPlan.value.totalWalkM + selectedPlan.value.totalRideM) / 1000
 })
+
+/** Number each unique boarding/alighting halte in encounter order —
+ *  exactly the same dedupe rule MapView's drawTripPreview uses, so
+ *  the number shown in the timeline matches the red disc on the map.
+ *  Returns a map: step index → assigned number (or null if the step
+ *  isn't tied to a numbered point). */
+const stepNumbers = computed(() => {
+  const out = new Map<number, number>()
+  if (!selectedPlan.value) return out
+  const seen = new Map<string, number>()
+  let counter = 1
+  // First pass: assign numbers to every distinct boarding/alighting
+  // halte name (only ride steps drive numbering — walk legs to the
+  // destination don't get a numbered map marker).
+  for (const step of selectedPlan.value.steps) {
+    if (step.kind !== 'ride') continue
+    if (!seen.has(step.fromName)) seen.set(step.fromName, counter++)
+    if (!seen.has(step.toName)) seen.set(step.toName, counter++)
+  }
+  // Second pass: each step row gets the number of its "you arrive
+  // here" endpoint — toName for rides + walks-to-halte, fromName for
+  // transfers (the transfer point is the halte you just arrived at).
+  for (let i = 0; i < selectedPlan.value.steps.length; i++) {
+    const step = selectedPlan.value.steps[i]
+    if (step.kind === 'ride') {
+      const n = seen.get(step.toName)
+      if (n != null) out.set(i, n)
+    } else if (step.kind === 'transfer') {
+      const n = seen.get(step.fromName) ?? seen.get(step.toName)
+      if (n != null) out.set(i, n)
+    } else if (step.kind === 'walk') {
+      const n = seen.get(step.toName)
+      if (n != null) out.set(i, n)
+    }
+  }
+  return out
+})
+
+function coordForName(name: string, kor: string | undefined): { lat: number; lng: number } | null {
+  const h = (kor && brt.halte.find((x) => x.sh_name === name && x.kor === kor))
+    ?? brt.halte.find((x) => x.sh_name === name)
+  if (!h) return null
+  const lat = parseFloat(h.sh_lat)
+  const lng = parseFloat(h.sh_lng)
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null
+  return { lat, lng }
+}
+
+function focusStep(step: PlanStep) {
+  // For rides, zoom to alighting (the destination of that segment).
+  // For transfers, zoom to the transfer point itself. For walk-out
+  // (toName === destination's label), zoom to the destination pin.
+  if (step.kind === 'walk' && step.toName === destination.value?.label) {
+    if (destination.value?.point) trip.focusStop(destination.value.point)
+    return
+  }
+  const name = step.kind === 'transfer' ? step.fromName : step.toName
+  const c = coordForName(name, step.kor)
+  if (c) trip.focusStop(c)
+}
 </script>
 
 <template>
@@ -82,11 +142,22 @@ const totalKm = computed(() => {
       <li
         v-for="(step, idx) in selectedPlan.steps"
         :key="idx"
-        class="relative flex gap-3 pb-3"
+        class="group relative flex cursor-pointer gap-3 pb-3 transition-colors hover:bg-bnc-stone-100/50 dark:hover:bg-bnc-stone-800/30"
+        @click="focusStep(step)"
       >
-        <!-- Rail + node dot -->
-        <div class="relative flex w-5 shrink-0 flex-col items-center">
+        <!-- Rail + node dot. When this step has a numbered waypoint
+             on the map, render the number inside the dot so the user
+             can correlate timeline ↔ map marker at a glance. -->
+        <div class="relative flex w-6 shrink-0 flex-col items-center">
           <span
+            v-if="stepNumbers.get(idx) != null"
+            class="z-10 grid h-5 w-5 place-items-center rounded-full border-2 border-white font-mono text-[10px] font-bold tabular-nums text-white shadow-sm dark:border-bnc-stone-900"
+            :style="{ background: colorForStep(step) }"
+          >
+            {{ stepNumbers.get(idx) }}
+          </span>
+          <span
+            v-else
             class="z-10 h-3 w-3 rounded-full border-2 border-white dark:border-bnc-stone-900"
             :style="{ background: colorForStep(step) }"
             aria-hidden
@@ -94,7 +165,7 @@ const totalKm = computed(() => {
           <!-- vertical connector line, hidden on last -->
           <span
             v-if="idx < selectedPlan.steps.length - 1"
-            class="absolute left-1/2 top-3 h-full w-0.5 -translate-x-1/2"
+            class="absolute left-1/2 top-5 h-full w-0.5 -translate-x-1/2"
             :style="{ background: step.kind === 'walk' ? 'transparent' : colorForStep(step) }"
             aria-hidden
           >
