@@ -288,21 +288,18 @@ function shortestPath(
   // Tighter walk-out radius — forces the algorithm to actually ride
   // the bus to (near) the destination instead of dropping off early
   // and walking 800 m.
+  const allow = destKors && destKors.length ? new Set(destKors) : null
   let destHalte = nearbyHalte(graph, dest, WALK_OUT_RADIUS_M)
-  if (destKors && destKors.length) {
-    const allow = new Set(destKors)
-    destHalte = destHalte.filter((x) => allow.has(x.node.kor))
-  }
+  if (allow) destHalte = destHalte.filter((x) => allow.has(x.node.kor))
   if (!destHalte.length) {
-    // Fallback: if nothing within the tight radius (or no nodes on
-    // the destination's corridors), widen so the user at least gets
-    // a route rather than 'no route'.
+    // Widen — but if destKors is provided we keep the corridor filter
+    // STRICTLY: a plan that ends on a corridor not serving the picked
+    // halte is wrong (e.g. dropping off on K2A's Pasar Manonda when
+    // the user asked for Halte PGM which only K4A serves). Returning
+    // null is the correct behavior when no in-corridor halte is in
+    // walkable range — the UI shows "no route" instead of a lie.
     destHalte = nearbyHalte(graph, dest, WALK_IN_RADIUS_M)
-    if (destKors && destKors.length) {
-      const allow = new Set(destKors)
-      const filtered = destHalte.filter((x) => allow.has(x.node.kor))
-      if (filtered.length) destHalte = filtered
-    }
+    if (allow) destHalte = destHalte.filter((x) => allow.has(x.node.kor))
   }
   if (!originHalte.length || !destHalte.length) return null
 
