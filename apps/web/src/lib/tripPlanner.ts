@@ -446,6 +446,30 @@ function collapseToSteps(
  *  run shortestPath, then iteratively forbid one edge from each prior
  *  result and re-search. Good enough at our graph size — for 50 nodes
  *  and K ≤ 5 the total work is microseconds. */
+/** Belt-and-suspenders check: the LAST ride must be on a corridor that
+ *  serves the destination. Any plan that ends on a different corridor
+ *  was a Dijkstra escape hatch — usually a synth-bridge or transfer
+ *  edge that crossed corridor boundaries without leaving the user at
+ *  the destination's actual stop. Reject it. */
+function lastRideOnDestKor(result: PlanResult, destKors: string[]): boolean {
+  if (!destKors.length) return true
+  const rides = result.steps.filter((s) => s.kind === 'ride' && s.kor)
+  if (!rides.length) {
+    // Walk-only plan: only valid when the user really IS within walking
+    // range of the destination's corridor (no ride needed). For that to
+    // be true the total walk must be tiny — anything over the
+    // walk-OUT radius means we'd be asking the user to walk across the
+    // city instead of riding.
+    return result.totalWalkM <= WALK_OUT_RADIUS_M
+  }
+  const last = rides[rides.length - 1]
+  return !!last.kor && destKors.includes(last.kor)
+}
+
+/** Top-K shortest distinct plans via a simplified Yen-style search:
+ *  run shortestPath, then iteratively forbid one edge from each prior
+ *  result and re-search. Good enough at our graph size — for 50 nodes
+ *  and K ≤ 5 the total work is microseconds. */
 export function planTrip(
   graph: Graph,
   origin: LatLng,
@@ -455,10 +479,23 @@ export function planTrip(
 ): PlanResult[] {
   const out: PlanResult[] = []
   const forbidden = new Set<string>() // `${from}|${to}` keys
+  const allowedKors = destKors ?? []
 
-  for (let attempt = 0; attempt < k; attempt++) {
+  for (let attempt = 0; attempt < k * 2; attempt++) {
     const result = shortestPathWithForbidden(graph, origin, dest, forbidden, destKors)
     if (!result) break
+
+    // Reject plans whose last ride leaves the user off the destination's
+    // corridor — that's the 'K1 to PGM, then swim' bug. Forbid that
+    // corridor and try again.
+    if (allowedKors.length && !lastRideOnDestKor(result, allowedKors)) {
+      const rides = result.steps.filter((s) => s.kind === 'ride' && s.kor)
+      const lastKor = rides[rides.length - 1]?.kor
+      if (lastKor) forbidden.add(`__ride__|${lastKor}`)
+      else break
+      continue
+    }
+
     if (out.some((r) => sameRoute(r, result))) {
       // Add another forbidden edge and try again
       const firstRide = result.steps.find((s) => s.kind === 'ride')
@@ -467,6 +504,7 @@ export function planTrip(
       continue
     }
     out.push(result)
+    if (out.length >= k) break
     // Forbid the corridor used on the longest ride to nudge diversity
     const longest = result.steps
       .filter((s) => s.kind === 'ride' && s.kor)

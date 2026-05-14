@@ -177,7 +177,16 @@ export const useTripStore = defineStore('trip', () => {
   function focusStop(p: LatLng | null) { focusedStop.value = p }
   function swap() {
     const o = origin.value
-    origin.value = destination.value
+    const d = destination.value
+    // Clear the existing plans up-front so the stale "PGM as
+    // destination" results don't linger on screen while the new
+    // direction is recomputing. Vue batches the two ref writes below
+    // into a single watcher tick, so without this nudge the
+    // debounced recompute fires once and the user can briefly see
+    // (or, on a fast machine, keeps seeing) the pre-swap plans.
+    plans.value = []
+    selectedPlanIdx.value = null
+    origin.value = d
     destination.value = o
   }
   function selectPlan(idx: number | null) { selectedPlanIdx.value = idx }
