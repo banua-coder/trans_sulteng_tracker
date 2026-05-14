@@ -38,6 +38,22 @@ export const useBrtStore = defineStore('brt', () => {
     return m
   })
 
+  /** Find the closest halte in the bulk feed to a lat/lng point.
+   *  Used by the trip planner's map-tap + GPS handlers so the user's
+   *  origin always resolves to a real halte (transit makes no sense
+   *  otherwise). Returns null only if the bulk feed is empty. */
+  function nearestHalte(lat: number, lng: number): BrtHalte | null {
+    let best: { h: BrtHalte; d: number } | null = null
+    for (const h of halte.value) {
+      const hLat = parseFloat(h.sh_lat)
+      const hLng = parseFloat(h.sh_lng)
+      if (!Number.isFinite(hLat) || !Number.isFinite(hLng)) continue
+      const d = haversineMeters({ lat, lng }, { lat: hLat, lng: hLng })
+      if (!best || d < best.d) best = { h, d }
+    }
+    return best?.h ?? null
+  }
+
   async function loadCities() {
     try {
       const list = await api.cities()
@@ -181,6 +197,7 @@ export const useBrtStore = defineStore('brt', () => {
     corridorByKor,
     colorForKor,
     cityByPref,
+    nearestHalte,
     loadCities,
     loadRoutes,
     upsertBus,

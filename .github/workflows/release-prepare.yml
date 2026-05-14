@@ -1,0 +1,161 @@
+name: Prepare Release
+
+on:
+  push:
+    branches:
+      - 'release/v*'
+      - 'hotfix/v*'
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GH_PAT }}
+
+      - name: Parse branch name
+        id: parse
+        env:
+          BRANCH_NAME: ${{ github.ref_name }}
+        run: |
+          # Strip release/ or hotfix/ prefix, then strip leading 'v'
+          SUFFIX="${BRANCH_NAME#release/}"
+          SUFFIX="${SUFFIX#hotfix/}"
+          VERSION="${SUFFIX#v}"
+
+          if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+'; then
+            echo "::error::Cannot parse semver from branch $BRANCH_NAME"
+            exit 1
+          fi
+
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Parsed version: $VERSION from branch $BRANCH_NAME"
+
+      - name: Bump versions if needed
+        id: bump
+        env:
+          VERSION: ${{ steps.parse.outputs.version }}
+        run: |
+          CHANGED=false
+
+          # --- apps/web/package.json ---
+          PKG_VERSION=$(node -p "require('./apps/web/package.json').version")
+          if [ "$PKG_VERSION" != "$VERSION" ]; then
+            node -e "
+              const fs = require('fs');
+              const pkg = JSON.parse(fs.readFileSync('apps/web/package.json', 'utf8'));
+              pkg.version = process.env.VERSION;
+              fs.writeFileSync('apps/web/package.json', JSON.stringify(pkg, null, 2) + '\n');
+            "
+            echo "apps/web/package.json: $PKG_VERSION -> $VERSION"
+            CHANGED=true
+          else
+            echo "apps/web/package.json already at $VERSION"
+          fi
+
+          # --- apps/web/src/lib/version.ts ---
+          TS_VERSION=$(grep -oP '(?<=APP_VERSION = ")[^"]+' apps/web/src/lib/version.ts || echo "")
+          if [ "$TS_VERSION" != "$VERSION" ]; then
+            sed -i "s/export const APP_VERSION = \".*\"/export const APP_VERSION = \"$VERSION\"/" apps/web/src/lib/version.ts
+            echo "apps/web/src/lib/version.ts: $TS_VERSION -> $VERSION"
+            CHANGED=true
+          else
+            echo "apps/web/src/lib/version.ts already at $VERSION"
+          fi
+
+          # --- apps/proxy/Cargo.toml ---
+          CARGO_VERSION=$(grep -m1 '^version = ' apps/proxy/Cargo.toml | sed 's/version = "\(.*\)"/\1/')
+          if [ "$CARGO_VERSION" != "$VERSION" ]; then
+            sed -i "0,/^version = \".*\"/{s/^version = \".*\"/version = \"$VERSION\"/}" apps/proxy/Cargo.toml
+            echo "apps/proxy/Cargo.toml: $CARGO_VERSION -> $VERSION"
+            CHANGED=true
+          else
+            echo "apps/proxy/Cargo.toml already at $VERSION"
+          fi
+
+          echo "changed=$CHANGED" >> "$GITHUB_OUTPUT"
+
+      - name: Generate changelog
+        id: changelog
+        env:
+          VERSION: ${{ steps.parse.outputs.version }}
+        run: |
+          LAST_TAG=$(git tag -l 'cektrans/v*' --sort=-v:refname | head -1)
+          if [ -z "$LAST_TAG" ]; then
+            RANGE="HEAD"
+          else
+            RANGE="$LAST_TAG..HEAD"
+          fi
+
+          CHANGELOG=$(git log "$RANGE" --pretty=format:"- %s (%h)" --no-merges | head -50)
+          if [ -z "$CHANGELOG" ]; then
+            CHANGELOG="- Initial release"
+          fi
+
+          echo "$CHANGELOG" > /tmp/changelog.md
+
+      - name: Commit version bumps
+        env:
+          VERSION: ${{ steps.parse.outputs.version }}
+          CHANGED: ${{ steps.bump.outputs.changed }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add apps/web/package.json apps/web/src/lib/version.ts apps/proxy/Cargo.toml
+
+          if [ "$CHANGED" = "true" ] && ! git diff --cached --quiet; then
+            git commit -m "chore: bump version to $VERSION"
+            git push
+            echo "Version bumps committed and pushed"
+          else
+            echo "Versions already at $VERSION — no commit needed"
+          fi
+
+      - name: Create PR to main
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+          BRANCH_NAME: ${{ github.ref_name }}
+          VERSION: ${{ steps.parse.outputs.version }}
+        run: |
+          PR_TYPE="Release"
+          if echo "$BRANCH_NAME" | grep -q '^hotfix/'; then
+            PR_TYPE="Hotfix"
+          fi
+
+          # Idempotent: skip if PR already exists for this branch
+          EXISTING=$(gh pr list --head "$BRANCH_NAME" --base main --json number --jq '.[0].number' 2>/dev/null || true)
+          if [ -n "$EXISTING" ]; then
+            echo "PR #$EXISTING already exists — skipping creation"
+            exit 0
+          fi
+
+          {
+            echo "## $PR_TYPE: cektrans v$VERSION"
+            echo ""
+            echo "### Changelog"
+            echo ""
+            cat /tmp/changelog.md
+            echo ""
+            echo "---"
+            echo ""
+            echo "When merged, tag \`cektrans/v$VERSION\` will be created automatically by \`release-finalize.yml\`."
+            echo ""
+            echo "### Checklist"
+            echo ""
+            echo "- [ ] All checks passing"
+            echo "- [ ] Smoke test on staging"
+            echo "- [ ] Ready for release"
+          } > /tmp/pr_body.md
+
+          gh pr create \
+            --base main \
+            --head "$BRANCH_NAME" \
+            --title "release: cektrans v$VERSION" \
+            --body-file /tmp/pr_body.md

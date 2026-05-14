@@ -130,11 +130,29 @@ export const useTripStore = defineStore('trip', () => {
       // {lat, lng} so even the inner object needs unwrapping.
       const o = origin.value.point
       const d = destination.value.point
+      // When the destination is a specific halte, restrict the final
+      // ride to a corridor that actually serves it (in_koridor split
+      // + the halte's own kor). Without this, Dijkstra can drop the
+      // user off on a different corridor 300 m away — e.g. ending on
+      // K1 when the picked halte isn't on K1 at all.
+      let destKors: string[] | null = null
+      if (destination.value.sh_id) {
+        const h = brt.halte.find((x) => x.sh_id === destination.value!.sh_id)
+        if (h) {
+          const kors = new Set<string>()
+          kors.add(h.kor)
+          if (h.in_koridor) {
+            for (const k of h.in_koridor.split('|').filter(Boolean)) kors.add(k)
+          }
+          destKors = [...kors]
+        }
+      }
       const resp = await call<{ type: 'plan'; paths: PlanResult[] }>({
         type: 'plan',
         origin: { lat: o.lat, lng: o.lng },
         dest: { lat: d.lat, lng: d.lng },
         k: 5,
+        destKors,
       })
       if (seq !== recomputeSeq) return // newer recompute won, ignore
       plans.value = resp.paths

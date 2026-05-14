@@ -59,6 +59,7 @@ export const messages = {
       incomingBuses: 'Bus menuju halte ini',
       noBuses: 'Tidak ada bus yang menuju halte ini.',
       directions: 'Arahkan',
+      atStop: 'Di halte',
     },
     etaGuide: {
       title: 'Panduan Estimasi Tiba',
@@ -209,6 +210,7 @@ export const messages = {
       incomingBuses: 'Buses heading here',
       noBuses: 'No buses approaching this stop.',
       directions: 'Directions',
+      atStop: 'At stop',
     },
     etaGuide: {
       title: 'Bus Arrival Time Guide',

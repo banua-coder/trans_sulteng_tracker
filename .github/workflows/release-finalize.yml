@@ -1,0 +1,109 @@
+name: Finalize Release
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+jobs:
+  finalize:
+    if: >-
+      github.event.pull_request.merged == true &&
+      (startsWith(github.event.pull_request.head.ref, 'release/') ||
+       startsWith(github.event.pull_request.head.ref, 'hotfix/'))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GH_PAT }}
+
+      - name: Parse branch name
+        id: parse
+        env:
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: |
+          SUFFIX="${HEAD_REF#release/}"
+          SUFFIX="${SUFFIX#hotfix/}"
+          VERSION="${SUFFIX#v}"
+
+          if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+'; then
+            echo "::error::Cannot parse semver from branch $HEAD_REF"
+            exit 1
+          fi
+
+          FULL_TAG="cektrans/v$VERSION"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "full_tag=$FULL_TAG" >> "$GITHUB_OUTPUT"
+          echo "Parsed: version=$VERSION tag=$FULL_TAG"
+
+      - name: Create and push tag
+        env:
+          VERSION: ${{ steps.parse.outputs.version }}
+          FULL_TAG: ${{ steps.parse.outputs.full_tag }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git tag -a "$FULL_TAG" -m "cektrans v$VERSION"
+          git push origin "$FULL_TAG"
+          echo "Tag $FULL_TAG pushed — deploy.yml will trigger automatically"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+          FULL_TAG: ${{ steps.parse.outputs.full_tag }}
+          VERSION: ${{ steps.parse.outputs.version }}
+        run: |
+          LAST_TAG=$(git tag -l 'cektrans/v*' --sort=-v:refname | grep -v "^${FULL_TAG}$" | head -1)
+          if [ -z "$LAST_TAG" ]; then
+            RANGE="HEAD"
+          else
+            RANGE="$LAST_TAG..$FULL_TAG"
+          fi
+
+          CHANGELOG=$(git log "$RANGE" --pretty=format:"- %s (%h)" --no-merges | head -50)
+          if [ -z "$CHANGELOG" ]; then
+            CHANGELOG="- Initial release"
+          fi
+
+          gh release create "$FULL_TAG" \
+            --title "cektrans v$VERSION" \
+            --notes "$CHANGELOG" \
+            --latest
+
+      - name: Open back-merge PR to develop
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+          VERSION: ${{ steps.parse.outputs.version }}
+        run: |
+          BACKMERGE_BRANCH="backmerge/main-to-develop-v$VERSION"
+
+          git fetch origin develop
+          git checkout -b "$BACKMERGE_BRANCH" origin/main
+          git push origin "$BACKMERGE_BRANCH"
+
+          EXISTING=$(gh pr list --head "$BACKMERGE_BRANCH" --base develop --json number --jq '.[0].number' 2>/dev/null || true)
+          if [ -n "$EXISTING" ]; then
+            echo "Back-merge PR #$EXISTING already exists"
+            exit 0
+          fi
+
+          PR_BODY="Automated back-merge of main into develop following the cektrans/v$VERSION release. Merging this picks up any version bumps and changelog entries committed to the release branch."
+
+          gh pr create \
+            --base develop \
+            --head "$BACKMERGE_BRANCH" \
+            --title "chore: back-merge main into develop after v$VERSION" \
+            --body "$PR_BODY"
+
+      - name: Delete release branch
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: |
+          git push origin --delete "$HEAD_REF" || echo "Branch already deleted"

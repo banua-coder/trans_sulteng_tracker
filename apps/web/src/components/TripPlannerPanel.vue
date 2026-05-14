@@ -107,12 +107,26 @@ function useGps() {
         gpsOutOfRange.value = true
         return
       }
-      trip.setOrigin({
-        kind: 'gps',
-        label: t('trip.useGps'),
-        point: { lat, lng },
-        sh_id: null,
-      })
+      // Snap to the nearest halte — transit planning needs a halte
+      // node to route from, and GPS reads are rarely on a stop
+      // pixel-exactly. The user's GPS coord is preserved in the chip
+      // label so they see roughly where they were located.
+      const h = brt.nearestHalte(lat, lng)
+      if (h) {
+        trip.setOrigin({
+          kind: 'halte',
+          label: h.sh_name,
+          point: { lat: parseFloat(h.sh_lat), lng: parseFloat(h.sh_lng) },
+          sh_id: h.sh_id,
+        })
+      } else {
+        trip.setOrigin({
+          kind: 'gps',
+          label: t('trip.useGps'),
+          point: { lat, lng },
+          sh_id: null,
+        })
+      }
     },
     () => {
       gpsLoading.value = false

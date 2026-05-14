@@ -271,21 +271,38 @@ interface ExpansionState {
 }
 
 /** Single-source shortest path with virtual start + dest. Returns one
- *  best plan, or null if unreachable. */
+ *  best plan, or null if unreachable.
+ *
+ *  `destKors`, when set, restricts the walk-OUT edges to nodes on
+ *  those corridors. The user picked a specific halte; routes that
+ *  drop the user near another corridor and walk are misleading
+ *  ('K1 to PGM' when PGM isn't on K1). With destKors set, the last
+ *  ride MUST be on a corridor that genuinely serves the destination. */
 function shortestPath(
   graph: Graph,
   origin: LatLng,
   dest: LatLng,
+  destKors: string[] | null = null,
 ): PlanResult | null {
   const originHalte = nearbyHalte(graph, origin, WALK_IN_RADIUS_M)
   // Tighter walk-out radius — forces the algorithm to actually ride
   // the bus to (near) the destination instead of dropping off early
   // and walking 800 m.
   let destHalte = nearbyHalte(graph, dest, WALK_OUT_RADIUS_M)
+  if (destKors && destKors.length) {
+    const allow = new Set(destKors)
+    destHalte = destHalte.filter((x) => allow.has(x.node.kor))
+  }
   if (!destHalte.length) {
-    // Fallback: if nothing within the tight radius, widen so the
-    // user at least gets a route rather than 'no route'.
+    // Fallback: if nothing within the tight radius (or no nodes on
+    // the destination's corridors), widen so the user at least gets
+    // a route rather than 'no route'.
     destHalte = nearbyHalte(graph, dest, WALK_IN_RADIUS_M)
+    if (destKors && destKors.length) {
+      const allow = new Set(destKors)
+      const filtered = destHalte.filter((x) => allow.has(x.node.kor))
+      if (filtered.length) destHalte = filtered
+    }
   }
   if (!originHalte.length || !destHalte.length) return null
 
@@ -437,12 +454,13 @@ export function planTrip(
   origin: LatLng,
   dest: LatLng,
   k = 5,
+  destKors: string[] | null = null,
 ): PlanResult[] {
   const out: PlanResult[] = []
   const forbidden = new Set<string>() // `${from}|${to}` keys
 
   for (let attempt = 0; attempt < k; attempt++) {
-    const result = shortestPathWithForbidden(graph, origin, dest, forbidden)
+    const result = shortestPathWithForbidden(graph, origin, dest, forbidden, destKors)
     if (!result) break
     if (out.some((r) => sameRoute(r, result))) {
       // Add another forbidden edge and try again
@@ -476,8 +494,9 @@ function shortestPathWithForbidden(
   origin: LatLng,
   dest: LatLng,
   forbidden: Set<string>,
+  destKors: string[] | null = null,
 ): PlanResult | null {
-  if (!forbidden.size) return shortestPath(graph, origin, dest)
+  if (!forbidden.size) return shortestPath(graph, origin, dest, destKors)
   // Filter adjacency on the fly using a temporary view
   const filtered: Graph = {
     nodes: graph.nodes,
@@ -491,5 +510,5 @@ function shortestPathWithForbidden(
     })
     filtered.adj.set(from, kept)
   }
-  return shortestPath(filtered, origin, dest)
+  return shortestPath(filtered, origin, dest, destKors)
 }

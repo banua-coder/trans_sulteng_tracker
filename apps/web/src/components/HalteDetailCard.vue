@@ -4,7 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
 import { useSelectionStore } from '@/stores/selection'
 import { useBrtStore } from '@/stores/brt'
-import { etaToHalte, formatDistance, getEtaQuality, isStale, parsePassenger } from '@/lib/format'
+import { etaToHalte, formatDistance, getEtaQuality, haversineMeters, isStale, parsePassenger } from '@/lib/format'
 import CopyLinkButton from '@/components/CopyLinkButton.vue'
 import PlateBadge from '@/components/PlateBadge.vue'
 import EtaQualityGuide from '@/components/EtaQualityGuide.vue'
@@ -33,6 +33,12 @@ interface Arrival {
   fresh: boolean
   corridorColor: string
   quality: 'good' | 'warn' | 'stale'
+  /** True when the bus is currently AT the stop (within ~80 m)
+   *  regardless of where new_shel_t says it's heading next. Some
+   *  transfer points (e.g. BALAIKOTA B) sit between corridors and
+   *  buses parked here often have new_shel_t pointing to a different
+   *  halte entirely — without this flag they'd be invisible. */
+  atStop: boolean
 }
 
 const corridorsAtHalte = computed(() => {
@@ -56,6 +62,11 @@ const corridorsAtHalte = computed(() => {
   return result
 })
 
+/** How close a bus has to be to count as "at this halte" when its
+ *  new_shel_t says otherwise. 80 m covers GPS jitter + a parked bus
+ *  pulled up against the curb. */
+const AT_STOP_RADIUS_M = 80
+
 const arrivals = computed<Arrival[]>(() => {
   void tick.value
   const halte = selectedHalte.value
@@ -67,22 +78,50 @@ const arrivals = computed<Arrival[]>(() => {
       .filter((h) => h.sh_name === halte.sh_name)
       .map((h) => h.sh_id),
   )
+  // Allowed corridors for this halte — buses on other corridors are
+  // irrelevant even if physically nearby (different route entirely).
+  const allowedKors = new Set<string>()
+  allowedKors.add(halte.kor)
+  if (halte.in_koridor) {
+    for (const k of halte.in_koridor.split('|').filter(Boolean)) allowedKors.add(k)
+  }
 
+  const halteLat = parseFloat(halte.sh_lat)
+  const halteLng = parseFloat(halte.sh_lng)
+  const halteCoord = Number.isFinite(halteLat) && Number.isFinite(halteLng)
+    ? { lat: halteLat, lng: halteLng }
+    : null
+
+  const seen = new Set<string>()
   const candidates: Arrival[] = []
   for (const bus of brt.buses.values()) {
-    if (!bus.new_shel_t || !shIds.has(bus.new_shel_t)) continue
-    const targetHalte = brt.halte.find((h) => h.sh_id === bus.new_shel_t) ?? halte
+    const headingHere = !!bus.new_shel_t && shIds.has(bus.new_shel_t)
+    let nearby = false
+    if (!headingHere && halteCoord && allowedKors.has(bus.kor)
+        && Number.isFinite(bus.lat) && Number.isFinite(bus.lng)) {
+      const d = haversineMeters(halteCoord, { lat: Number(bus.lat), lng: Number(bus.lng) })
+      nearby = d <= AT_STOP_RADIUS_M
+    }
+    if (!headingHere && !nearby) continue
+    const key = bus.imei || bus.id
+    if (seen.has(key)) continue
+    seen.add(key)
+
+    const targetHalte = (bus.new_shel_t && brt.halte.find((h) => h.sh_id === bus.new_shel_t)) || halte
     const eta = etaToHalte(bus, targetHalte)
     candidates.push({
       bus,
-      etaMin: eta?.etaMin ?? null,
-      distM: eta?.distM ?? null,
+      etaMin: headingHere ? (eta?.etaMin ?? null) : 0,
+      distM: headingHere ? (eta?.distM ?? null) : 0,
       fresh: !isStale(bus),
       corridorColor: brt.colorForKor(bus.kor) || '#0EA5E9',
       quality: getEtaQuality(bus),
+      atStop: nearby,
     })
   }
   candidates.sort((a, b) => {
+    // At-stop buses first; then approaching by ETA ascending; unknowns last.
+    if (a.atStop !== b.atStop) return a.atStop ? -1 : 1
     if (a.etaMin == null && b.etaMin == null) return 0
     if (a.etaMin == null) return 1
     if (b.etaMin == null) return -1
@@ -209,6 +248,13 @@ function openDirections() {
                     class="inline-flex items-center rounded bg-bnc-stone-200 px-1 py-[1px] font-mono text-[9px] font-bold tracking-wider dark:bg-bnc-stone-700"
                   >
                     {{ a.bus.name }}
+                  </span>
+                  <span
+                    v-if="a.atStop"
+                    class="rounded-full px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-white"
+                    :style="{ background: 'var(--color-good)' }"
+                  >
+                    {{ t('halte.atStop') }}
                   </span>
                   <span
                     v-if="!a.fresh"

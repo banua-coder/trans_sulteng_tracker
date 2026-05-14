@@ -1,0 +1,26 @@
+name: PR — Proxy CI
+
+# Triggers only when Rust proxy files change.
+# For web CI see pr.yml.
+# For project-wide sanity check see pr-sanity.yml.
+on:
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'apps/proxy/**'
+      - '.github/workflows/pr-proxy.yml'
+
+concurrency:
+  group: pr-proxy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  proxy-ci:
+    name: Proxy CI
+    uses: banua-coder/banua-coder-workflow/.github/workflows/ci-rust.yml@main
+    with:
+      working-directory: apps/proxy
+      run-fmt-check: true
+      run-clippy: true
+      run-tests: true
+      run-build: false

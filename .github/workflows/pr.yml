@@ -1,0 +1,28 @@
+name: PR — Web CI
+
+# Triggers only when web app files change.
+# For Rust proxy CI see pr-proxy.yml.
+# For project-wide sanity check see pr-sanity.yml.
+on:
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'apps/web/**'
+      - '.github/workflows/pr.yml'
+
+concurrency:
+  group: pr-web-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  web-ci:
+    name: Web CI
+    uses: banua-coder/banua-coder-workflow/.github/workflows/ci-node.yml@main
+    with:
+      working-directory: apps/web
+      package-manager: pnpm
+      pnpm-version: '10'
+      run-build: true
+      run-lint: true
+      run-typecheck: true
+      run-tests: true

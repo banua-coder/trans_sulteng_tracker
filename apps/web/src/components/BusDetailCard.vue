@@ -88,7 +88,9 @@ const upcomingStops = computed<UpcomingStop[]>(() => {
     : -1
   const slice = startIdx >= 0 ? orderedHalte.slice(startIdx) : orderedHalte.slice(0, 1)
 
-  return slice.slice(0, 6).map((h, i) => {
+  // Show every upcoming stop through the corridor's terminus — user
+  // wants the full ride visible, not just the next handful.
+  return slice.map((h, i) => {
     let distM: number | null = null
     let etaMin: number | null = null
 

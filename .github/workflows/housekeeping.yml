@@ -1,0 +1,14 @@
+name: Housekeeping
+
+on:
+  pull_request:
+    types: [closed]
+  push:
+    branches: [main, develop]
+
+jobs:
+  housekeeping:
+    name: Housekeeping
+    uses: banua-coder/banua-coder-workflow/.github/workflows/housekeeping.yml@main
+    with:
+      protected-branches: 'main,develop'

@@ -8,7 +8,7 @@ import type { BrtCorridor, BrtHalte } from '@/types/brt'
 
 type Request =
   | { id: number; type: 'buildGraph'; corridors: BrtCorridor[]; halteByLeg: BrtHalte[][]; allHalte: BrtHalte[] }
-  | { id: number; type: 'plan'; origin: LatLng; dest: LatLng; k?: number }
+  | { id: number; type: 'plan'; origin: LatLng; dest: LatLng; k?: number; destKors?: string[] | null }
 
 let graph: Graph | null = null
 
@@ -35,7 +35,7 @@ self.onmessage = (event: MessageEvent<Request>) => {
           })
           return
         }
-        const paths = planTrip(graph, msg.origin, msg.dest, msg.k ?? 5)
+        const paths = planTrip(graph, msg.origin, msg.dest, msg.k ?? 5, msg.destKors ?? null)
         ;(self as unknown as Worker).postMessage({
           id: msg.id,
           type: 'plan',

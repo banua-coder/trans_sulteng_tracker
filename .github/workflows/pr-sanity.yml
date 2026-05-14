@@ -1,0 +1,18 @@
+name: PR — Sanity Check
+
+# Runs on every PR regardless of which files changed.
+on:
+  pull_request:
+    branches: [main, develop]
+
+concurrency:
+  group: pr-sanity-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  sanity:
+    name: Sanity Check
+    uses: banua-coder/banua-coder-workflow/.github/workflows/sanity-check.yml@main
+    with:
+      project-type: vue
+      fail-on-issues: false

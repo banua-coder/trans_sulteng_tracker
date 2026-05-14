@@ -16,7 +16,7 @@ import type { PlanResult } from '@/lib/tripPlanner'
 import { busIcon, halteHaloMarker, halteMarker } from '@/lib/leaflet/markers'
 import { darkMatterTiles, voyagerTiles } from '@/lib/leaflet/tiles'
 import { useTheme } from '@/lib/theme'
-import { haversineMeters, isStale } from '@/lib/format'
+import { isStale } from '@/lib/format'
 import { trackEvent } from '@/lib/analytics'
 import type { BrtBus, BrtCorridor, BrtHalte } from '@/types/brt'
 
@@ -564,8 +564,19 @@ function upsertBusMarker(b: BrtBus) {
   // never get hidden behind another marker.
   let z = 0
   if (focus.kor && b.kor === focus.kor) z = 500
-  if (selection.kind === 'bus' && selection.id === key) z = 1500
+  const isSelectedBus = selection.kind === 'bus' && selection.id === key
+  if (isSelectedBus) z = 1500
   m.setZIndexOffset(z)
+
+  // Toggle the .selected modifier on the bus marker's element so the
+  // CSS halo only shows on the bus the user actually picked — fixes
+  // the "two same-color buses nearby, which one am I following?"
+  // confusion.
+  const markerEl = m.getElement()
+  if (markerEl) {
+    if (isSelectedBus) markerEl.classList.add('selected')
+    else markerEl.classList.remove('selected')
+  }
 
   // If this is the bus the user is following, glide the map with it.
   if (
@@ -881,11 +892,9 @@ watch(
 )
 
 /** Trip planner tap-on-map mode: while tripTapMode is non-null, the
- *  next map click is intercepted and used to set the planner's
- *  origin/destination. If the click lands within ~50m of an existing
- *  halte, we snap to it (kind='halte') so transit routing still works
- *  cleanly; otherwise it becomes a free-form pin (kind='pin'). */
-const SNAP_RADIUS_M = 50
+ *  next map click is intercepted and snapped to the nearest halte
+ *  (the user's tap is rarely on a halte pixel-exactly anyway, and
+ *  transit planning needs a halte node to route from/to). */
 let tapClickHandler: ((e: L.LeafletMouseEvent) => void) | null = null
 
 function detachTapHandler() {
@@ -897,22 +906,22 @@ watch(tripTapMode, (mode) => {
   detachTapHandler()
   if (!mode || !map) return
   tapClickHandler = (ev: L.LeafletMouseEvent) => {
-    const lat = ev.latlng.lat
-    const lng = ev.latlng.lng
-    // Snap to nearest halte if within SNAP_RADIUS_M
-    let best: { sh_id: string; sh_name: string; lat: number; lng: number; d: number } | null = null
-    for (const h of brt.halte) {
-      const hLat = parseFloat(h.sh_lat)
-      const hLng = parseFloat(h.sh_lng)
-      if (!Number.isFinite(hLat) || !Number.isFinite(hLng)) continue
-      const d = haversineMeters({ lat, lng }, { lat: hLat, lng: hLng })
-      if (d <= SNAP_RADIUS_M && (!best || d < best.d)) {
-        best = { sh_id: h.sh_id, sh_name: h.sh_name, lat: hLat, lng: hLng, d }
-      }
+    const h = brt.nearestHalte(ev.latlng.lat, ev.latlng.lng)
+    if (!h) {
+      // No halte loaded at all — fall back to a free pin so the user
+      // at least sees their tap registered.
+      const endpoint = { kind: 'pin' as const, label: t('trip.pinLabel'), point: { lat: ev.latlng.lat, lng: ev.latlng.lng }, sh_id: null }
+      if (mode === 'origin') trip.setOrigin(endpoint)
+      else trip.setDestination(endpoint)
+      trip.setTapMode(null)
+      return
     }
-    const endpoint = best
-      ? { kind: 'halte' as const, label: best.sh_name, point: { lat: best.lat, lng: best.lng }, sh_id: best.sh_id }
-      : { kind: 'pin' as const, label: t('trip.pinLabel'), point: { lat, lng }, sh_id: null }
+    const endpoint = {
+      kind: 'halte' as const,
+      label: h.sh_name,
+      point: { lat: parseFloat(h.sh_lat), lng: parseFloat(h.sh_lng) },
+      sh_id: h.sh_id,
+    }
     if (mode === 'origin') trip.setOrigin(endpoint)
     else trip.setDestination(endpoint)
     trip.setTapMode(null)
