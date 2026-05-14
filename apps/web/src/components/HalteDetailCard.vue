@@ -234,12 +234,13 @@ function openDirections() {
               class="flex w-full items-center gap-3 rounded-md border border-bnc-stone-200 bg-bnc-stone-50 px-2 py-2 text-left transition-colors hover:border-bnc-stone-300 dark:border-bnc-stone-800 dark:bg-bnc-stone-800/50 dark:hover:border-bnc-stone-700"
               @click="pickBus(a.bus.imei || a.bus.id)"
             >
-              <!-- Corridor dot -->
+              <!-- Corridor kor badge -->
               <span
-                class="h-2 w-2 shrink-0 rounded-full"
+                class="inline-flex shrink-0 items-center rounded-md px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-white"
                 :style="{ background: a.corridorColor }"
-                aria-hidden
-              />
+              >
+                {{ a.bus.kor }}
+              </span>
               <div class="flex min-w-0 flex-col">
                 <div class="flex items-center gap-1.5">
                   <PlateBadge v-if="a.bus.plate_number" :plate="a.bus.plate_number" size="sm" />
