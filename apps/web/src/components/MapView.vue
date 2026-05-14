@@ -133,10 +133,14 @@ function initMap() {
   meLayer.addTo(map)
   tripPreviewLayer.addTo(map)
 
-  // Any user gesture breaks the follow lock — they're navigating,
-  // we shouldn't fight them.
-  map.on('dragstart zoomstart', () => {
-    following = false
+  // Only USER gestures break the follow lock — programmatic flyTo /
+  // panTo (which we use to glide the map with the selected bus) also
+  // fire dragstart/zoomstart, so without the originalEvent check the
+  // very flyTo that starts the follow would immediately kill it.
+  map.on('dragstart zoomstart', (e: L.LeafletEvent) => {
+    if ((e as L.LeafletEvent & { originalEvent?: Event }).originalEvent) {
+      following = false
+    }
   })
 
   // Halte pile up into illegible clutter at overview zoom levels — and

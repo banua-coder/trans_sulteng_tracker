@@ -14,6 +14,8 @@ import MyLocationButton from '@/components/MyLocationButton.vue'
 import NearbyHaltePanel from '@/components/NearbyHaltePanel.vue'
 import CorridorPanel from '@/components/CorridorPanel.vue'
 import BusListPanel from '@/components/BusListPanel.vue'
+import TripPlannerPanel from '@/components/TripPlannerPanel.vue'
+import CollapsibleSection from '@/components/CollapsibleSection.vue'
 import BottomSheet from '@/components/BottomSheet.vue'
 import BusDetailCard from '@/components/BusDetailCard.vue'
 import HalteDetailCard from '@/components/HalteDetailCard.vue'
@@ -67,6 +69,9 @@ onBeforeUnmount(() => {
       class="hidden border-r border-bnc-stone-200 bg-bnc-stone-50/60 p-4 lg:block lg:overflow-y-auto dark:border-bnc-stone-800 dark:bg-bnc-stone-900/40"
     >
       <div class="flex flex-col gap-5">
+        <CollapsibleSection name="trip" :title="'Rencana Perjalanan'">
+          <TripPlannerPanel />
+        </CollapsibleSection>
         <NearbyHaltePanel />
         <CorridorPanel />
         <BusListPanel />
@@ -117,6 +122,7 @@ onBeforeUnmount(() => {
       <CorridorFocusPanel v-if="isFocused" />
       <BusDetailCard v-else-if="selectionKind === 'bus'" />
       <HalteDetailCard v-else-if="selectionKind === 'halte'" />
+      <TripDetailPanel v-else-if="tripSelectedPlan" />
     </div>
   </div>
 </template>

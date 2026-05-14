@@ -205,7 +205,7 @@ const showNoResults = computed(
 <template>
   <div class="flex flex-col gap-3">
     <!-- Origin row -->
-    <div ref="originRowEl" class="flex items-center gap-2">
+    <div ref="originRowEl" class="flex min-w-0 items-center gap-2">
       <!-- GPS button -->
       <button
         type="button"
@@ -349,7 +349,7 @@ const showNoResults = computed(
     </div>
 
     <!-- Destination row -->
-    <div class="flex items-center gap-2">
+    <div class="flex min-w-0 items-center gap-2">
       <!-- Tap-on-map toggle -->
       <button
         type="button"
