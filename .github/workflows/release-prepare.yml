@@ -13,6 +13,10 @@ jobs:
       contents: write
       pull-requests: write
 
+    outputs:
+      version: ${{ steps.parse.outputs.version }}
+      branch-type: ${{ steps.parse.outputs.branch-type }}
+
     steps:
       - uses: actions/checkout@v4
         with:
@@ -34,10 +38,20 @@ jobs:
             exit 1
           fi
 
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "Parsed version: $VERSION from branch $BRANCH_NAME"
+          # release/v* triggers an extra dev-version bump on develop;
+          # hotfix/v* skips it (a hotfix isn't a feature push, so the
+          # dev line shouldn't move).
+          if echo "$BRANCH_NAME" | grep -q '^hotfix/'; then
+            BRANCH_TYPE="hotfix"
+          else
+            BRANCH_TYPE="release"
+          fi
 
-      - name: Bump versions if needed
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "branch-type=$BRANCH_TYPE" >> "$GITHUB_OUTPUT"
+          echo "Parsed: version=$VERSION type=$BRANCH_TYPE from $BRANCH_NAME"
+
+      - name: Bump versions on release branch
         id: bump
         env:
           VERSION: ${{ steps.parse.outputs.version }}
@@ -81,24 +95,68 @@ jobs:
 
           echo "changed=$CHANGED" >> "$GITHUB_OUTPUT"
 
-      - name: Generate changelog
-        id: changelog
+      - name: Generate grouped changelog
         env:
           VERSION: ${{ steps.parse.outputs.version }}
         run: |
+          # Range: commits since the previous tag (cektrans/v*), or
+          # everything if this is the first release.
           LAST_TAG=$(git tag -l 'cektrans/v*' --sort=-v:refname | head -1)
           if [ -z "$LAST_TAG" ]; then
             RANGE="HEAD"
+            HEADING_RANGE="initial"
           else
             RANGE="$LAST_TAG..HEAD"
+            HEADING_RANGE="$LAST_TAG..HEAD"
+          fi
+          echo "Range: $HEADING_RANGE"
+
+          # Bucket commits by Conventional Commit type. Anything that
+          # doesn't match `type(scope)?!?:` lands in 'other' so nothing
+          # silently drops out of the changelog.
+          declare -A BUCKETS
+          ORDER=(feat fix perf refactor docs test ci build chore style revert other)
+
+          while IFS=$'\t' read -r subject sha; do
+            type=$(printf '%s' "$subject" | sed -nE 's/^([a-z]+)(\([^)]+\))?!?:.*/\1/p')
+            case "$type" in
+              feat|fix|perf|refactor|docs|test|ci|build|chore|style|revert) ;;
+              *) type="other" ;;
+            esac
+            BUCKETS["$type"]+="- ${subject} (${sha})"$'\n'
+          done < <(git log "$RANGE" --pretty=format:"%s%x09%h" --no-merges)
+
+          declare -A LABEL=(
+            [feat]="### ✨ Features"
+            [fix]="### 🐛 Bug Fixes"
+            [perf]="### ⚡ Performance"
+            [refactor]="### ♻️ Refactor"
+            [docs]="### 📝 Docs"
+            [test]="### ✅ Tests"
+            [ci]="### 👷 CI"
+            [build]="### 📦 Build"
+            [chore]="### 🧹 Chore"
+            [style]="### 💄 Style"
+            [revert]="### ⏪ Revert"
+            [other]="### 📌 Other"
+          )
+
+          {
+            for type in "${ORDER[@]}"; do
+              entries="${BUCKETS[$type]:-}"
+              if [ -n "$entries" ]; then
+                printf '%s\n\n%s\n' "${LABEL[$type]}" "$entries"
+              fi
+            done
+          } > /tmp/changelog.md
+
+          if [ ! -s /tmp/changelog.md ]; then
+            echo "- Initial release" > /tmp/changelog.md
           fi
 
-          CHANGELOG=$(git log "$RANGE" --pretty=format:"- %s (%h)" --no-merges | head -50)
-          if [ -z "$CHANGELOG" ]; then
-            CHANGELOG="- Initial release"
-          fi
-
-          echo "$CHANGELOG" > /tmp/changelog.md
+          echo "----- changelog -----"
+          cat /tmp/changelog.md
+          echo "---------------------"
 
       - name: Commit version bumps
         env:
@@ -118,18 +176,19 @@ jobs:
             echo "Versions already at $VERSION — no commit needed"
           fi
 
-      - name: Create PR to main
+      - name: Create release PR to main
         env:
           GH_TOKEN: ${{ secrets.WORKFLOW_PAT || secrets.GITHUB_TOKEN }}
           BRANCH_NAME: ${{ github.ref_name }}
           VERSION: ${{ steps.parse.outputs.version }}
+          BRANCH_TYPE: ${{ steps.parse.outputs.branch-type }}
         run: |
           PR_TYPE="Release"
-          if echo "$BRANCH_NAME" | grep -q '^hotfix/'; then
+          if [ "$BRANCH_TYPE" = "hotfix" ]; then
             PR_TYPE="Hotfix"
           fi
 
-          # Idempotent: skip if PR already exists for this branch
+          # Idempotent: skip if a PR already exists for this branch
           EXISTING=$(gh pr list --head "$BRANCH_NAME" --base main --json number --jq '.[0].number' 2>/dev/null || true)
           if [ -n "$EXISTING" ]; then
             echo "PR #$EXISTING already exists — skipping creation"
@@ -145,7 +204,10 @@ jobs:
             echo ""
             echo "---"
             echo ""
-            echo "When merged, tag \`cektrans/v$VERSION\` will be created automatically by \`release-finalize.yml\`."
+            echo "When merged, \`release-finalize.yml\` will:"
+            echo "- tag \`cektrans/v$VERSION\` and trigger deploy"
+            echo "- prepend the changelog above to \`CHANGELOG.md\` on \`main\`"
+            echo "- open a back-merge PR to \`develop\` (resolving version conflicts to the higher semver)"
             echo ""
             echo "### Checklist"
             echo ""
@@ -154,8 +216,74 @@ jobs:
             echo "- [ ] Ready for release"
           } > /tmp/pr_body.md
 
+          PR_TYPE_LOWER=$(printf '%s' "$PR_TYPE" | tr '[:upper:]' '[:lower:]')
           gh pr create \
             --base main \
             --head "$BRANCH_NAME" \
-            --title "release: cektrans v$VERSION" \
+            --title "$PR_TYPE_LOWER: cektrans v$VERSION" \
             --body-file /tmp/pr_body.md
+
+      # Release-type branches (release/v*) also bump develop to the
+      # next minor — that keeps the dev line moving while main locks
+      # in the release version. Hotfixes skip this step: a hotfix
+      # ships a patch, the dev line shouldn't churn for it.
+      - name: Bump develop to next minor (release only)
+        if: steps.parse.outputs.branch-type == 'release'
+        env:
+          GH_TOKEN: ${{ secrets.WORKFLOW_PAT || secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.parse.outputs.version }}
+        run: |
+          IFS='.' read -r MAJ MIN _PATCH <<<"$VERSION"
+          NEXT_MINOR_VERSION="$MAJ.$((MIN + 1)).0"
+          DEV_BRANCH="chore/bump-dev-version-v$NEXT_MINOR_VERSION"
+
+          # Skip if the bump branch is already on the remote (workflow
+          # re-ran for the same release).
+          if git ls-remote --exit-code origin "refs/heads/$DEV_BRANCH" >/dev/null 2>&1; then
+            echo "Dev bump branch $DEV_BRANCH already exists — skipping"
+            exit 0
+          fi
+
+          # Cut from origin/develop so the dev-bump PR is independent
+          # of the release branch — it merges on its own schedule.
+          git fetch origin develop
+          git checkout -B "$DEV_BRANCH" origin/develop
+
+          CHANGED=false
+          PKG_VERSION=$(node -p "require('./apps/web/package.json').version")
+          if [ "$PKG_VERSION" != "$NEXT_MINOR_VERSION" ]; then
+            node -e "
+              const fs = require('fs');
+              const pkg = JSON.parse(fs.readFileSync('apps/web/package.json', 'utf8'));
+              pkg.version = '${NEXT_MINOR_VERSION}';
+              fs.writeFileSync('apps/web/package.json', JSON.stringify(pkg, null, 2) + '\n');
+            "
+            CHANGED=true
+          fi
+
+          TS_VERSION=$(grep -oP '(?<=APP_VERSION = ")[^"]+' apps/web/src/lib/version.ts || echo "")
+          if [ "$TS_VERSION" != "$NEXT_MINOR_VERSION" ]; then
+            sed -i "s/export const APP_VERSION = \".*\"/export const APP_VERSION = \"$NEXT_MINOR_VERSION\"/" apps/web/src/lib/version.ts
+            CHANGED=true
+          fi
+
+          CARGO_VERSION=$(grep -m1 '^version = ' apps/proxy/Cargo.toml | sed 's/version = "\(.*\)"/\1/')
+          if [ "$CARGO_VERSION" != "$NEXT_MINOR_VERSION" ]; then
+            sed -i "0,/^version = \".*\"/{s/^version = \".*\"/version = \"$NEXT_MINOR_VERSION\"/}" apps/proxy/Cargo.toml
+            CHANGED=true
+          fi
+
+          if [ "$CHANGED" != "true" ]; then
+            echo "Develop already at >= $NEXT_MINOR_VERSION — no dev bump needed"
+            exit 0
+          fi
+
+          git add apps/web/package.json apps/web/src/lib/version.ts apps/proxy/Cargo.toml
+          git commit -m "chore: bump dev version to $NEXT_MINOR_VERSION after v$VERSION release"
+          git push origin "$DEV_BRANCH"
+
+          gh pr create \
+            --base develop \
+            --head "$DEV_BRANCH" \
+            --title "chore: bump dev version to $NEXT_MINOR_VERSION" \
+            --body "Automatic dev-line minor bump triggered by \`release/v$VERSION\`. Merging this opens the dev branch up to receive feature work targeted at v$NEXT_MINOR_VERSION while \`main\` ships v$VERSION."

@@ -222,16 +222,15 @@ const stepNumbers = computed(() => {
     if (!seen.has(step.fromName)) seen.set(step.fromName, counter++)
     if (!seen.has(step.toName)) seen.set(step.toName, counter++)
   }
-  // Second pass: each step row gets the number of its "you arrive
-  // here" endpoint — toName for rides + walks-to-halte, fromName for
-  // transfers (the transfer point is the halte you just arrived at).
+  // Second pass: rides + walks get the number of their arrival
+  // halte. Transfer steps deliberately stay un-numbered — the
+  // transfer point's disc already lives on the surrounding ride
+  // rows (alighting of the previous ride / boarding of the next),
+  // so giving the transfer row its own number drew a duplicate.
   for (let i = 0; i < selectedPlan.value.steps.length; i++) {
     const step = selectedPlan.value.steps[i]
     if (step.kind === 'ride') {
       const n = seen.get(step.toName)
-      if (n != null) out.set(i, n)
-    } else if (step.kind === 'transfer') {
-      const n = seen.get(step.fromName) ?? seen.get(step.toName)
       if (n != null) out.set(i, n)
     } else if (step.kind === 'walk') {
       const n = seen.get(step.toName)
