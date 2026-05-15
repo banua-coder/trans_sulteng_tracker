@@ -184,6 +184,7 @@ const upcomingStops = computed<UpcomingStop[]>(() => {
               </template>
             </p>
           </div>
+          <EtaQualityGuide class="lg:hidden" />
           <CopyLinkButton />
         </header>
       </div>
@@ -195,7 +196,7 @@ const upcomingStops = computed<UpcomingStop[]>(() => {
       >
         <h4 class="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-bnc-stone-500">
           {{ t('route.estimatedArrival') }}
-          <EtaQualityGuide />
+          <EtaQualityGuide class="hidden lg:inline-flex" />
         </h4>
         <ul class="mt-2 flex max-h-[60vh] flex-col divide-y divide-bnc-stone-100 overflow-y-auto pr-1 dark:divide-bnc-stone-800">
           <li

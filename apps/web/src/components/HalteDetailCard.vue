@@ -201,6 +201,7 @@ function openDirections() {
                 <path d="M3 11 22 2l-9 19-2-8z" />
               </svg>
             </button>
+            <EtaQualityGuide class="lg:hidden" />
             <CopyLinkButton />
           </div>
         </header>
@@ -222,7 +223,7 @@ function openDirections() {
       <section class="border-t border-bnc-stone-200 pt-3 dark:border-bnc-stone-800">
         <h4 class="flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-wider text-bnc-stone-500">
           {{ t('halte.incomingBuses') }}
-          <EtaQualityGuide />
+          <EtaQualityGuide class="hidden lg:inline-flex" />
         </h4>
         <ul v-if="arrivals.length" class="mt-2 flex max-h-[60vh] flex-col gap-2 overflow-y-auto pr-1">
           <li
@@ -263,12 +264,6 @@ function openDirections() {
                   >
                     {{ t('halte.atStop') }}
                   </span>
-                  <span
-                    v-if="!a.fresh"
-                    class="rounded-full bg-bnc-stone-200 px-1.5 py-0.5 font-mono text-[10px] uppercase text-bnc-stone-600 dark:bg-bnc-stone-700 dark:text-bnc-stone-300"
-                  >
-                    stale
-                  </span>
                 </div>
                 <p class="mt-0.5 font-mono text-[10px] tabular-nums text-bnc-stone-500">
                   <template v-if="a.distM != null">{{ formatDistance(a.distM) }}</template>
@@ -281,6 +276,10 @@ function openDirections() {
                   <template v-if="parsePassenger(a.bus.passenger) != null">
                     <span class="text-bnc-stone-300 dark:text-bnc-stone-600"> · </span>
                     {{ parsePassenger(a.bus.passenger) }} pax
+                  </template>
+                  <template v-if="!a.fresh">
+                    <span class="text-bnc-stone-300 dark:text-bnc-stone-600"> · </span>
+                    <span class="uppercase text-bnc-stone-500">stale</span>
                   </template>
                 </p>
               </div>

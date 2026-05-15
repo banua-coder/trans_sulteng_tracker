@@ -20,7 +20,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          token: ${{ secrets.GH_PAT }}
+          token: ${{ secrets.WORKFLOW_PAT || secrets.GITHUB_TOKEN }}
 
       - name: Parse branch name
         id: parse
@@ -55,7 +55,7 @@ jobs:
 
       - name: Create GitHub Release
         env:
-          GH_TOKEN: ${{ secrets.GH_PAT }}
+          GH_TOKEN: ${{ secrets.WORKFLOW_PAT || secrets.GITHUB_TOKEN }}
           FULL_TAG: ${{ steps.parse.outputs.full_tag }}
           VERSION: ${{ steps.parse.outputs.version }}
         run: |
@@ -78,7 +78,7 @@ jobs:
 
       - name: Open back-merge PR to develop
         env:
-          GH_TOKEN: ${{ secrets.GH_PAT }}
+          GH_TOKEN: ${{ secrets.WORKFLOW_PAT || secrets.GITHUB_TOKEN }}
           VERSION: ${{ steps.parse.outputs.version }}
         run: |
           BACKMERGE_BRANCH="backmerge/main-to-develop-v$VERSION"
@@ -103,7 +103,7 @@ jobs:
 
       - name: Delete release branch
         env:
-          GH_TOKEN: ${{ secrets.GH_PAT }}
+          GH_TOKEN: ${{ secrets.WORKFLOW_PAT || secrets.GITHUB_TOKEN }}
           HEAD_REF: ${{ github.event.pull_request.head.ref }}
         run: |
           git push origin --delete "$HEAD_REF" || echo "Branch already deleted"

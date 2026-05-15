@@ -288,21 +288,18 @@ function shortestPath(
   // Tighter walk-out radius — forces the algorithm to actually ride
   // the bus to (near) the destination instead of dropping off early
   // and walking 800 m.
+  const allow = destKors && destKors.length ? new Set(destKors) : null
   let destHalte = nearbyHalte(graph, dest, WALK_OUT_RADIUS_M)
-  if (destKors && destKors.length) {
-    const allow = new Set(destKors)
-    destHalte = destHalte.filter((x) => allow.has(x.node.kor))
-  }
+  if (allow) destHalte = destHalte.filter((x) => allow.has(x.node.kor))
   if (!destHalte.length) {
-    // Fallback: if nothing within the tight radius (or no nodes on
-    // the destination's corridors), widen so the user at least gets
-    // a route rather than 'no route'.
+    // Widen — but if destKors is provided we keep the corridor filter
+    // STRICTLY: a plan that ends on a corridor not serving the picked
+    // halte is wrong (e.g. dropping off on K2A's Pasar Manonda when
+    // the user asked for Halte PGM which only K4A serves). Returning
+    // null is the correct behavior when no in-corridor halte is in
+    // walkable range — the UI shows "no route" instead of a lie.
     destHalte = nearbyHalte(graph, dest, WALK_IN_RADIUS_M)
-    if (destKors && destKors.length) {
-      const allow = new Set(destKors)
-      const filtered = destHalte.filter((x) => allow.has(x.node.kor))
-      if (filtered.length) destHalte = filtered
-    }
+    if (allow) destHalte = destHalte.filter((x) => allow.has(x.node.kor))
   }
   if (!originHalte.length || !destHalte.length) return null
 
@@ -342,15 +339,18 @@ function shortestPath(
     if (cur.node === DEST) break
     if (cur.weight !== dist.get(cur.node)) continue
 
-    const outEdges: Edge[] = cur.node === START
-      ? [...walkOut.values()]
-      : (graph.adj.get(cur.node) ?? [])
-
-    // The walk-into-dest edge applies to any halte node that's within
-    // walking radius of the destination.
-    if (cur.node !== START) {
-      const w = walkIn.get(cur.node)
-      if (w) outEdges.push(w)
+    // Read the base adjacency from the graph but NEVER push into it —
+    // graph.adj is shared across plan() calls in the worker, and a
+    // stray push of a walkIn edge pointing at __dest__ would leak into
+    // the next search (where __dest__ means a different point), then
+    // produce 0-min "teleport" plans or filter-rejected ones.
+    const w = cur.node !== START ? walkIn.get(cur.node) : undefined
+    let outEdges: Edge[]
+    if (cur.node === START) {
+      outEdges = [...walkOut.values()]
+    } else {
+      const base = graph.adj.get(cur.node) ?? []
+      outEdges = w ? [...base, w] : base
     }
 
     for (const edge of outEdges) {
@@ -449,6 +449,30 @@ function collapseToSteps(
  *  run shortestPath, then iteratively forbid one edge from each prior
  *  result and re-search. Good enough at our graph size — for 50 nodes
  *  and K ≤ 5 the total work is microseconds. */
+/** Belt-and-suspenders check: the LAST ride must be on a corridor that
+ *  serves the destination. Any plan that ends on a different corridor
+ *  was a Dijkstra escape hatch — usually a synth-bridge or transfer
+ *  edge that crossed corridor boundaries without leaving the user at
+ *  the destination's actual stop. Reject it. */
+function lastRideOnDestKor(result: PlanResult, destKors: string[]): boolean {
+  if (!destKors.length) return true
+  const rides = result.steps.filter((s) => s.kind === 'ride' && s.kor)
+  if (!rides.length) {
+    // Walk-only plan: only valid when the user really IS within walking
+    // range of the destination's corridor (no ride needed). For that to
+    // be true the total walk must be tiny — anything over the
+    // walk-OUT radius means we'd be asking the user to walk across the
+    // city instead of riding.
+    return result.totalWalkM <= WALK_OUT_RADIUS_M
+  }
+  const last = rides[rides.length - 1]
+  return !!last.kor && destKors.includes(last.kor)
+}
+
+/** Top-K shortest distinct plans via a simplified Yen-style search:
+ *  run shortestPath, then iteratively forbid one edge from each prior
+ *  result and re-search. Good enough at our graph size — for 50 nodes
+ *  and K ≤ 5 the total work is microseconds. */
 export function planTrip(
   graph: Graph,
   origin: LatLng,
@@ -458,10 +482,23 @@ export function planTrip(
 ): PlanResult[] {
   const out: PlanResult[] = []
   const forbidden = new Set<string>() // `${from}|${to}` keys
+  const allowedKors = destKors ?? []
 
-  for (let attempt = 0; attempt < k; attempt++) {
+  for (let attempt = 0; attempt < k * 2; attempt++) {
     const result = shortestPathWithForbidden(graph, origin, dest, forbidden, destKors)
     if (!result) break
+
+    // Reject plans whose last ride leaves the user off the destination's
+    // corridor — that's the 'K1 to PGM, then swim' bug. Forbid that
+    // corridor and try again.
+    if (allowedKors.length && !lastRideOnDestKor(result, allowedKors)) {
+      const rides = result.steps.filter((s) => s.kind === 'ride' && s.kor)
+      const lastKor = rides[rides.length - 1]?.kor
+      if (lastKor) forbidden.add(`__ride__|${lastKor}`)
+      else break
+      continue
+    }
+
     if (out.some((r) => sameRoute(r, result))) {
       // Add another forbidden edge and try again
       const firstRide = result.steps.find((s) => s.kind === 'ride')
@@ -470,6 +507,7 @@ export function planTrip(
       continue
     }
     out.push(result)
+    if (out.length >= k) break
     // Forbid the corridor used on the longest ride to nudge diversity
     const longest = result.steps
       .filter((s) => s.kind === 'ride' && s.kor)

@@ -5,10 +5,13 @@
  * heading that shows an ETA — the button is icon-only so it disappears
  * into the layout until the user looks for it.
  */
-import { ref } from 'vue'
+import { ref, useAttrs } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+defineOptions({ inheritAttrs: false })
+
 const { t } = useI18n()
+const attrs = useAttrs()
 const open = ref(false)
 
 function show() {
@@ -22,7 +25,7 @@ function close() {
 <template>
   <button
     type="button"
-    class="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-bnc-stone-400 transition-colors hover:bg-bnc-stone-100 hover:text-bnc-accent dark:hover:bg-bnc-stone-800"
+    :class="['inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-bnc-stone-400 transition-colors hover:bg-bnc-stone-100 hover:text-bnc-accent dark:hover:bg-bnc-stone-800', attrs.class]"
     :aria-label="t('etaGuide.open')"
     :title="t('etaGuide.open')"
     @click.stop="show"
