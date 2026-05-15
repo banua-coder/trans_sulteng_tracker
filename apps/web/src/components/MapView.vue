@@ -530,21 +530,26 @@ function tripPlanHalteNames(): Set<string> | null {
   return names
 }
 
-/** Buses the user can actually catch for the active trip plan.
+/** Buses the user can catch for the active trip plan.
  *
- *  Boarding halte naming is unreliable across corridors — the same
- *  physical transfer point shows up as "TRANSFERPOINT BALAIKOTA B"
- *  on K2B and plain "TRANSFERPOINT BALAIKOTA" on K2A. Matching by
- *  sh_name would silently drop every K2A bus from the rideable set
- *  on a B → PGM plan. Match by coordinates instead: pin the plan
- *  step's boarding + alighting halte to lat/lng via the bulk feed,
- *  then for each corridor leg find the closest halte to each pin
- *  and accept the leg whose boarding index < alighting index. A bus
- *  on that corridor + direction whose busLegProgress hasn't yet
- *  passed the boarding index is one the user can still catch.
+ *  For each ride step, pin the boarding halte to lat/lng (matching
+ *  by sh_name in the bulk feed; coordinates are stable across the
+ *  multi-corridor naming drift like 'TRANSFERPOINT BALAIKOTA' vs
+ *  'TRANSFERPOINT BALAIKOTA B'). Then for every bus on the step's
+ *  corridor, walk its OWN leg (using bus.toward, not the plan's
+ *  direction) and accept it if a halte within MATCH_RADIUS_M of the
+ *  boarding pin appears at or after the bus's busLegProgress.
  *
- *  Returns null when no plan is selected so callers can fall back
- *  to the normal corridor-focus visibility rules. */
+ *  Why direction-agnostic: this is the same rule the trip-step
+ *  disclosure in TripDetailPanel uses, so the map dots and the
+ *  panel rows stay consistent. It also handles the terminus
+ *  boarding case where a K2B bus inbound to TRANSFERPOINT BALAIKOTA
+ *  B (the K2B forward-leg origin) on the reverse leg will turn
+ *  around at the terminus and serve the user — those buses show up
+ *  in the panel and need to show up on the map.
+ *
+ *  Returns null when no plan is selected so callers fall back to
+ *  the normal corridor-focus visibility rules. */
 const tripPlanRideableBuses = computed<Set<string> | null>(() => {
   const plan = tripSelectedPlan.value
   if (!plan) return null
@@ -559,68 +564,50 @@ const tripPlanRideableBuses = computed<Set<string> | null>(() => {
     return null
   }
 
-  // Tolerance for matching a plan halte to a corridor leg's halte by
-  // distance. 200 m forgives the small lat/lng drift between rows
+  // Build a (kor → boarding coord) map for the plan's ride steps.
+  // Several rides can share a corridor (rare but legal), so use an
+  // array of candidate coords keyed by kor.
+  const boardingsByKor = new Map<string, Array<{ lat: number; lng: number }>>()
+  for (const step of plan.steps) {
+    if (step.kind !== 'ride' || !step.kor) continue
+    const coord = coordFor(step.fromName)
+    if (!coord) continue
+    const arr = boardingsByKor.get(step.kor) ?? []
+    arr.push(coord)
+    boardingsByKor.set(step.kor, arr)
+  }
+  if (!boardingsByKor.size) return new Set()
+
+  // 200 m forgives the small lat/lng drift between bulk-feed rows
   // representing the same physical stop across corridors.
   const MATCH_RADIUS_M = 200
 
-  function nearestIdx(
-    leg: import('@/types/brt').BrtHalte[],
-    pt: { lat: number; lng: number },
-  ): { idx: number; dist: number } {
-    let bestIdx = -1
-    let bestDist = Infinity
-    for (let i = 0; i < leg.length; i++) {
+  const rideable = new Set<string>()
+  for (const bus of brt.buses.values()) {
+    const boardings = boardingsByKor.get(bus.kor)
+    if (!boardings || !boardings.length) continue
+    const corridor = brt.corridorByKor.get(bus.kor)
+    if (!corridor) continue
+
+    const originName = bus.toward === corridor.toward ? corridor.origin : corridor.toward
+    const leg = brt.getHalteForLeg(bus.kor, bus.toward, originName)
+    if (!leg.length) continue
+
+    const progressIdx = busLegProgress(bus, leg)
+
+    // Does any boarding halte on this corridor lie at or after the
+    // bus's current progress along its own leg?
+    outer:
+    for (let i = progressIdx; i < leg.length; i++) {
       const h = leg[i]
       const lat = parseFloat(h.sh_lat)
       const lng = parseFloat(h.sh_lng)
       if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue
-      const d = haversineMeters(pt, { lat, lng })
-      if (d < bestDist) { bestDist = d; bestIdx = i }
-    }
-    return { idx: bestIdx, dist: bestDist }
-  }
-
-  const rideable = new Set<string>()
-  for (const step of plan.steps) {
-    if (step.kind !== 'ride' || !step.kor) continue
-    const corridor = brt.corridorByKor.get(step.kor)
-    if (!corridor) continue
-
-    const fromCoord = coordFor(step.fromName)
-    const toCoord = coordFor(step.toName)
-    if (!fromCoord || !toCoord) continue
-
-    const legA = brt.getHalteForLeg(step.kor, corridor.toward, corridor.origin)
-    const legB = brt.getHalteForLeg(step.kor, corridor.origin, corridor.toward)
-
-    let planLeg: import('@/types/brt').BrtHalte[] | null = null
-    let planLegToward: string | null = null
-    let boardingIdx = -1
-    for (const candidate of [legA, legB]) {
-      if (!candidate.length) continue
-      const fromNear = nearestIdx(candidate, fromCoord)
-      const toNear = nearestIdx(candidate, toCoord)
-      if (fromNear.idx < 0 || toNear.idx < 0) continue
-      if (fromNear.dist > MATCH_RADIUS_M || toNear.dist > MATCH_RADIUS_M) continue
-      if (fromNear.idx < toNear.idx) {
-        planLeg = candidate
-        planLegToward = candidate[0]?.toward ?? null
-        boardingIdx = fromNear.idx
-        break
-      }
-    }
-    if (!planLeg || !planLegToward) continue
-
-    for (const bus of brt.buses.values()) {
-      if (bus.kor !== step.kor) continue
-      if (bus.toward !== planLegToward) continue
-      const progressIdx = busLegProgress(bus, planLeg)
-      // Bus is rideable when its next stop is still at or before the
-      // boarding halte — once it's past, the user can't board this
-      // run of the bus on this leg.
-      if (progressIdx <= boardingIdx) {
-        rideable.add(bus.imei || bus.id)
+      for (const board of boardings) {
+        if (haversineMeters(board, { lat, lng }) <= MATCH_RADIUS_M) {
+          rideable.add(bus.imei || bus.id)
+          break outer
+        }
       }
     }
   }
