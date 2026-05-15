@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
 import { useSelectionStore } from '@/stores/selection'
 import { useBrtStore } from '@/stores/brt'
-import { etaToHalte, formatDistance, formatSpeed, getEtaQuality, haversineMeters, isStale, parsePassenger } from '@/lib/format'
+import { busLegProgress, etaToHalte, formatDistance, formatSpeed, getEtaQuality, haversineMeters, isStale, parsePassenger } from '@/lib/format'
 import CopyLinkButton from '@/components/CopyLinkButton.vue'
 import PlateBadge from '@/components/PlateBadge.vue'
 import EtaQualityGuide from '@/components/EtaQualityGuide.vue'
@@ -25,6 +25,31 @@ onMounted(() => {
 onBeforeUnmount(() => {
   if (timer) window.clearInterval(timer)
 })
+
+// Once a halte is selected, eagerly pull both legs of every corridor
+// that serves it. The new busLegProgress lookup walks per-leg halte to
+// decide whether an approaching bus's path passes this stop; bulk-feed
+// fallbacks lose the terminus halte (Donggala's Wisma Donggala is in
+// the reverse leg only), so without these fetches the forward-leg
+// progress check would silently fail and the bus would disappear from
+// the incoming list while it's between 80 m and ~1 km away.
+watch(
+  selectedHalte,
+  (halte) => {
+    if (!halte) return
+    const kors = new Set<string>([halte.kor])
+    if (halte.in_koridor) {
+      for (const k of halte.in_koridor.split('|').filter(Boolean)) kors.add(k)
+    }
+    for (const kor of kors) {
+      const c = brt.corridorByKor.get(kor)
+      if (!c) continue
+      brt.ensureHalteForLeg(kor, c.toward, c.origin).catch(() => {})
+      brt.ensureHalteForLeg(kor, c.origin, c.toward).catch(() => {})
+    }
+  },
+  { immediate: true },
+)
 
 interface Arrival {
   bus: BrtBus
@@ -95,10 +120,34 @@ const arrivals = computed<Arrival[]>(() => {
   const seen = new Set<string>()
   const candidates: Arrival[] = []
   for (const bus of brt.buses.values()) {
-    const headingHere = !!bus.new_shel_t && shIds.has(bus.new_shel_t)
+    if (!allowedKors.has(bus.kor)) continue
+
+    // Don't trust new_shel_t alone — upstream lags and terminus halte
+    // appear in both legs with the same sh_id, so a bus parked at the
+    // turnaround stays "pointing" at it forever. Compute the bus's
+    // actual leg progress from GPS instead, then check if THIS halte
+    // is anywhere on its upcoming-stop list.
+    let headingHere = false
+    const corridor = brt.corridorByKor.get(bus.kor)
+    if (corridor) {
+      const originName = bus.toward === corridor.toward ? corridor.origin : corridor.toward
+      const leg = brt.getHalteForLeg(bus.kor, bus.toward, originName)
+      if (leg.length) {
+        const progressIdx = busLegProgress(bus, leg)
+        for (let i = progressIdx; i < leg.length; i++) {
+          if (shIds.has(leg[i].sh_id)) { headingHere = true; break }
+        }
+      }
+    }
+    // Fallback when leg data isn't loaded yet — preserve the old check
+    // so the card isn't blank during the brief window before per-leg
+    // halte arrive.
+    if (!headingHere && !!bus.new_shel_t && shIds.has(bus.new_shel_t)) {
+      headingHere = true
+    }
+
     let nearby = false
-    if (!headingHere && halteCoord && allowedKors.has(bus.kor)
-        && Number.isFinite(bus.lat) && Number.isFinite(bus.lng)) {
+    if (halteCoord && Number.isFinite(bus.lat) && Number.isFinite(bus.lng)) {
       const d = haversineMeters(halteCoord, { lat: Number(bus.lat), lng: Number(bus.lng) })
       nearby = d <= AT_STOP_RADIUS_M
     }
@@ -107,12 +156,24 @@ const arrivals = computed<Arrival[]>(() => {
     if (seen.has(key)) continue
     seen.add(key)
 
-    const targetHalte = (bus.new_shel_t && brt.halte.find((h) => h.sh_id === bus.new_shel_t)) || halte
-    const eta = etaToHalte(bus, targetHalte)
+    // ETA: haversine from bus to THIS halte (dist_shel from upstream
+    // applies to new_shel_t, not necessarily to this halte). Only
+    // populate when actually headed here — at-stop reads 0.
+    let etaMin: number | null = null
+    let distM: number | null = null
+    if (headingHere && !nearby && halteCoord
+        && Number.isFinite(bus.lat) && Number.isFinite(bus.lng)) {
+      const eta = etaToHalte(
+        { lat: Number(bus.lat), lng: Number(bus.lng), speed: bus.speed, dist_shel: null },
+        halte,
+      )
+      distM = eta?.distM ?? null
+      etaMin = eta?.etaMin ?? null
+    }
     candidates.push({
       bus,
-      etaMin: headingHere ? (eta?.etaMin ?? null) : 0,
-      distM: headingHere ? (eta?.distM ?? null) : 0,
+      etaMin: nearby ? 0 : etaMin,
+      distM: nearby ? 0 : distM,
       fresh: !isStale(bus),
       corridorColor: brt.colorForKor(bus.kor) || '#0EA5E9',
       quality: getEtaQuality(bus),
