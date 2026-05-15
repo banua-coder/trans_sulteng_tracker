@@ -2,11 +2,3 @@
 channel = "stable"
 profile = "minimal"
 components = ["rustfmt", "clippy"]
-# The release Dockerfile compiles a static musl binary. Pinning the
-# target here makes rustup auto-install it the first time the
-# toolchain activates inside the build stage — without this the
-# `rustup target add` in proxy.Dockerfile runs against the base
-# image's toolchain but cargo immediately switches to whatever this
-# file pins (latest stable) and tries to build for a target that
-# isn't installed.
-targets = ["x86_64-unknown-linux-musl"]

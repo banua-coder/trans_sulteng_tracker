@@ -21,16 +21,12 @@ tower-http = { version = "0.6", features = ["cors", "trace", "compression-gzip",
 # REST client. rustls-tls (not native-tls) is musl-friendly.
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json", "gzip"] }
 
-# Realtime
+# Realtime — rust_socketio 0.6 depends on native-tls, which links
+# OpenSSL. Alpine's openssl-libs-static provides a musl-built static
+# OpenSSL the release Dockerfile uses; no special features needed
+# here.
 socketioxide = { version = "0.15", features = ["state"] }
-# rust_socketio 0.6 pulls native-tls (no rustls feature exists on the
-# crate). The release Dockerfile cross-compiles to x86_64-unknown-linux-musl,
-# where native-tls's underlying openssl-sys cannot find a musl-built
-# OpenSSL. Forcing the `vendored` feature builds OpenSSL from source
-# during the musl build — slower but reliable, and the cargo target
-# cache amortises the cost across builds.
 rust_socketio = { version = "0.6", features = ["async"] }
-openssl-sys = { version = "0.9", features = ["vendored"] }
 
 # Crypto for BRT token + bodies
 aes = "0.8"
@@ -81,7 +77,5 @@ opt-level = 0
 debug = true
 
 [package.metadata.cargo-machete]
-# openssl-sys is unused in our code — it's a direct dep only to flip
-# the `vendored` feature on rust_socketio's transitive openssl-sys
-# pull. Without this entry cargo-machete flags it as dead in CI.
-ignored = ["openssl-sys"]
+# Empty for now; placeholder so machete output stays stable in CI.
+ignored = []
