@@ -2,6 +2,18 @@
 
 All notable releases of cektrans are recorded here. Generated automatically by `release-finalize.yml`.
 
+## v0.6.2 — 2026-05-15
+
+### 🐛 Bug Fixes
+
+- fix(proxy): vendor openssl-sys for musl cross-compile (c03b5b7)
+
+### 🧹 Chore
+
+- chore: bump version to 0.6.2 (eae454d)
+
+
+
 ## v0.6.1 — 2026-05-15
 
 ### 🐛 Bug Fixes
