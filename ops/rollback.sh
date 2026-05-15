@@ -11,8 +11,8 @@
 
 set -euo pipefail
 
-STATE_FILE="${STATE_FILE:-/opt/cektrans/.previous-version}"
-LAST_DEPLOY_FILE="${LAST_DEPLOY_FILE:-/opt/cektrans/.last-deploy-at}"
+STATE_FILE="${STATE_FILE:-$PWD/.previous-version}"
+LAST_DEPLOY_FILE="${LAST_DEPLOY_FILE:-$PWD/.last-deploy-at}"
 HEALTH_TIMEOUT="${HEALTH_TIMEOUT:-60}"
 
 if [[ ! -f "$STATE_FILE" ]]; then
