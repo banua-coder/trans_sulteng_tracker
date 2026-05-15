@@ -2,6 +2,18 @@
 
 All notable releases of cektrans are recorded here. Generated automatically by `release-finalize.yml`.
 
+## v0.6.4 — 2026-05-15
+
+### 🐛 Bug Fixes
+
+- fix(deploy): use $PWD-relative state paths + mkdir -p the parent (23b40fa)
+
+### 🧹 Chore
+
+- chore: bump version to 0.6.4 (470d516)
+
+
+
 ## v0.6.3 — 2026-05-15
 
 ### 🐛 Bug Fixes

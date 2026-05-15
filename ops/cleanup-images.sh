@@ -18,7 +18,7 @@
 
 set -euo pipefail
 
-LAST_DEPLOY_FILE="${LAST_DEPLOY_FILE:-/opt/cektrans/.last-deploy-at}"
+LAST_DEPLOY_FILE="${LAST_DEPLOY_FILE:-$PWD/.last-deploy-at}"
 WINDOW="${ROLLBACK_WINDOW_SECONDS:-86400}"
 NOW=$(date -u +%s)
 
