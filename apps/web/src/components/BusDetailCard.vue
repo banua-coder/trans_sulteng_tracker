@@ -4,7 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
 import { useSelectionStore } from '@/stores/selection'
 import { useBrtStore } from '@/stores/brt'
-import { ageSeconds, etaToHalte, formatAge, formatSpeed, getEtaQuality, haversineMeters, isStale, parsePassenger } from '@/lib/format'
+import { ageSeconds, busLegProgress, etaToHalte, formatAge, formatSpeed, getEtaQuality, haversineMeters, isStale, parsePassenger } from '@/lib/format'
 import CopyLinkButton from '@/components/CopyLinkButton.vue'
 import PlateBadge from '@/components/PlateBadge.vue'
 import EtaQualityGuide from '@/components/EtaQualityGuide.vue'
@@ -83,10 +83,14 @@ const upcomingStops = computed<UpcomingStop[]>(() => {
   const originName = bus.toward === corridor.toward ? corridor.origin : corridor.toward
   const orderedHalte = brt.getHalteForLeg(bus.kor, bus.toward, originName)
 
-  const startIdx = bus.new_shel_t
-    ? orderedHalte.findIndex((h) => h.sh_id === bus.new_shel_t)
-    : -1
-  const slice = startIdx >= 0 ? orderedHalte.slice(startIdx) : orderedHalte.slice(0, 1)
+  // Find the next halte by GPS, not by new_shel_t — upstream's stop
+  // pointer lags so badly at terminus halte (e.g. Wisma Donggala,
+  // which appears in both legs with the same sh_id) that a bus parked
+  // at the turnaround keeps reporting it as "next stop" forever, then
+  // the slice from new_shel_t includes every halte the bus already
+  // passed on the previous leg.
+  const startIdx = busLegProgress(bus, orderedHalte)
+  const slice = orderedHalte.length ? orderedHalte.slice(startIdx) : []
 
   // Show every upcoming stop through the corridor's terminus — user
   // wants the full ride visible, not just the next handful.

@@ -1,6 +1,6 @@
 /** Time + speed + distance formatters used across the UI. */
 
-import type { BrtBus } from '@/types/brt'
+import type { BrtBus, BrtHalte } from '@/types/brt'
 
 /** Parse the upstream `dt_tracker` / `dt_server` strings.
  *
@@ -167,6 +167,70 @@ export function getEtaQuality(b: BrtBus | null | undefined): 'good' | 'warn' | '
   const speed = Number.isFinite(b.speed) ? Number(b.speed) : 0
   if (speed >= 5) return 'good'
   return 'warn'
+}
+
+/** Index of the next halte the bus will visit along its current leg.
+ *
+ *  We can't trust `bus.new_shel_t` alone: upstream updates it only when
+ *  the bus reaches a stop, so a bus that has driven past a halte still
+ *  reports the halte it just left. Worse, terminus halte (Donggala's
+ *  Wisma Donggala, Pantoloan, etc.) appear in BOTH leg directions with
+ *  the same `sh_id`, so a bus parked at the terminus stays "pointing"
+ *  at it forever even after it's started the reverse leg.
+ *
+ *  The fix: find the halte whose coords are closest to the bus's
+ *  current GPS, then check whether the bus is approaching it or has
+ *  already passed it (i.e. is the NEXT halte closer than the closest?).
+ *  Returns the leg index the bus is heading toward — never one it has
+ *  already passed.
+ *
+ *  Falls back to the `new_shel_t` index when GPS is missing. */
+export function busLegProgress(
+  bus: Pick<BrtBus, 'lat' | 'lng' | 'new_shel_t'>,
+  orderedHalte: BrtHalte[],
+): number {
+  if (!orderedHalte.length) return 0
+
+  const hasGps = Number.isFinite(bus.lat) && Number.isFinite(bus.lng)
+  if (!hasGps) {
+    if (bus.new_shel_t) {
+      const idx = orderedHalte.findIndex((h) => h.sh_id === bus.new_shel_t)
+      if (idx >= 0) return idx
+    }
+    return 0
+  }
+
+  const busPt = { lat: bus.lat as number, lng: bus.lng as number }
+  let closestIdx = 0
+  let closestDist = Infinity
+  const dists: number[] = new Array(orderedHalte.length)
+  for (let i = 0; i < orderedHalte.length; i++) {
+    const h = orderedHalte[i]
+    const hLat = parseFloat(h.sh_lat)
+    const hLng = parseFloat(h.sh_lng)
+    if (!Number.isFinite(hLat) || !Number.isFinite(hLng)) {
+      dists[i] = Infinity
+      continue
+    }
+    const d = haversineMeters(busPt, { lat: hLat, lng: hLng })
+    dists[i] = d
+    if (d < closestDist) {
+      closestDist = d
+      closestIdx = i
+    }
+  }
+
+  // Bus past closestIdx? If the NEXT halte on the leg is closer to the
+  // bus than the closest itself, the bus has driven past closestIdx and
+  // closestIdx+1 is the real upcoming stop. Otherwise the bus is still
+  // approaching closestIdx (or parked at it) and that's the upcoming.
+  if (closestIdx < orderedHalte.length - 1) {
+    const distNext = dists[closestIdx + 1]
+    if (Number.isFinite(distNext) && distNext < closestDist) {
+      return closestIdx + 1
+    }
+  }
+  return closestIdx
 }
 
 /** Haversine distance in metres between two lat/lng points. */
