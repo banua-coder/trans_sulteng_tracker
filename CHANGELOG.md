@@ -2,6 +2,18 @@
 
 All notable releases of cektrans are recorded here. Generated automatically by `release-finalize.yml`.
 
+## v0.6.5 — 2026-05-15
+
+### 🐛 Bug Fixes
+
+- fix(deploy): drop curl healthcheck (distroless has no curl) (722926d)
+
+### 🧹 Chore
+
+- chore: bump version to 0.6.5 (64f8321)
+
+
+
 ## v0.6.4 — 2026-05-15
 
 ### 🐛 Bug Fixes

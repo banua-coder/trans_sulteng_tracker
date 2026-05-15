@@ -25,8 +25,13 @@ services:
     networks:
       - traefik-public
     depends_on:
+      # service_started, not service_healthy: the proxy now runs on
+      # gcr.io/distroless/static-debian12 which has no shell, curl, or
+      # wget, so the previous `CMD curl` healthcheck was impossible to
+      # satisfy. Traefik probes the public endpoint and routes only to
+      # healthy upstreams, so docker-level health is redundant.
       proxy:
-        condition: service_healthy
+        condition: service_started
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=traefik-public"
@@ -51,12 +56,10 @@ services:
       RUST_LOG: ${RUST_LOG:-info}
     networks:
       - traefik-public
-    healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://localhost:8080/api/health"]
-      interval: 30s
-      timeout: 3s
-      retries: 3
-      start_period: 5s
+    # No healthcheck — the runtime is distroless/static-debian12 which
+    # has no curl, wget, nc, or shell. Traefik probes /api/health on
+    # the public endpoint via the smoke job, and the deploy script's
+    # health gate now polls container state instead of compose health.
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=traefik-public"
