@@ -190,8 +190,8 @@ function pad(n: number) {
         class="flex-1 truncate px-2 pb-1.5 pt-1 font-mono text-[10px] font-bold uppercase tracking-wider transition-colors"
         :class="
           direction === 'a'
-            ? 'border-b-2 border-bnc-primary text-bnc-primary'
-            : 'text-bnc-stone-500 hover:text-bnc-stone-700 dark:hover:text-bnc-stone-300'
+            ? 'border-b-2 border-bnc-primary text-bnc-primary dark:border-bnc-accent dark:text-bnc-accent'
+            : 'text-bnc-stone-500 hover:text-bnc-stone-700 dark:hover:text-bnc-stone-200'
         "
         @click="focus.setDirection('a')"
       >
@@ -203,8 +203,8 @@ function pad(n: number) {
         class="flex-1 truncate px-2 pb-1.5 pt-1 font-mono text-[10px] font-bold uppercase tracking-wider transition-colors"
         :class="
           direction === 'b'
-            ? 'border-b-2 border-bnc-primary text-bnc-primary'
-            : 'text-bnc-stone-500 hover:text-bnc-stone-700 dark:hover:text-bnc-stone-300'
+            ? 'border-b-2 border-bnc-primary text-bnc-primary dark:border-bnc-accent dark:text-bnc-accent'
+            : 'text-bnc-stone-500 hover:text-bnc-stone-700 dark:hover:text-bnc-stone-200'
         "
         @click="focus.setDirection('b')"
       >

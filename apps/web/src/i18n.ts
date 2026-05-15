@@ -139,6 +139,9 @@ export const messages = {
       transfer: 'Ganti koridor',
       totalTime: 'Total waktu',
       totalDistance: 'Total jarak',
+      upcomingBusesAt: 'Bus menuju {halte}',
+      upcomingBusesNone: 'Belum ada bus terdekat',
+      busesCount: 'bus',
     },
     nearby: {
       title: 'Halte terdekat',
@@ -290,6 +293,9 @@ export const messages = {
       transfer: 'Switch corridor',
       totalTime: 'Total time',
       totalDistance: 'Total distance',
+      upcomingBusesAt: 'Buses to {halte}',
+      upcomingBusesNone: 'No buses nearby yet',
+      busesCount: 'buses',
     },
     nearby: {
       title: 'Nearby stops',
