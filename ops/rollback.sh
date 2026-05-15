@@ -40,27 +40,19 @@ docker pull "$PROXY_IMAGE" || true
 docker compose -f docker-compose.yml up -d
 
 echo
-echo "── waiting for proxy to stay up (timeout: ${HEALTH_TIMEOUT}s) ──"
-# Same rationale as deploy.sh: distroless has no healthcheck primitive.
-# Treat 5 consecutive seconds of "running" as healthy.
-stable=0
+echo "── waiting for proxy to report healthy (timeout: ${HEALTH_TIMEOUT}s) ──"
 for i in $(seq 1 "$HEALTH_TIMEOUT"); do
-  state=$(docker inspect --format '{{.State.Status}}' cektrans-proxy-1 2>/dev/null || echo unknown)
-  if [[ "$state" == "running" ]]; then
-    stable=$(( stable + 1 ))
-    if (( stable >= 5 )); then
-      echo "  rollback stable after ${i}s"
-      # Clear the deploy timestamp — the rolled-back image is now the
-      # safety target. The next deploy will snapshot it fresh.
-      rm -f "$LAST_DEPLOY_FILE"
-      echo "rollback ok."
-      exit 0
-    fi
-  else
-    stable=0
+  status=$(docker inspect --format '{{.State.Health.Status}}' cektrans-proxy-1 2>/dev/null || echo unknown)
+  if [[ "$status" == "healthy" ]]; then
+    echo "  rollback healthy after ${i}s"
+    # Clear the deploy timestamp — the rolled-back image is now the
+    # safety target. The next deploy will snapshot it fresh.
+    rm -f "$LAST_DEPLOY_FILE"
+    echo "rollback ok."
+    exit 0
   fi
   sleep 1
 done
 
-echo "::error::rollback proxy never stayed up for 5s within ${HEALTH_TIMEOUT}s"
+echo "::error::rollback failed to reach healthy state within ${HEALTH_TIMEOUT}s"
 exit 1
