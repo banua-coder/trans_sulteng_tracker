@@ -1,38 +1,25 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
 import { useSelectionStore } from '@/stores/selection'
 import { useBrtStore } from '@/stores/brt'
-import { busLegProgress, etaToHalte, formatDistance, formatSpeed, getEtaQuality, haversineMeters, isStale, parsePassenger } from '@/lib/format'
+import { formatDistance, formatSpeed, parsePassenger } from '@/lib/format'
 import CopyLinkButton from '@/components/CopyLinkButton.vue'
 import PlateBadge from '@/components/PlateBadge.vue'
 import EtaQualityGuide from '@/components/EtaQualityGuide.vue'
-import type { BrtBus } from '@/types/brt'
 
 const { t } = useI18n()
 const selection = useSelectionStore()
 const brt = useBrtStore()
 const { selectedHalte } = storeToRefs(selection)
 
-const tick = ref(0)
-let timer: number | undefined
-onMounted(() => {
-  timer = window.setInterval(() => {
-    tick.value += 1
-  }, 15_000)
-})
-onBeforeUnmount(() => {
-  if (timer) window.clearInterval(timer)
-})
-
 // Once a halte is selected, eagerly pull both legs of every corridor
-// that serves it. The new busLegProgress lookup walks per-leg halte to
-// decide whether an approaching bus's path passes this stop; bulk-feed
-// fallbacks lose the terminus halte (Donggala's Wisma Donggala is in
-// the reverse leg only), so without these fetches the forward-leg
-// progress check would silently fail and the bus would disappear from
-// the incoming list while it's between 80 m and ~1 km away.
+// that serves it. The store's incomingBusesForHalte selector walks
+// per-leg halte to decide whether an approaching bus's path passes
+// this stop; bulk-feed fallbacks lose the terminus halte (Donggala's
+// Wisma Donggala is in the reverse leg only), so without these
+// fetches the forward-leg progress check would silently fail.
 watch(
   selectedHalte,
   (halte) => {
@@ -51,20 +38,9 @@ watch(
   { immediate: true },
 )
 
-interface Arrival {
-  bus: BrtBus
-  etaMin: number | null
-  distM: number | null
-  fresh: boolean
-  corridorColor: string
-  quality: 'good' | 'warn' | 'stale'
-  /** True when the bus is currently AT the stop (within ~80 m)
-   *  regardless of where new_shel_t says it's heading next. Some
-   *  transfer points (e.g. BALAIKOTA B) sit between corridors and
-   *  buses parked here often have new_shel_t pointing to a different
-   *  halte entirely — without this flag they'd be invisible. */
-  atStop: boolean
-}
+// Derived data lives in the brt store — this component is a pure
+// renderer over `arrivals`.
+const arrivals = brt.incomingBusesForHalte(selectedHalte)
 
 const corridorsAtHalte = computed(() => {
   const halte = selectedHalte.value
@@ -87,118 +63,8 @@ const corridorsAtHalte = computed(() => {
   return result
 })
 
-/** How close a bus has to be to count as "at this halte" when its
- *  new_shel_t says otherwise. 80 m covers GPS jitter + a parked bus
- *  pulled up against the curb. */
-const AT_STOP_RADIUS_M = 80
-
-const arrivals = computed<Arrival[]>(() => {
-  void tick.value
-  const halte = selectedHalte.value
-  if (!halte) return []
-
-  // Collect sh_ids for all halte records sharing this physical stop (same name).
-  const shIds = new Set(
-    brt.halte
-      .filter((h) => h.sh_name === halte.sh_name)
-      .map((h) => h.sh_id),
-  )
-  // Allowed corridors for this halte — buses on other corridors are
-  // irrelevant even if physically nearby (different route entirely).
-  const allowedKors = new Set<string>()
-  allowedKors.add(halte.kor)
-  if (halte.in_koridor) {
-    for (const k of halte.in_koridor.split('|').filter(Boolean)) allowedKors.add(k)
-  }
-
-  const halteLat = parseFloat(halte.sh_lat)
-  const halteLng = parseFloat(halte.sh_lng)
-  const halteCoord = Number.isFinite(halteLat) && Number.isFinite(halteLng)
-    ? { lat: halteLat, lng: halteLng }
-    : null
-
-  const seen = new Set<string>()
-  const candidates: Arrival[] = []
-  for (const bus of brt.buses.values()) {
-    if (!allowedKors.has(bus.kor)) continue
-
-    // Don't trust new_shel_t alone — upstream lags and terminus halte
-    // appear in both legs with the same sh_id, so a bus parked at the
-    // turnaround stays "pointing" at it forever. Compute the bus's
-    // actual leg progress from GPS instead, then check if THIS halte
-    // is anywhere on its upcoming-stop list.
-    let headingHere = false
-    const corridor = brt.corridorByKor.get(bus.kor)
-    if (corridor) {
-      const originName = bus.toward === corridor.toward ? corridor.origin : corridor.toward
-      const leg = brt.getHalteForLeg(bus.kor, bus.toward, originName)
-      if (leg.length) {
-        const progressIdx = busLegProgress(bus, leg)
-        for (let i = progressIdx; i < leg.length; i++) {
-          if (shIds.has(leg[i].sh_id)) { headingHere = true; break }
-        }
-      }
-    }
-    // Fallback when leg data isn't loaded yet — preserve the old check
-    // so the card isn't blank during the brief window before per-leg
-    // halte arrive.
-    if (!headingHere && !!bus.new_shel_t && shIds.has(bus.new_shel_t)) {
-      headingHere = true
-    }
-
-    let nearby = false
-    if (halteCoord && Number.isFinite(bus.lat) && Number.isFinite(bus.lng)) {
-      const d = haversineMeters(halteCoord, { lat: Number(bus.lat), lng: Number(bus.lng) })
-      nearby = d <= AT_STOP_RADIUS_M
-    }
-    if (!headingHere && !nearby) continue
-    const key = bus.imei || bus.id
-    if (seen.has(key)) continue
-    seen.add(key)
-
-    // ETA: haversine from bus to THIS halte (dist_shel from upstream
-    // applies to new_shel_t, not necessarily to this halte). Only
-    // populate when actually headed here — at-stop reads 0.
-    let etaMin: number | null = null
-    let distM: number | null = null
-    if (headingHere && !nearby && halteCoord
-        && Number.isFinite(bus.lat) && Number.isFinite(bus.lng)) {
-      const eta = etaToHalte(
-        { lat: Number(bus.lat), lng: Number(bus.lng), speed: bus.speed, dist_shel: null },
-        halte,
-      )
-      distM = eta?.distM ?? null
-      etaMin = eta?.etaMin ?? null
-    }
-    candidates.push({
-      bus,
-      etaMin: nearby ? 0 : etaMin,
-      distM: nearby ? 0 : distM,
-      fresh: !isStale(bus),
-      corridorColor: brt.colorForKor(bus.kor) || '#0EA5E9',
-      quality: getEtaQuality(bus),
-      atStop: nearby,
-    })
-  }
-  candidates.sort((a, b) => {
-    // At-stop buses first; then approaching by ETA ascending; unknowns last.
-    if (a.atStop !== b.atStop) return a.atStop ? -1 : 1
-    if (a.etaMin == null && b.etaMin == null) return 0
-    if (a.etaMin == null) return 1
-    if (b.etaMin == null) return -1
-    return a.etaMin - b.etaMin
-  })
-  return candidates
-})
-
 function pickBus(imei: string) {
   selection.selectBus(imei)
-}
-
-function wallClockFor(etaMin: number): string {
-  const d = new Date(Date.now() + Math.max(0, etaMin) * 60_000)
-  const pad = (n: number) => (n < 10 ? `0${n}` : String(n))
-  return `${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
 function openDirections() {
@@ -355,10 +221,10 @@ function openDirections() {
                   <template v-else>—</template>
                 </span>
                 <span
-                  v-if="a.etaMin != null"
+                  v-if="a.arrivalAt"
                   class="font-mono text-[10px] tabular-nums text-bnc-stone-500"
                 >
-                  {{ wallClockFor(a.etaMin) }}
+                  {{ a.arrivalAt }}
                 </span>
               </span>
             </button>

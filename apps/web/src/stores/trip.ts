@@ -4,10 +4,19 @@
  * index. UI components subscribe via storeToRefs.
  */
 import { defineStore } from 'pinia'
-import { computed, ref, watch } from 'vue'
+import { computed, ref, toValue, watch } from 'vue'
+import type { ComputedRef, MaybeRefOrGetter } from 'vue'
 import TripPlannerWorker from '@/workers/tripPlanner.worker?worker'
-import type { LatLng, PlanResult } from '@/lib/tripPlanner'
-import { useBrtStore } from './brt'
+import {
+  busLegProgress,
+  etaToHalte,
+  getEtaQuality,
+  haversineMeters,
+  isStale,
+} from '@/lib/format'
+import type { LatLng, PlanResult, PlanStep } from '@/lib/tripPlanner'
+import type { BrtHalte } from '@/types/brt'
+import { useBrtStore, type IncomingBus } from './brt'
 import { useCityStore } from './city'
 
 export type EndpointKind = 'gps' | 'halte' | 'pin'
@@ -202,6 +211,248 @@ export const useTripStore = defineStore('trip', () => {
     selectedPlanIdx.value != null ? (plans.value[selectedPlanIdx.value] ?? null) : null,
   )
 
+  // ──────────────────────────────────────────────────────────────
+  // Derived selectors for the active plan. These used to live in
+  // MapView / TripDetailPanel; consolidating them here lets the UI
+  // be pure presentation and means store consumers all share the
+  // same memoised results.
+  // ──────────────────────────────────────────────────────────────
+
+  const MATCH_RADIUS_M = 200
+
+  function coordForName(name: string): { lat: number; lng: number } | null {
+    for (const h of brt.halte) {
+      if (h.sh_name !== name) continue
+      const lat = parseFloat(h.sh_lat)
+      const lng = parseFloat(h.sh_lng)
+      if (Number.isFinite(lat) && Number.isFinite(lng)) return { lat, lng }
+    }
+    return null
+  }
+
+  /** Corridor codes the selected plan rides through (ride steps only;
+   *  walks + transfers don't consume corridor visibility). */
+  const planKors = computed<Set<string> | null>(() => {
+    const plan = selectedPlan.value
+    if (!plan) return null
+    const set = new Set<string>()
+    for (const step of plan.steps) {
+      if (step.kind === 'ride' && step.kor) set.add(step.kor)
+    }
+    return set
+  })
+
+  /** sh_name set covering every halte the bus rolls through on the
+   *  plan's actual route. MapView dims out anything not in this set. */
+  const planHalteNames = computed<Set<string> | null>(() => {
+    const plan = selectedPlan.value
+    if (!plan) return null
+    const names = new Set<string>()
+    for (const step of plan.steps) {
+      if (step.kind !== 'ride' || !step.kor) continue
+      const c = brt.corridorByKor.get(step.kor)
+      if (!c) continue
+      const legA = brt.getHalteForLeg(step.kor, c.toward, c.origin)
+      const legB = brt.getHalteForLeg(step.kor, c.origin, c.toward)
+      const collectSlice = (leg: BrtHalte[]): boolean => {
+        const fromIdx = leg.findIndex((h) => h.sh_name === step.fromName)
+        const toIdx = leg.findIndex((h) => h.sh_name === step.toName)
+        if (fromIdx < 0 || toIdx < 0 || fromIdx >= toIdx) return false
+        for (let i = fromIdx; i <= toIdx; i++) names.add(leg[i].sh_name)
+        return true
+      }
+      if (!collectSlice(legA)) collectSlice(legB)
+      // Belt-and-suspenders: include the step endpoints even when the
+      // slice search above missed (transfer-point name drift).
+      names.add(step.fromName)
+      names.add(step.toName)
+    }
+    return names
+  })
+
+  /** Bus IDs (imei|id) the user can catch for the active plan. A bus
+   *  qualifies when it sits on a plan ride's corridor and its
+   *  busLegProgress hasn't passed the step's boarding halte yet —
+   *  including reverse-direction buses inbound to a terminus that
+   *  will turn around and serve the user. Same rule the
+   *  TripDetailPanel disclosure uses, so map dots and the panel
+   *  rows stay in sync. */
+  const planRideableBusIds = computed<Set<string> | null>(() => {
+    const plan = selectedPlan.value
+    if (!plan) return null
+
+    const boardingsByKor = new Map<string, Array<{ lat: number; lng: number }>>()
+    for (const step of plan.steps) {
+      if (step.kind !== 'ride' || !step.kor) continue
+      const coord = coordForName(step.fromName)
+      if (!coord) continue
+      const arr = boardingsByKor.get(step.kor) ?? []
+      arr.push(coord)
+      boardingsByKor.set(step.kor, arr)
+    }
+    if (!boardingsByKor.size) return new Set()
+
+    const rideable = new Set<string>()
+    for (const bus of brt.buses.values()) {
+      const boardings = boardingsByKor.get(bus.kor)
+      if (!boardings?.length) continue
+      const corridor = brt.corridorByKor.get(bus.kor)
+      if (!corridor) continue
+      const originName = bus.toward === corridor.toward ? corridor.origin : corridor.toward
+      const leg = brt.getHalteForLeg(bus.kor, bus.toward, originName)
+      if (!leg.length) continue
+      const progressIdx = busLegProgress(bus, leg)
+      outer:
+      for (let i = progressIdx; i < leg.length; i++) {
+        const h = leg[i]
+        const lat = parseFloat(h.sh_lat)
+        const lng = parseFloat(h.sh_lng)
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue
+        for (const board of boardings) {
+          if (haversineMeters(board, { lat, lng }) <= MATCH_RADIUS_M) {
+            rideable.add(bus.imei || bus.id)
+            break outer
+          }
+        }
+      }
+    }
+    return rideable
+  })
+
+  /** Map of step index → display number for the timeline. Only
+   *  numbers ride + walk steps; transfer rows stay un-numbered so
+   *  they don't duplicate the surrounding ride's transfer-point disc. */
+  const stepNumbers = computed<Map<number, number>>(() => {
+    const out = new Map<number, number>()
+    const plan = selectedPlan.value
+    if (!plan) return out
+    const seen = new Map<string, number>()
+    let counter = 1
+    for (const step of plan.steps) {
+      if (step.kind !== 'ride') continue
+      if (!seen.has(step.fromName)) seen.set(step.fromName, counter++)
+      if (!seen.has(step.toName)) seen.set(step.toName, counter++)
+    }
+    for (let i = 0; i < plan.steps.length; i++) {
+      const step = plan.steps[i]
+      if (step.kind === 'ride') {
+        const n = seen.get(step.toName)
+        if (n != null) out.set(i, n)
+      } else if (step.kind === 'walk') {
+        const n = seen.get(step.toName)
+        if (n != null) out.set(i, n)
+      }
+    }
+    return out
+  })
+
+  /** Buses currently approaching the given ride step's boarding
+   *  halte. Same shape as brt.incomingBusesForHalte but scoped to a
+   *  plan step's `fromName` / `kor`. */
+  function incomingBusesForStep(
+    stepRef: MaybeRefOrGetter<PlanStep | null | undefined>,
+  ): ComputedRef<IncomingBus[]> {
+    return computed(() => {
+      const step = toValue(stepRef)
+      if (!step || step.kind !== 'ride' || !step.kor) return []
+      const corridor = brt.corridorByKor.get(step.kor)
+      if (!corridor) return []
+
+      const boardingShIds = new Set(
+        brt.halte
+          .filter((h) => h.kor === step.kor && h.sh_name === step.fromName)
+          .map((h) => h.sh_id),
+      )
+
+      let boardingCoord: { lat: number; lng: number } | null = null
+      const namedAtKor = brt.halte.find(
+        (x) => x.kor === step.kor && x.sh_name === step.fromName,
+      )
+      if (namedAtKor) {
+        const lat = parseFloat(namedAtKor.sh_lat)
+        const lng = parseFloat(namedAtKor.sh_lng)
+        if (Number.isFinite(lat) && Number.isFinite(lng)) {
+          boardingCoord = { lat, lng }
+        }
+      }
+
+      const out: IncomingBus[] = []
+      const seen = new Set<string>()
+      for (const bus of brt.buses.values()) {
+        if (bus.kor !== step.kor) continue
+
+        let headingHere = false
+        const originName = bus.toward === corridor.toward ? corridor.origin : corridor.toward
+        const leg = brt.getHalteForLeg(step.kor, bus.toward, originName)
+        if (leg.length) {
+          const progressIdx = busLegProgress(bus, leg)
+          for (let i = progressIdx; i < leg.length; i++) {
+            if (leg[i].sh_name === step.fromName) { headingHere = true; break }
+          }
+        }
+        if (!headingHere && bus.new_shel_t && boardingShIds.has(bus.new_shel_t)) {
+          headingHere = true
+        }
+
+        let nearby = false
+        if (
+          boardingCoord
+          && Number.isFinite(bus.lat) && Number.isFinite(bus.lng)
+        ) {
+          const d = haversineMeters(
+            boardingCoord,
+            { lat: Number(bus.lat), lng: Number(bus.lng) },
+          )
+          nearby = d <= 80
+        }
+        if (!headingHere && !nearby) continue
+        const key = bus.imei || bus.id
+        if (seen.has(key)) continue
+        seen.add(key)
+
+        let etaMin: number | null = null
+        let distM: number | null = null
+        if (
+          !nearby && boardingCoord
+          && Number.isFinite(bus.lat) && Number.isFinite(bus.lng)
+        ) {
+          const eta = etaToHalte(
+            { lat: Number(bus.lat), lng: Number(bus.lng), speed: bus.speed, dist_shel: null },
+            { sh_lat: boardingCoord.lat, sh_lng: boardingCoord.lng },
+          )
+          distM = eta?.distM ?? null
+          etaMin = eta?.etaMin ?? null
+        }
+
+        out.push({
+          bus,
+          etaMin: nearby ? 0 : etaMin,
+          distM: nearby ? 0 : distM,
+          atStop: nearby,
+          fresh: !isStale(bus),
+          quality: getEtaQuality(bus),
+          corridorColor: brt.colorForKor(step.kor) || '#0EA5E9',
+          arrivalAt: !nearby && etaMin != null
+            ? (() => {
+                const d = new Date(Date.now() + Math.max(0, etaMin) * 60_000)
+                const p = (n: number) => (n < 10 ? `0${n}` : String(n))
+                return `${p(d.getHours())}:${p(d.getMinutes())}`
+              })()
+            : null,
+        })
+      }
+
+      out.sort((a, b) => {
+        if (a.atStop !== b.atStop) return a.atStop ? -1 : 1
+        if (a.etaMin == null && b.etaMin == null) return 0
+        if (a.etaMin == null) return 1
+        if (b.etaMin == null) return -1
+        return a.etaMin - b.etaMin
+      })
+      return out
+    })
+  }
+
   // Rebuild graph when the city changes (different corridors / halte).
   watch(() => city.pref, () => {
     graphReady.value = false
@@ -243,5 +494,10 @@ export const useTripStore = defineStore('trip', () => {
     clear,
     buildGraph,
     recompute,
+    planKors,
+    planHalteNames,
+    planRideableBusIds,
+    stepNumbers,
+    incomingBusesForStep,
   }
 })
