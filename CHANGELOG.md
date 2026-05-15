@@ -2,6 +2,18 @@
 
 All notable releases of cektrans are recorded here. Generated automatically by `release-finalize.yml`.
 
+## v0.6.3 — 2026-05-15
+
+### 🐛 Bug Fixes
+
+- fix(proxy): install make + linux-libc-dev for vendored openssl (9d02ac0)
+
+### 🧹 Chore
+
+- chore: bump version to 0.6.3 (d87dd6d)
+
+
+
 ## v0.6.2 — 2026-05-15
 
 ### 🐛 Bug Fixes

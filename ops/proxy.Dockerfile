@@ -10,10 +10,14 @@
 FROM rust:1.82-slim AS build
 WORKDIR /build
 
-# musl toolchain + perl/pkg-config for ring's build script. ca-
-# certificates lets cargo reach crates.io over TLS.
+# Build toolchain:
+#   pkg-config + perl   — ring's build script
+#   musl-tools          — musl-gcc + musl headers for the cross-target
+#   make + linux-headers — openssl-src vendored build needs `make` and
+#                          kernel headers; rust:1.82-slim ships neither
+#   ca-certificates     — cargo's TLS pull from crates.io
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    pkg-config musl-tools perl ca-certificates && \
+    pkg-config musl-tools perl make linux-libc-dev ca-certificates && \
     rm -rf /var/lib/apt/lists/* && \
     rustup target add x86_64-unknown-linux-musl
 
