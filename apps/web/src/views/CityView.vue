@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, watch } from 'vue'
+import { computed, defineAsyncComponent, onBeforeUnmount, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useBrtStore } from '@/stores/brt'
 import { useCityStore } from '@/stores/city'
@@ -14,16 +14,21 @@ import MyLocationButton from '@/components/MyLocationButton.vue'
 import NearbyHaltePanel from '@/components/NearbyHaltePanel.vue'
 import CorridorPanel from '@/components/CorridorPanel.vue'
 import BusListPanel from '@/components/BusListPanel.vue'
-import TripPlannerPanel from '@/components/TripPlannerPanel.vue'
 import CollapsibleSection from '@/components/CollapsibleSection.vue'
 import BottomSheet from '@/components/BottomSheet.vue'
 import BusDetailCard from '@/components/BusDetailCard.vue'
 import HalteDetailCard from '@/components/HalteDetailCard.vue'
-import CorridorFocusPanel from '@/components/CorridorFocusPanel.vue'
 import MobileRoutesPanel from '@/components/MobileRoutesPanel.vue'
-import MobileRouteDetailPanel from '@/components/MobileRouteDetailPanel.vue'
-import TripDetailPanel from '@/components/TripDetailPanel.vue'
 import { useTripStore } from '@/stores/trip'
+
+// Lazy-loaded panels — only fetched when the user actually opens the
+// trip planner / focuses a corridor / picks a plan. Keeps the trip
+// planner worker bundle and the corridor-focus map logic out of the
+// initial route chunk so the map paints faster on first load.
+const TripPlannerPanel = defineAsyncComponent(() => import('@/components/TripPlannerPanel.vue'))
+const TripDetailPanel = defineAsyncComponent(() => import('@/components/TripDetailPanel.vue'))
+const CorridorFocusPanel = defineAsyncComponent(() => import('@/components/CorridorFocusPanel.vue'))
+const MobileRouteDetailPanel = defineAsyncComponent(() => import('@/components/MobileRouteDetailPanel.vue'))
 
 const city = useCityStore()
 const brt = useBrtStore()
