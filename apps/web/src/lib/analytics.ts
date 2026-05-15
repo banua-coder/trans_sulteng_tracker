@@ -28,7 +28,6 @@ export function initAnalytics(): void {
   // `arguments.callee === gtag`; a plain Array fails that check, so
   // commands sit in dataLayer un-processed and no /collect beacons
   // fire. Keep this verbatim — see https://developers.google.com/tag-platform/gtagjs/install
-  // eslint-disable-next-line prefer-rest-params
   window.gtag = function gtag() {
     // eslint-disable-next-line prefer-rest-params
     window.dataLayer!.push(arguments)
