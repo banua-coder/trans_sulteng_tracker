@@ -95,6 +95,16 @@ done
 
 if [[ "$healthy" -ne 1 ]]; then
   echo "::error::proxy never stayed up for 5s — auto-rolling back"
+  # Capture the failing container's logs + exit info BEFORE rollback
+  # so the workflow output has a useful breadcrumb. Distroless has no
+  # shell so this is our only window into what crashed.
+  echo "── cektrans-proxy-1 logs (tail 100) ──"
+  docker logs --tail 100 cektrans-proxy-1 2>&1 || true
+  echo "── cektrans-proxy-1 inspect ──"
+  docker inspect --format \
+    'state={{.State.Status}} exit={{.State.ExitCode}} oom={{.State.OOMKilled}} restarts={{.RestartCount}} err={{.State.Error}}' \
+    cektrans-proxy-1 2>&1 || true
+  echo "── end diagnostics ──"
   if [[ -f "$STATE_FILE" ]]; then
     # Re-export the previous tags and roll the stack back.
     # shellcheck disable=SC1090
