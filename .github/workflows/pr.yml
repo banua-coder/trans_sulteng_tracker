@@ -22,9 +22,6 @@ jobs:
       working-directory: apps/web
       package-manager: pnpm
       run-build: true
-      # eslint isn't currently installed in apps/web — `lint` script
-      # exists in package.json but the binary isn't declared as a
-      # devDependency. Skip until someone wires up eslint + a config.
-      run-lint: false
+      run-lint: true
       run-typecheck: true
       run-tests: true
