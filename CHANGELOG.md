@@ -2,6 +2,18 @@
 
 All notable releases of cektrans are recorded here. Generated automatically by `release-finalize.yml`.
 
+## v0.6.6 — 2026-05-15
+
+### 🐛 Bug Fixes
+
+- fix(deploy): dump proxy logs before rollback so we can debug crashes (c8dd5d3)
+
+### 🧹 Chore
+
+- chore: bump version to 0.6.6 (9e49609)
+
+
+
 ## v0.6.5 — 2026-05-15
 
 ### 🐛 Bug Fixes
