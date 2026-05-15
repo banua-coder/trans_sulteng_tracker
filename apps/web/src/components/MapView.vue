@@ -999,7 +999,14 @@ watch(
     }
     pruneBusMarkers(active)
   },
-  { deep: true },
+  // `deep: true` is needed because the store's Map is shallowReactive —
+  // Vue's watch on a Map ref without deep doesn't fire on `.set()`.
+  // The walk is cheap now (only Map entries, not nested object props)
+  // since the values are no longer Proxy-wrapped.
+  // `flush: 'post'` batches marker DOM writes with the render commit
+  // phase so Leaflet's per-marker style mutations don't interleave
+  // with Vue's own DOM updates.
+  { deep: true, flush: 'post' },
 )
 
 /** Trip planner tap-on-map mode: while tripTapMode is non-null, the

@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { computed, reactive, ref, toValue, watch } from 'vue'
+import { computed, ref, shallowReactive, toValue, watch } from 'vue'
 import type { ComputedRef, MaybeRefOrGetter } from 'vue'
 import { api } from '@/lib/api'
 import {
@@ -51,7 +51,13 @@ export const useBrtStore = defineStore('brt', () => {
   const cities = ref<BrtCity[]>([])
   const corridors = ref<BrtCorridor[]>([])
   const halte = ref<BrtHalte[]>([])
-  const buses = reactive<Map<string, BrtBus>>(new Map())
+  // Shallow on purpose — BrtBus payloads churn at 1 Hz and we always
+  // replace entries wholesale in `upsertBus` (no nested mutation).
+  // Deep reactivity would Proxy-wrap ~20 fields × 20 buses = 400+ deps
+  // every tick. shallowReactive tracks Map.set/delete but skips the
+  // per-field descent, while watchers on the Map (`{ deep: true }`)
+  // still fire on every upsert.
+  const buses = shallowReactive<Map<string, BrtBus>>(new Map())
 
   // Per-leg halte cache. Key = `${kor}|${toward}|${origin}`.
   // Populated lazily when focus/bus detail asks for a specific leg —
