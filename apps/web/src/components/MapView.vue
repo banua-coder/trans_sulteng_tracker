@@ -2,7 +2,7 @@
 import '@/lib/leaflet/setup'
 import L from 'leaflet'
 import polyline from '@mapbox/polyline'
-import { computed, onBeforeUnmount, onMounted, shallowRef, watch } from 'vue'
+import { onBeforeUnmount, onMounted, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
 
@@ -16,7 +16,7 @@ import type { PlanResult } from '@/lib/tripPlanner'
 import { busIcon, halteHaloMarker, halteMarker } from '@/lib/leaflet/markers'
 import { darkMatterTiles, voyagerTiles } from '@/lib/leaflet/tiles'
 import { useTheme } from '@/lib/theme'
-import { busLegProgress, haversineMeters, isStale } from '@/lib/format'
+import { haversineMeters, isStale } from '@/lib/format'
 import { trackEvent } from '@/lib/analytics'
 import type { BrtBus, BrtCorridor, BrtHalte } from '@/types/brt'
 
@@ -29,7 +29,16 @@ const trip = useTripStore()
 const { t } = useI18n()
 const { isDark } = useTheme()
 const { corridors, halte, buses } = storeToRefs(brt)
-const { selectedPlan: tripSelectedPlan, origin: tripOrigin, destination: tripDestination, tapMode: tripTapMode, focusedStop: tripFocusedStop } = storeToRefs(trip)
+const {
+  selectedPlan: tripSelectedPlan,
+  origin: tripOrigin,
+  destination: tripDestination,
+  tapMode: tripTapMode,
+  focusedStop: tripFocusedStop,
+  planKors: tripPlanKors,
+  planHalteNames: tripPlanHalteNames,
+  planRideableBusIds: tripPlanRideableBuses,
+} = storeToRefs(trip)
 
 const containerEl = shallowRef<HTMLElement | null>(null)
 let map: L.Map | null = null
@@ -485,135 +494,6 @@ function spotlightKor(): string | null {
   return null
 }
 
-/** When a trip plan is selected, return the set of corridor codes
- *  the plan uses (ride steps only — walking and transfer don't
- *  consume corridor visibility). Other corridors get dimmed so the
- *  user can read the chosen path without map clutter. */
-function tripPlanKors(): Set<string> | null {
-  const plan = tripSelectedPlan.value
-  if (!plan) return null
-  const set = new Set<string>()
-  for (const step of plan.steps) {
-    if (step.kind === 'ride' && step.kor) set.add(step.kor)
-  }
-  return set
-}
-
-/** Set of halte sh_name values on the trip's actual path. Built per
- *  ride step by walking the corridor's leg sequence between the
- *  boarding and alighting halte. Used to keep only the on-route
- *  halte markers visible — everything else gets opacity 0. */
-function tripPlanHalteNames(): Set<string> | null {
-  const plan = tripSelectedPlan.value
-  if (!plan) return null
-  const names = new Set<string>()
-  for (const step of plan.steps) {
-    if (step.kind !== 'ride' || !step.kor) continue
-    const c = brt.corridorByKor.get(step.kor)
-    if (!c) continue
-    // Try both legs of the corridor; pick whichever yields a slice
-    // that contains both boarding and alighting names in order.
-    const legA = brt.getHalteForLeg(step.kor, c.toward, c.origin)
-    const legB = brt.getHalteForLeg(step.kor, c.origin, c.toward)
-    function collectSlice(leg: import('@/types/brt').BrtHalte[]) {
-      const fromIdx = leg.findIndex((h) => h.sh_name === step.fromName)
-      const toIdx = leg.findIndex((h) => h.sh_name === step.toName)
-      if (fromIdx < 0 || toIdx < 0 || fromIdx >= toIdx) return false
-      for (let i = fromIdx; i <= toIdx; i++) names.add(leg[i].sh_name)
-      return true
-    }
-    if (!collectSlice(legA)) collectSlice(legB)
-    // Belt-and-suspenders: always include the explicit step endpoints
-    names.add(step.fromName)
-    names.add(step.toName)
-  }
-  return names
-}
-
-/** Buses the user can catch for the active trip plan.
- *
- *  For each ride step, pin the boarding halte to lat/lng (matching
- *  by sh_name in the bulk feed; coordinates are stable across the
- *  multi-corridor naming drift like 'TRANSFERPOINT BALAIKOTA' vs
- *  'TRANSFERPOINT BALAIKOTA B'). Then for every bus on the step's
- *  corridor, walk its OWN leg (using bus.toward, not the plan's
- *  direction) and accept it if a halte within MATCH_RADIUS_M of the
- *  boarding pin appears at or after the bus's busLegProgress.
- *
- *  Why direction-agnostic: this is the same rule the trip-step
- *  disclosure in TripDetailPanel uses, so the map dots and the
- *  panel rows stay consistent. It also handles the terminus
- *  boarding case where a K2B bus inbound to TRANSFERPOINT BALAIKOTA
- *  B (the K2B forward-leg origin) on the reverse leg will turn
- *  around at the terminus and serve the user — those buses show up
- *  in the panel and need to show up on the map.
- *
- *  Returns null when no plan is selected so callers fall back to
- *  the normal corridor-focus visibility rules. */
-const tripPlanRideableBuses = computed<Set<string> | null>(() => {
-  const plan = tripSelectedPlan.value
-  if (!plan) return null
-
-  function coordFor(name: string): { lat: number; lng: number } | null {
-    for (const h of brt.halte) {
-      if (h.sh_name !== name) continue
-      const lat = parseFloat(h.sh_lat)
-      const lng = parseFloat(h.sh_lng)
-      if (Number.isFinite(lat) && Number.isFinite(lng)) return { lat, lng }
-    }
-    return null
-  }
-
-  // Build a (kor → boarding coord) map for the plan's ride steps.
-  // Several rides can share a corridor (rare but legal), so use an
-  // array of candidate coords keyed by kor.
-  const boardingsByKor = new Map<string, Array<{ lat: number; lng: number }>>()
-  for (const step of plan.steps) {
-    if (step.kind !== 'ride' || !step.kor) continue
-    const coord = coordFor(step.fromName)
-    if (!coord) continue
-    const arr = boardingsByKor.get(step.kor) ?? []
-    arr.push(coord)
-    boardingsByKor.set(step.kor, arr)
-  }
-  if (!boardingsByKor.size) return new Set()
-
-  // 200 m forgives the small lat/lng drift between bulk-feed rows
-  // representing the same physical stop across corridors.
-  const MATCH_RADIUS_M = 200
-
-  const rideable = new Set<string>()
-  for (const bus of brt.buses.values()) {
-    const boardings = boardingsByKor.get(bus.kor)
-    if (!boardings || !boardings.length) continue
-    const corridor = brt.corridorByKor.get(bus.kor)
-    if (!corridor) continue
-
-    const originName = bus.toward === corridor.toward ? corridor.origin : corridor.toward
-    const leg = brt.getHalteForLeg(bus.kor, bus.toward, originName)
-    if (!leg.length) continue
-
-    const progressIdx = busLegProgress(bus, leg)
-
-    // Does any boarding halte on this corridor lie at or after the
-    // bus's current progress along its own leg?
-    outer:
-    for (let i = progressIdx; i < leg.length; i++) {
-      const h = leg[i]
-      const lat = parseFloat(h.sh_lat)
-      const lng = parseFloat(h.sh_lng)
-      if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue
-      for (const board of boardings) {
-        if (haversineMeters(board, { lat, lng }) <= MATCH_RADIUS_M) {
-          rideable.add(bus.imei || bus.id)
-          break outer
-        }
-      }
-    }
-  }
-  return rideable
-})
-
 /** Cache of the last spotlightKor we styled the markers for. When the
  *  spotlight hasn't changed, the corridor/halte sweep is a no-op — skip
  *  it and just refresh bus markers (which can have independently fresh
@@ -625,8 +505,8 @@ let lastSpotlightInit = false
 
 function applyFocus(force = false) {
   const fk = spotlightKor()
-  const planKors = tripPlanKors()
-  const planNames = planKors ? tripPlanHalteNames() : null
+  const planKors = tripPlanKors.value
+  const planNames = planKors ? tripPlanHalteNames.value : null
   // Cache key includes trip-plan kor set so the memoized fast-path
   // also reacts to plan selection changes.
   const cacheKey = planKors ? `plan:${[...planKors].sort().join(',')}` : `sk:${fk ?? ''}`
@@ -725,7 +605,7 @@ function applyUpcomingHalteFilter() {
  *  don't distract. */
 function busOpacityFor(b: BrtBus): string {
   const rideable = tripPlanRideableBuses.value
-  if (rideable !== null) {
+  if (rideable != null) {
     // Trip-plan mode: show only buses on a plan ride's corridor
     // heading toward the boarding halte the user will catch.
     return rideable.has(b.imei || b.id) ? '1' : '0'
