@@ -41,6 +41,119 @@ jobs:
           echo "full_tag=$FULL_TAG" >> "$GITHUB_OUTPUT"
           echo "Parsed: version=$VERSION tag=$FULL_TAG"
 
+      # Group the release PR's individual commits by Conventional
+      # Commit type. We read from the PR commits API instead of
+      # `git log` because release PRs are squash-merged into main: by
+      # the time this workflow runs, main only has a single squash
+      # commit and the individual feat/fix/chore history is gone.
+      # The PR record keeps the original commit list intact.
+      - name: Build grouped changelog
+        env:
+          GH_TOKEN: ${{ secrets.WORKFLOW_PAT || secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          gh api "repos/$REPO/pulls/$PR_NUMBER/commits" --paginate \
+            --jq '.[] | "\(.commit.message | split("\n")[0])\t\(.sha[0:7])"' \
+            > /tmp/commits.tsv
+          echo "Commits in PR #$PR_NUMBER:"
+          cat /tmp/commits.tsv
+
+          declare -A BUCKETS
+          ORDER=(feat fix perf refactor docs test ci build chore style revert other)
+
+          while IFS=$'\t' read -r subject sha; do
+            [ -z "$subject" ] && continue
+            type=$(printf '%s' "$subject" | sed -nE 's/^([a-z]+)(\([^)]+\))?!?:.*/\1/p')
+            case "$type" in
+              feat|fix|perf|refactor|docs|test|ci|build|chore|style|revert) ;;
+              *) type="other" ;;
+            esac
+            BUCKETS["$type"]+="- ${subject} (${sha})"$'\n'
+          done < /tmp/commits.tsv
+
+          declare -A LABEL=(
+            [feat]="### ✨ Features"
+            [fix]="### 🐛 Bug Fixes"
+            [perf]="### ⚡ Performance"
+            [refactor]="### ♻️ Refactor"
+            [docs]="### 📝 Docs"
+            [test]="### ✅ Tests"
+            [ci]="### 👷 CI"
+            [build]="### 📦 Build"
+            [chore]="### 🧹 Chore"
+            [style]="### 💄 Style"
+            [revert]="### ⏪ Revert"
+            [other]="### 📌 Other"
+          )
+
+          {
+            for type in "${ORDER[@]}"; do
+              entries="${BUCKETS[$type]:-}"
+              if [ -n "$entries" ]; then
+                printf '%s\n\n%s\n' "${LABEL[$type]}" "$entries"
+              fi
+            done
+          } > /tmp/changelog.md
+
+          if [ ! -s /tmp/changelog.md ]; then
+            echo "- Initial release" > /tmp/changelog.md
+          fi
+
+          echo "----- changelog -----"
+          cat /tmp/changelog.md
+          echo "---------------------"
+
+      - name: Prepend new section to CHANGELOG.md
+        env:
+          VERSION: ${{ steps.parse.outputs.version }}
+        run: |
+          DATE=$(date -u +%Y-%m-%d)
+          # Drive the prepend in Python so we can match the first
+          # existing `## ` heading and slot above it without needing a
+          # heavyweight changelog tool.
+          NEW_BODY=$(cat /tmp/changelog.md)
+          python3 - <<PY
+          import os, pathlib
+          version = os.environ["VERSION"]
+          date = "${DATE}"
+          new_body = pathlib.Path('/tmp/changelog.md').read_text()
+          new_section = f"## v{version} — {date}\n\n{new_body}\n"
+
+          path = pathlib.Path('CHANGELOG.md')
+          if not path.exists():
+              prelude = "# Changelog\n\nAll notable releases of cektrans are recorded here. Generated automatically by \`release-finalize.yml\`.\n\n"
+              path.write_text(prelude + new_section)
+          else:
+              text = path.read_text()
+              lines = text.splitlines(keepends=True)
+              insert_at = None
+              for i, line in enumerate(lines):
+                  if line.startswith('## '):
+                      insert_at = i
+                      break
+              if insert_at is None:
+                  # No existing version section — append after the
+                  # title block (first blank line after the H1).
+                  insert_at = len(lines)
+                  for i, line in enumerate(lines):
+                      if i > 0 and line.strip() == '':
+                          insert_at = i + 1
+                          break
+              new_lines = lines[:insert_at] + [new_section + '\n'] + lines[insert_at:]
+              path.write_text(''.join(new_lines))
+          PY
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add CHANGELOG.md
+          if ! git diff --cached --quiet; then
+            git commit -m "chore(changelog): cektrans v$VERSION"
+            git push origin HEAD:main
+          else
+            echo "CHANGELOG.md unchanged — already up to date"
+          fi
+
       - name: Create and push tag
         env:
           VERSION: ${{ steps.parse.outputs.version }}
@@ -59,24 +172,19 @@ jobs:
           FULL_TAG: ${{ steps.parse.outputs.full_tag }}
           VERSION: ${{ steps.parse.outputs.version }}
         run: |
-          LAST_TAG=$(git tag -l 'cektrans/v*' --sort=-v:refname | grep -v "^${FULL_TAG}$" | head -1)
-          if [ -z "$LAST_TAG" ]; then
-            RANGE="HEAD"
-          else
-            RANGE="$LAST_TAG..$FULL_TAG"
-          fi
-
-          CHANGELOG=$(git log "$RANGE" --pretty=format:"- %s (%h)" --no-merges | head -50)
-          if [ -z "$CHANGELOG" ]; then
-            CHANGELOG="- Initial release"
-          fi
-
           gh release create "$FULL_TAG" \
             --title "cektrans v$VERSION" \
-            --notes "$CHANGELOG" \
+            --notes-file /tmp/changelog.md \
             --latest
 
-      - name: Open back-merge PR to develop
+      # Back-merge: bring main's release commits into develop. Pre-
+      # resolve the inevitable version-field conflict by setting all
+      # three version files (apps/web/package.json,
+      # apps/web/src/lib/version.ts, apps/proxy/Cargo.toml) to the
+      # higher semver between main and develop. Without this, every
+      # hotfix back-merge would otherwise hit a manual conflict where
+      # main's 0.4.8 collides with develop's 0.5.0.
+      - name: Open back-merge PR to develop (max-semver wins)
         env:
           GH_TOKEN: ${{ secrets.WORKFLOW_PAT || secrets.GITHUB_TOKEN }}
           VERSION: ${{ steps.parse.outputs.version }}
@@ -85,6 +193,40 @@ jobs:
 
           git fetch origin develop
           git checkout -b "$BACKMERGE_BRANCH" origin/main
+
+          # Compare versions across main and develop. Picking the
+          # higher means a hotfix back-merge into develop (which has
+          # already raced to the next minor) won't drag the dev line's
+          # version backward.
+          MAIN_PKG_VERSION=$(node -p "require('./apps/web/package.json').version")
+          DEV_PKG_VERSION=$(git show origin/develop:apps/web/package.json 2>/dev/null | node -e "let d=''; process.stdin.on('data',c=>d+=c); process.stdin.on('end',()=>{ try { process.stdout.write(JSON.parse(d).version) } catch (e) { process.stdout.write('') } })" || echo "")
+
+          if [ -z "$DEV_PKG_VERSION" ]; then
+            DEV_PKG_VERSION="$MAIN_PKG_VERSION"
+          fi
+
+          HIGHEST=$(printf '%s\n%s\n' "$MAIN_PKG_VERSION" "$DEV_PKG_VERSION" | sort -V | tail -1)
+          echo "main=$MAIN_PKG_VERSION dev=$DEV_PKG_VERSION -> highest=$HIGHEST"
+
+          if [ "$HIGHEST" != "$MAIN_PKG_VERSION" ]; then
+            # Develop is ahead — apply develop's version to this back-
+            # merge branch so merging into develop is a clean
+            # fast-forward of code without rewinding the version.
+            node -e "
+              const fs = require('fs');
+              const pkg = JSON.parse(fs.readFileSync('apps/web/package.json', 'utf8'));
+              pkg.version = '${HIGHEST}';
+              fs.writeFileSync('apps/web/package.json', JSON.stringify(pkg, null, 2) + '\n');
+            "
+            sed -i "s/export const APP_VERSION = \".*\"/export const APP_VERSION = \"$HIGHEST\"/" apps/web/src/lib/version.ts
+            sed -i "0,/^version = \".*\"/{s/^version = \".*\"/version = \"$HIGHEST\"/}" apps/proxy/Cargo.toml
+
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add apps/web/package.json apps/web/src/lib/version.ts apps/proxy/Cargo.toml
+            git commit -m "chore: align version to $HIGHEST for back-merge (develop was ahead)"
+          fi
+
           git push origin "$BACKMERGE_BRANCH"
 
           EXISTING=$(gh pr list --head "$BACKMERGE_BRANCH" --base develop --json number --jq '.[0].number' 2>/dev/null || true)
@@ -93,7 +235,7 @@ jobs:
             exit 0
           fi
 
-          PR_BODY="Automated back-merge of main into develop following the cektrans/v$VERSION release. Merging this picks up any version bumps and changelog entries committed to the release branch."
+          PR_BODY="Automated back-merge of main into develop following the cektrans/v$VERSION release. Version files in this PR are aligned to **$HIGHEST** (the higher of main's $MAIN_PKG_VERSION and develop's $DEV_PKG_VERSION) so merging doesn't rewind the dev line."
 
           gh pr create \
             --base develop \
