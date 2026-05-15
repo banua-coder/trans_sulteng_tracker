@@ -2,6 +2,18 @@
 
 All notable releases of cektrans are recorded here. Generated automatically by `release-finalize.yml`.
 
+## v0.6.1 — 2026-05-15
+
+### 🐛 Bug Fixes
+
+- fix(proxy): pin musl target in rust-toolchain.toml (720a93a)
+
+### 🧹 Chore
+
+- chore: bump version to 0.6.1 (104dc4a)
+
+
+
 ## v0.6.0 — 2026-05-15
 
 ### ✨ Features
