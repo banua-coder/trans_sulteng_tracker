@@ -108,21 +108,26 @@ jobs:
         env:
           VERSION: ${{ steps.parse.outputs.version }}
         run: |
-          DATE=$(date -u +%Y-%m-%d)
-          # Drive the prepend in Python so we can match the first
-          # existing `## ` heading and slot above it without needing a
-          # heavyweight changelog tool.
-          NEW_BODY=$(cat /tmp/changelog.md)
-          python3 - <<PY
+          # Pass DATE through env so we can use a quoted heredoc and
+          # leave shell expansion entirely off — otherwise the
+          # backticks in the prelude get treated as command
+          # substitution and the literal `\`` escape leaks backslashes
+          # into the rendered file.
+          export RELEASE_DATE=$(date -u +%Y-%m-%d)
+          python3 - <<'PY'
           import os, pathlib
           version = os.environ["VERSION"]
-          date = "${DATE}"
+          date = os.environ["RELEASE_DATE"]
           new_body = pathlib.Path('/tmp/changelog.md').read_text()
           new_section = f"## v{version} — {date}\n\n{new_body}\n"
 
           path = pathlib.Path('CHANGELOG.md')
           if not path.exists():
-              prelude = "# Changelog\n\nAll notable releases of cektrans are recorded here. Generated automatically by \`release-finalize.yml\`.\n\n"
+              prelude = (
+                  "# Changelog\n\n"
+                  "All notable releases of cektrans are recorded here. "
+                  "Generated automatically by `release-finalize.yml`.\n\n"
+              )
               path.write_text(prelude + new_section)
           else:
               text = path.read_text()
