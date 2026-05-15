@@ -2,6 +2,18 @@
 
 All notable releases of cektrans are recorded here. Generated automatically by `release-finalize.yml`.
 
+## v0.6.7 — 2026-05-15
+
+### 🐛 Bug Fixes
+
+- fix(proxy): runtime to alpine, restore curl healthcheck (ba9db6a)
+
+### 🧹 Chore
+
+- chore: bump version to 0.6.7 (dfc0085)
+
+
+
 ## v0.6.6 — 2026-05-15
 
 ### 🐛 Bug Fixes
