@@ -2,6 +2,18 @@
 
 All notable releases of cektrans are recorded here. Generated automatically by `release-finalize.yml`.
 
+## v0.6.8 — 2026-05-15
+
+### 🐛 Bug Fixes
+
+- fix(proxy): native alpine build (24 MB, no glibc/musl TLS conflict) (b602888)
+
+### 🧹 Chore
+
+- chore: bump version to 0.6.8 (0f5afc1)
+
+
+
 ## v0.6.7 — 2026-05-15
 
 ### 🐛 Bug Fixes
