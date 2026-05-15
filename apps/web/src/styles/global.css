@@ -88,6 +88,20 @@
     background: var(--color-bnc-ink);
     --shadow-subtle: 0 1px 2px rgba(0, 0, 0, 0.20), 0 2px 8px rgba(0, 0, 0, 0.16);
     --shadow-elevated: 0 4px 6px rgba(0, 0, 0, 0.25), 0 8px 24px rgba(0, 0, 0, 0.28);
+
+    /* Secondary text tokens are used ONLY as text colors across the
+       app (no bg-/border- uses), and the light-mode values fail WCAG
+       contrast on dark backgrounds — stone-500 (#78716C) on stone-900
+       reads ~2.5:1, well below the 4.5:1 AA bar. Brighten both rungs
+       in dark mode so muted captions, units, "stale" badges, and the
+       direction-tab inactive label become readable without rewriting
+       every call site. */
+    --color-bnc-stone-500: #B5ADA6; /* was #78716C — ~5.6:1 on stone-900 */
+    --color-bnc-stone-600: #D6D3D1; /* was #57534E — ~10:1 on stone-900 */
+
+    /* Stale tokens piggyback on stone-500 for "data > 5 min" pills;
+       keep them aligned so the legend reads the same. */
+    --color-stale: #B5ADA6;
   }
 
   body { min-height: 100dvh; }
