@@ -28,9 +28,15 @@ OWNER="${OWNER:-banua-coder}"
 WEB_IMAGE="${REGISTRY}/${OWNER}/cektrans-web:${VERSION}"
 PROXY_IMAGE="${REGISTRY}/${OWNER}/cektrans-proxy:${VERSION}"
 
-STATE_FILE="${STATE_FILE:-/opt/cektrans/.previous-version}"
-LAST_DEPLOY_FILE="${LAST_DEPLOY_FILE:-/opt/cektrans/.last-deploy-at}"
+STATE_FILE="${STATE_FILE:-$PWD/.previous-version}"
+LAST_DEPLOY_FILE="${LAST_DEPLOY_FILE:-$PWD/.last-deploy-at}"
 HEALTH_TIMEOUT="${HEALTH_TIMEOUT:-60}"
+
+# Ensure the state-file directories exist. The deploy workflow's
+# DEPLOY_PATH may differ from /opt/cektrans on different environments,
+# and on a fresh VPS the .previous-version parent may not exist yet.
+# Idempotent — mkdir -p on an existing path is a no-op.
+mkdir -p "$(dirname "$STATE_FILE")" "$(dirname "$LAST_DEPLOY_FILE")"
 
 echo "── deploying cektrans ${VERSION} ──"
 echo "  web   : ${WEB_IMAGE}"
