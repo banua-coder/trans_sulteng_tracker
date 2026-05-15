@@ -1,10 +1,15 @@
 # Slim multi-stage build for the Rust proxy.
 #
-# Stage 1 builds a statically linked musl binary so the runtime stage
-# can be distroless/static (no glibc, no shell, no package manager,
-# ~2 MB base). Combined with the size-optimised release profile in
-# Cargo.toml the final image lands around 10-12 MB versus ~97 MB on
-# the previous debian:bookworm-slim runtime.
+# Stage 1 cross-compiles to musl. Stage 2 runs on alpine — musl libc
+# native, a shell for ops debugging, curl for HEALTHCHECK, ~7 MB base.
+# Total image with binary lands around 12-15 MB versus ~97 MB on the
+# previous debian:bookworm-slim runtime.
+#
+# v0.6.6 attempted to use gcr.io/distroless/static-debian12 as runtime
+# but the musl binary failed to exec there with "no such file or
+# directory" — distroless/static lacks /lib/ld-musl-x86_64.so.1, the
+# interpreter the cross-compiled binary references. Alpine ships musl
+# as its system libc so the binary runs unmodified.
 
 # ── Stage 1: build static musl binary ─────────────────────────────
 FROM rust:1.82-slim AS build
@@ -35,20 +40,20 @@ RUN --mount=type=cache,id=cargo-registry,target=/usr/local/cargo/registry \
     cargo build --release --target x86_64-unknown-linux-musl && \
     cp target/x86_64-unknown-linux-musl/release/cektrans-proxy /tmp/cektrans-proxy
 
-# ── Stage 2: distroless static runtime ────────────────────────────
-# distroless/static-debian12:nonroot carries ca-certificates, an
-# /etc/passwd entry for the `nonroot` user (uid 65532), and tzdata.
-# No libc, no shell, no package manager. Smallest viable surface for
-# a static Rust binary.
-FROM gcr.io/distroless/static-debian12:nonroot AS runtime
+# ── Stage 2: alpine runtime (musl native) ─────────────────────────
+# alpine:3.20 ships musl libc as its system libc, ca-certificates,
+# and curl — everything the cross-compiled musl binary needs to run
+# plus an in-container healthcheck.
+FROM alpine:3.20 AS runtime
+
+RUN apk add --no-cache ca-certificates curl tzdata && \
+    addgroup -S -g 1001 cektrans && \
+    adduser  -S -u 1001 -G cektrans cektrans
 
 COPY --from=build /tmp/cektrans-proxy /usr/local/bin/cektrans-proxy
 
-# distroless/static-debian12:nonroot drops privileges automatically;
-# no explicit USER directive needed.
+USER cektrans
 EXPOSE 8080
-
-# No HEALTHCHECK — distroless has no curl/wget and Traefik probes
-# the public endpoint. Adding a tini-style health binary just to
-# keep `docker ps` happy isn't worth the bytes.
+HEALTHCHECK --interval=30s --timeout=3s --retries=3 \
+  CMD curl -fsS http://localhost:8080/api/health || exit 1
 ENTRYPOINT ["/usr/local/bin/cektrans-proxy"]

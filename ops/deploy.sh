@@ -70,31 +70,20 @@ export WEB_IMAGE PROXY_IMAGE
 docker compose -f docker-compose.yml up -d --remove-orphans
 
 echo
-echo "── waiting for proxy to stay up (timeout: ${HEALTH_TIMEOUT}s) ──"
-# The proxy runs on distroless/static-debian12 — no curl, no shell —
-# so we can't run a CMD healthcheck inside the container. Instead,
-# wait until the container has been Running continuously for ~5s
-# without a restart. Crash-looping containers fail this check; healthy
-# ones pass it within ~6s of compose up.
+echo "── waiting for proxy to report healthy (timeout: ${HEALTH_TIMEOUT}s) ──"
 healthy=0
-stable=0
 for i in $(seq 1 "$HEALTH_TIMEOUT"); do
-  state=$(docker inspect --format '{{.State.Status}}' cektrans-proxy-1 2>/dev/null || echo unknown)
-  if [[ "$state" == "running" ]]; then
-    stable=$(( stable + 1 ))
-    if (( stable >= 5 )); then
-      echo "  proxy stable after ${i}s"
-      healthy=1
-      break
-    fi
-  else
-    stable=0
+  status=$(docker inspect --format '{{.State.Health.Status}}' cektrans-proxy-1 2>/dev/null || echo unknown)
+  if [[ "$status" == "healthy" ]]; then
+    echo "  proxy healthy after ${i}s"
+    healthy=1
+    break
   fi
   sleep 1
 done
 
 if [[ "$healthy" -ne 1 ]]; then
-  echo "::error::proxy never stayed up for 5s — auto-rolling back"
+  echo "::error::deploy unhealthy after ${HEALTH_TIMEOUT}s — auto-rolling back"
   # Capture the failing container's logs + exit info BEFORE rollback
   # so the workflow output has a useful breadcrumb. Distroless has no
   # shell so this is our only window into what crashed.
@@ -112,17 +101,11 @@ if [[ "$healthy" -ne 1 ]]; then
     export WEB_IMAGE PROXY_IMAGE
     echo "── rolling back to ${WEB_IMAGE} / ${PROXY_IMAGE} ──"
     docker compose -f docker-compose.yml up -d
-    stable=0
     for i in $(seq 1 "$HEALTH_TIMEOUT"); do
-      state=$(docker inspect --format '{{.State.Status}}' cektrans-proxy-1 2>/dev/null || echo unknown)
-      if [[ "$state" == "running" ]]; then
-        stable=$(( stable + 1 ))
-        if (( stable >= 5 )); then
-          echo "  rollback stable after ${i}s"
-          break
-        fi
-      else
-        stable=0
+      status=$(docker inspect --format '{{.State.Health.Status}}' cektrans-proxy-1 2>/dev/null || echo unknown)
+      if [[ "$status" == "healthy" ]]; then
+        echo "  rollback healthy after ${i}s"
+        break
       fi
       sleep 1
     done
