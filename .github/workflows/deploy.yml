@@ -141,6 +141,30 @@ jobs:
           mkdir -p ~/.ssh
           ssh-keyscan -H -p "$DEPLOY_PORT" "$DEPLOY_HOST" >> ~/.ssh/known_hosts
 
+      - uses: actions/checkout@v4
+
+      # Sync the latest deploy/rollback/cleanup scripts + compose file
+      # from the repo to the VPS before invoking deploy.sh. Without
+      # this, script edits in PRs never reach prod until somebody
+      # manually scp's them. The scripts are small and the rsync is
+      # cheap; doing it on every deploy keeps prod and the repo in
+      # lockstep.
+      - name: Sync ops scripts to VPS
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+        run: |
+          scp -P "$DEPLOY_PORT" \
+            ops/deploy.sh \
+            ops/rollback.sh \
+            ops/cleanup-images.sh \
+            ops/docker-compose.yml \
+            "$DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH/"
+          ssh -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" \
+            "chmod +x \"$DEPLOY_PATH\"/deploy.sh \"$DEPLOY_PATH\"/rollback.sh \"$DEPLOY_PATH\"/cleanup-images.sh"
+
       - name: Deploy via SSH
         env:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
@@ -169,8 +193,42 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      # SSH setup happens before the smoke so the rollback step below
+      # has an agent + known_hosts entry ready if it fires. Doing it
+      # only on failure would leave the smoke step without the SSH
+      # context needed to roll back.
+      - name: Setup SSH agent (for potential rollback)
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.DEPLOY_SSH_KEY }}
+
+      - name: Trust the VPS host key
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H -p "$DEPLOY_PORT" "$DEPLOY_HOST" >> ~/.ssh/known_hosts
+
       - name: Smoke check production
+        id: smoke
         env:
           PROXY_BASE: https://cektrans.banuacoder.com
           ORIGIN: https://cektrans.banuacoder.com
         run: bash scripts/smoke.sh
+
+      # The in-deploy health gate already rolls back stacks that never
+      # reach `healthy`. This second layer catches the case where the
+      # container reports healthy but real traffic regresses — bad
+      # config, broken API contract, etc.
+      - name: Rollback on smoke failure
+        if: failure() && steps.smoke.conclusion == 'failure'
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+        run: |
+          ssh -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" \
+            "cd \"$DEPLOY_PATH\" && bash ./rollback.sh"

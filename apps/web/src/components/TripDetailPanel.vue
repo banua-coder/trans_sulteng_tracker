@@ -1,37 +1,28 @@
 <script setup lang="ts">
 /**
  * Trip detail — full itinerary view shown after the user taps a
- * TripResultCard. Uses the same sticky-header pattern as
- * MobileRouteDetailPanel so the back button + summary chips stay
- * visible while the step timeline scrolls.
+ * TripResultCard. Pure renderer over trip-store selectors:
+ *   - stepNumbers          (step idx -> display number)
+ *   - incomingBusesForStep (per-step disclosure data)
+ * Per-leg halte are eagerly fetched on plan change so the selectors
+ * see authoritative data, and a local reactive map drives the
+ * collapse/expand state per disclosure.
  */
-import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { computed, reactive, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
 import { useTripStore } from '@/stores/trip'
-import { useBrtStore } from '@/stores/brt'
+import { useBrtStore, type IncomingBus } from '@/stores/brt'
 import { useSelectionStore } from '@/stores/selection'
-import { busLegProgress, etaToHalte, getEtaQuality, haversineMeters, isStale } from '@/lib/format'
 import CopyLinkButton from '@/components/CopyLinkButton.vue'
 import PlateBadge from '@/components/PlateBadge.vue'
 import type { PlanStep } from '@/lib/tripPlanner'
-import type { BrtBus } from '@/types/brt'
 
 const { t } = useI18n()
 const trip = useTripStore()
 const brt = useBrtStore()
 const selection = useSelectionStore()
-const { selectedPlan, origin, destination } = storeToRefs(trip)
-
-// Tick every 30 s so wall-clock ETAs stay fresh while the panel is
-// open. Cheap because the templates only read tick to invalidate the
-// upcoming-buses computeds; nothing redraws unconditionally.
-const tick = ref(0)
-let timer: number | undefined
-onMounted(() => {
-  timer = window.setInterval(() => { tick.value += 1 }, 30_000)
-})
-onBeforeUnmount(() => { if (timer) window.clearInterval(timer) })
+const { selectedPlan, origin, destination, stepNumbers } = storeToRefs(trip)
 
 // Expansion state for the "Buses to {halte}" disclosures under each
 // ride step. Key = step index. Collapsed by default; the user opts
@@ -49,10 +40,7 @@ watch(selectedPlan, () => {
 })
 
 // Eagerly fetch per-leg halte for each ride step's corridor in BOTH
-// directions. The boarding halte's sh_id might live only on the
-// per-leg feed (terminus halte are missing from the bulk feed for
-// some corridors); without these fetches the busLegProgress lookup
-// would silently miss and the disclosure would always read empty.
+// directions. The store's incomingBusesForStep selector needs them.
 watch(
   selectedPlan,
   (plan) => {
@@ -71,123 +59,15 @@ watch(
   { immediate: true },
 )
 
-interface UpcomingBus {
-  bus: BrtBus
-  etaMin: number | null
-  distM: number | null
-  atStop: boolean
-  fresh: boolean
-  quality: 'good' | 'warn' | 'stale'
-  corridorColor: string
-  arrivalAt: string | null
-}
-
-function pad(n: number): string { return n < 10 ? `0${n}` : String(n) }
-function wallClock(etaMin: number): string {
-  const d = new Date(Date.now() + Math.max(0, etaMin) * 60_000)
-  return `${pad(d.getHours())}:${pad(d.getMinutes())}`
-}
-
-const AT_STOP_RADIUS_M = 80
-
-/** Build the list of buses on `kor` currently heading to the halte
- *  named `boardingName`. Same shape as HalteDetailCard.arrivals but
- *  scoped to a single corridor + halte so each disclosure stays
- *  focused on the leg the user is actually planning to board. */
-function upcomingBusesForStep(boardingName: string, kor: string | undefined): UpcomingBus[] {
-  void tick.value // re-evaluate every 30 s for wall-clock ETAs
-  if (!kor) return []
-  const corridor = brt.corridorByKor.get(kor)
-  if (!corridor) return []
-
-  // Every sh_id that shares this halte's name on the boarding
-  // corridor — covers the multi-row case where bulk + per-leg list
-  // the same physical stop under different ids per direction.
-  const boardingShIds = new Set(
-    brt.halte
-      .filter((h) => h.kor === kor && h.sh_name === boardingName)
-      .map((h) => h.sh_id),
-  )
-
-  // Coords for nearby-check + haversine ETA. Pick any matching halte
-  // record — the duplicates share lat/lng within GPS jitter.
-  let boardingCoord: { lat: number; lng: number } | null = null
-  const h = brt.halte.find((x) => x.kor === kor && x.sh_name === boardingName)
-  if (h) {
-    const lat = parseFloat(h.sh_lat)
-    const lng = parseFloat(h.sh_lng)
-    if (Number.isFinite(lat) && Number.isFinite(lng)) {
-      boardingCoord = { lat, lng }
-    }
-  }
-
-  const out: UpcomingBus[] = []
-  const seen = new Set<string>()
-  for (const bus of brt.buses.values()) {
-    if (bus.kor !== kor) continue
-
-    // Will this bus's upcoming-stop path pass `boardingName`?
-    let headingHere = false
-    const originName = bus.toward === corridor.toward ? corridor.origin : corridor.toward
-    const leg = brt.getHalteForLeg(kor, bus.toward, originName)
-    if (leg.length) {
-      const progressIdx = busLegProgress(bus, leg)
-      for (let i = progressIdx; i < leg.length; i++) {
-        if (leg[i].sh_name === boardingName) { headingHere = true; break }
-      }
-    }
-    // Fallback while per-leg data is still loading.
-    if (!headingHere && bus.new_shel_t && boardingShIds.has(bus.new_shel_t)) {
-      headingHere = true
-    }
-
-    let nearby = false
-    if (boardingCoord && Number.isFinite(bus.lat) && Number.isFinite(bus.lng)) {
-      const d = haversineMeters(boardingCoord, { lat: Number(bus.lat), lng: Number(bus.lng) })
-      nearby = d <= AT_STOP_RADIUS_M
-    }
-    if (!headingHere && !nearby) continue
-    const key = bus.imei || bus.id
-    if (seen.has(key)) continue
-    seen.add(key)
-
-    let etaMin: number | null = null
-    let distM: number | null = null
-    if (!nearby && boardingCoord
-        && Number.isFinite(bus.lat) && Number.isFinite(bus.lng)) {
-      // dist_shel on the wire applies to the bus's new_shel_t halte
-      // — irrelevant when we're asking about a specific boarding
-      // halte that may be several stops ahead. Force the haversine
-      // fallback so the ETA reflects bus → boarding directly.
-      const eta = etaToHalte(
-        { lat: Number(bus.lat), lng: Number(bus.lng), speed: bus.speed, dist_shel: null },
-        { sh_lat: boardingCoord.lat, sh_lng: boardingCoord.lng },
-      )
-      distM = eta?.distM ?? null
-      etaMin = eta?.etaMin ?? null
-    }
-
-    out.push({
-      bus,
-      etaMin: nearby ? 0 : etaMin,
-      distM: nearby ? 0 : distM,
-      atStop: nearby,
-      fresh: !isStale(bus),
-      quality: getEtaQuality(bus),
-      corridorColor: brt.colorForKor(kor) || '#0EA5E9',
-      arrivalAt: !nearby && etaMin != null ? wallClock(etaMin) : null,
-    })
-  }
-
-  out.sort((a, b) => {
-    if (a.atStop !== b.atStop) return a.atStop ? -1 : 1
-    if (a.etaMin == null && b.etaMin == null) return 0
-    if (a.etaMin == null) return 1
-    if (b.etaMin == null) return -1
-    return a.etaMin - b.etaMin
-  })
-  return out
-}
+// Disclosure data per timeline row. The store's per-step selector
+// returns a ComputedRef; we unwrap each one here so the template
+// reads `stepBuses[idx]` as a plain array (refs nested inside arrays
+// aren't auto-unwrapped in templates).
+const stepBuses = computed<IncomingBus[][]>(() =>
+  (selectedPlan.value?.steps ?? []).map((step) =>
+    trip.incomingBusesForStep(() => step).value,
+  ),
+)
 
 function back() {
   trip.selectPlan(null)
@@ -202,42 +82,6 @@ function colorForStep(step: PlanStep): string {
 const totalKm = computed(() => {
   if (!selectedPlan.value) return 0
   return (selectedPlan.value.totalWalkM + selectedPlan.value.totalRideM) / 1000
-})
-
-/** Number each unique boarding/alighting halte in encounter order —
- *  exactly the same dedupe rule MapView's drawTripPreview uses, so
- *  the number shown in the timeline matches the red disc on the map.
- *  Returns a map: step index → assigned number (or null if the step
- *  isn't tied to a numbered point). */
-const stepNumbers = computed(() => {
-  const out = new Map<number, number>()
-  if (!selectedPlan.value) return out
-  const seen = new Map<string, number>()
-  let counter = 1
-  // First pass: assign numbers to every distinct boarding/alighting
-  // halte name (only ride steps drive numbering — walk legs to the
-  // destination don't get a numbered map marker).
-  for (const step of selectedPlan.value.steps) {
-    if (step.kind !== 'ride') continue
-    if (!seen.has(step.fromName)) seen.set(step.fromName, counter++)
-    if (!seen.has(step.toName)) seen.set(step.toName, counter++)
-  }
-  // Second pass: rides + walks get the number of their arrival
-  // halte. Transfer steps deliberately stay un-numbered — the
-  // transfer point's disc already lives on the surrounding ride
-  // rows (alighting of the previous ride / boarding of the next),
-  // so giving the transfer row its own number drew a duplicate.
-  for (let i = 0; i < selectedPlan.value.steps.length; i++) {
-    const step = selectedPlan.value.steps[i]
-    if (step.kind === 'ride') {
-      const n = seen.get(step.toName)
-      if (n != null) out.set(i, n)
-    } else if (step.kind === 'walk') {
-      const n = seen.get(step.toName)
-      if (n != null) out.set(i, n)
-    }
-  }
-  return out
 })
 
 function coordForName(name: string, kor: string | undefined): { lat: number; lng: number } | null {
@@ -411,10 +255,10 @@ function focusStep(step: PlanStep) {
               </svg>
               {{ t('trip.upcomingBusesAt', { halte: step.fromName }) }}
               <span
-                v-if="upcomingBusesForStep(step.fromName, step.kor).length"
+                v-if="stepBuses[idx]?.length"
                 class="ml-0.5 rounded-full bg-bnc-stone-200 px-1.5 py-[1px] font-mono text-[9px] tabular-nums text-bnc-stone-700 dark:bg-bnc-stone-700 dark:text-bnc-stone-200"
               >
-                {{ upcomingBusesForStep(step.fromName, step.kor).length }}
+                {{ stepBuses[idx].length }}
               </span>
             </button>
 
@@ -424,7 +268,7 @@ function focusStep(step: PlanStep) {
               class="mt-1.5 flex flex-col gap-1"
             >
               <li
-                v-for="b in upcomingBusesForStep(step.fromName, step.kor)"
+                v-for="b in stepBuses[idx] ?? []"
                 :key="b.bus.imei || b.bus.id"
               >
                 <button
@@ -492,7 +336,7 @@ function focusStep(step: PlanStep) {
                 </button>
               </li>
               <li
-                v-if="!upcomingBusesForStep(step.fromName, step.kor).length"
+                v-if="!(stepBuses[idx]?.length)"
                 class="rounded-md bg-bnc-stone-100 px-2 py-1.5 font-mono text-[10px] uppercase tracking-wider text-bnc-stone-600 dark:bg-bnc-stone-800 dark:text-bnc-stone-300"
               >
                 {{ t('trip.upcomingBusesNone') }}

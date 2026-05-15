@@ -4,7 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
 import { useSelectionStore } from '@/stores/selection'
 import { useBrtStore } from '@/stores/brt'
-import { ageSeconds, busLegProgress, etaToHalte, formatAge, formatSpeed, getEtaQuality, haversineMeters, isStale, parsePassenger } from '@/lib/format'
+import { ageSeconds, formatAge, formatSpeed, getEtaQuality, isStale, parsePassenger } from '@/lib/format'
 import CopyLinkButton from '@/components/CopyLinkButton.vue'
 import PlateBadge from '@/components/PlateBadge.vue'
 import EtaQualityGuide from '@/components/EtaQualityGuide.vue'
@@ -48,20 +48,6 @@ const passenger = computed(() =>
   selectedBus.value ? parsePassenger(selectedBus.value.passenger) : null,
 )
 
-interface UpcomingStop {
-  sh_id: string
-  sh_name: string
-  etaMin: number | null
-  distM: number | null
-  arrivalAt: string | null
-}
-
-function pad(n: number) { return n < 10 ? `0${n}` : String(n) }
-function wallClock(etaMin: number): string {
-  const d = new Date(Date.now() + Math.max(0, etaMin) * 60_000)
-  return `${pad(d.getHours())}:${pad(d.getMinutes())}`
-}
-
 watch(
   selectedBus,
   (bus) => {
@@ -74,53 +60,8 @@ watch(
   { immediate: true },
 )
 
-const upcomingStops = computed<UpcomingStop[]>(() => {
-  const bus = selectedBus.value
-  if (!bus?.kor) return []
-  const corridor = brt.corridorByKor.get(bus.kor)
-  if (!corridor) return []
-
-  const originName = bus.toward === corridor.toward ? corridor.origin : corridor.toward
-  const orderedHalte = brt.getHalteForLeg(bus.kor, bus.toward, originName)
-
-  // Find the next halte by GPS, not by new_shel_t — upstream's stop
-  // pointer lags so badly at terminus halte (e.g. Wisma Donggala,
-  // which appears in both legs with the same sh_id) that a bus parked
-  // at the turnaround keeps reporting it as "next stop" forever, then
-  // the slice from new_shel_t includes every halte the bus already
-  // passed on the previous leg.
-  const startIdx = busLegProgress(bus, orderedHalte)
-  const slice = orderedHalte.length ? orderedHalte.slice(startIdx) : []
-
-  // Show every upcoming stop through the corridor's terminus — user
-  // wants the full ride visible, not just the next handful.
-  return slice.map((h, i) => {
-    let distM: number | null = null
-    let etaMin: number | null = null
-
-    if (i === 0 && h.sh_id === bus.new_shel_t) {
-      const eta = etaToHalte(bus, h)
-      distM = eta?.distM ?? null
-      etaMin = eta?.etaMin ?? null
-    } else if (Number.isFinite(bus.lat) && Number.isFinite(bus.lng)) {
-      const hLat = typeof h.sh_lat === 'string' ? parseFloat(h.sh_lat) : Number(h.sh_lat)
-      const hLng = typeof h.sh_lng === 'string' ? parseFloat(h.sh_lng) : Number(h.sh_lng)
-      if (Number.isFinite(hLat) && Number.isFinite(hLng)) {
-        distM = haversineMeters({ lat: bus.lat!, lng: bus.lng! }, { lat: hLat, lng: hLng })
-        const spd = Number.isFinite(bus.speed) && Number(bus.speed) >= 5 ? Number(bus.speed) : 22
-        etaMin = (distM / 1000) / spd * 60
-      }
-    }
-
-    return {
-      sh_id: h.sh_id,
-      sh_name: h.sh_name,
-      etaMin,
-      distM,
-      arrivalAt: etaMin != null ? wallClock(etaMin) : null,
-    }
-  })
-})
+// Derivation lives in the brt store.
+const upcomingStops = brt.upcomingStopsForBus(selectedBus)
 </script>
 
 <template>

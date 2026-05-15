@@ -1,0 +1,44 @@
+name: Cleanup VPS Docker images
+
+on:
+  schedule:
+    # Daily at 03:30 UTC — well after our typical evening deploy
+    # windows so the 24h rollback grace period has elapsed on
+    # yesterday's deploy by the time this runs.
+    - cron: '30 3 * * *'
+  workflow_dispatch: {}
+
+concurrency:
+  group: vps-cleanup
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup SSH agent
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.DEPLOY_SSH_KEY }}
+
+      - name: Trust the VPS host key
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H -p "$DEPLOY_PORT" "$DEPLOY_HOST" >> ~/.ssh/known_hosts
+
+      # cleanup-images.sh on the VPS owns the policy: it only prunes
+      # n-1 once the most recent deploy is at least ROLLBACK_WINDOW_SECONDS
+      # (24h by default) old. Running daily makes "no recent deploys"
+      # converge cheaply — the script no-ops when there's nothing to do.
+      - name: Prune old cektrans images
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+        run: |
+          ssh -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" \
+            "cd \"$DEPLOY_PATH\" && bash ./cleanup-images.sh"

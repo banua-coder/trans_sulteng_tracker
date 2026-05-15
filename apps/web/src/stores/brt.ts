@@ -1,9 +1,49 @@
 import { defineStore } from 'pinia'
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, ref, shallowReactive, toValue, watch } from 'vue'
+import type { ComputedRef, MaybeRefOrGetter } from 'vue'
 import { api } from '@/lib/api'
-import { haversineMeters } from '@/lib/format'
+import {
+  busLegProgress,
+  etaToHalte,
+  getEtaQuality,
+  haversineMeters,
+  isStale,
+} from '@/lib/format'
 import type { BrtBus, BrtCity, BrtCorridor, BrtHalte } from '@/types/brt'
 import { useCityStore } from './city'
+
+/** Arrival row used by the halte detail card and the trip planner's
+ *  per-step disclosure. Pre-computed in the store so components are
+ *  pure renderers. */
+export interface IncomingBus {
+  bus: BrtBus
+  etaMin: number | null
+  distM: number | null
+  atStop: boolean
+  fresh: boolean
+  quality: 'good' | 'warn' | 'stale'
+  corridorColor: string
+  /** Wall-clock arrival HH:MM. Null when ETA is unknown. */
+  arrivalAt: string | null
+}
+
+/** Upcoming-stop row used by the bus detail card. */
+export interface UpcomingStop {
+  sh_id: string
+  sh_name: string
+  etaMin: number | null
+  distM: number | null
+  arrivalAt: string | null
+}
+
+const AT_STOP_RADIUS_M = 80
+const FALLBACK_RIDE_SPEED_KMH = 22
+
+function pad(n: number): string { return n < 10 ? `0${n}` : String(n) }
+function wallClockFor(etaMin: number): string {
+  const d = new Date(Date.now() + Math.max(0, etaMin) * 60_000)
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
 
 export const useBrtStore = defineStore('brt', () => {
   const city = useCityStore()
@@ -11,7 +51,13 @@ export const useBrtStore = defineStore('brt', () => {
   const cities = ref<BrtCity[]>([])
   const corridors = ref<BrtCorridor[]>([])
   const halte = ref<BrtHalte[]>([])
-  const buses = reactive<Map<string, BrtBus>>(new Map())
+  // Shallow on purpose — BrtBus payloads churn at 1 Hz and we always
+  // replace entries wholesale in `upsertBus` (no nested mutation).
+  // Deep reactivity would Proxy-wrap ~20 fields × 20 buses = 400+ deps
+  // every tick. shallowReactive tracks Map.set/delete but skips the
+  // per-field descent, while watchers on the Map (`{ deep: true }`)
+  // still fire on every upsert.
+  const buses = shallowReactive<Map<string, BrtBus>>(new Map())
 
   // Per-leg halte cache. Key = `${kor}|${toward}|${origin}`.
   // Populated lazily when focus/bus detail asks for a specific leg —
@@ -187,6 +233,188 @@ export const useBrtStore = defineStore('brt', () => {
     },
   )
 
+  // ──────────────────────────────────────────────────────────────
+  // Derived selectors. Each takes a MaybeRefOrGetter input so the
+  // caller can pass a plain value, a ref, or a getter; we normalise
+  // with toValue() inside the computed so Vue tracks reactivity
+  // correctly regardless of how the input is supplied. Components
+  // call these methods to get a ComputedRef they can render
+  // directly — no need for the component to own the derivation.
+  // ──────────────────────────────────────────────────────────────
+
+  /** Buses currently approaching `halte` (matched by sh_name or
+   *  in_koridor, scoped to allowed corridors). Replaces the per-
+   *  component arrivals computeds in HalteDetailCard and the trip
+   *  planner's per-step disclosure. */
+  function incomingBusesForHalte(
+    halteRef: MaybeRefOrGetter<BrtHalte | null | undefined>,
+  ): ComputedRef<IncomingBus[]> {
+    return computed(() => {
+      const target = toValue(halteRef)
+      if (!target) return []
+
+      // All sh_ids that share this physical stop (same name across
+      // corridors — covers the multi-row case where a transfer
+      // point is listed once per kor).
+      const shIds = new Set(
+        halte.value
+          .filter((h) => h.sh_name === target.sh_name)
+          .map((h) => h.sh_id),
+      )
+
+      const allowedKors = new Set<string>([target.kor])
+      if (target.in_koridor) {
+        for (const k of target.in_koridor.split('|').filter(Boolean)) {
+          allowedKors.add(k)
+        }
+      }
+
+      const lat = parseFloat(target.sh_lat)
+      const lng = parseFloat(target.sh_lng)
+      const halteCoord = Number.isFinite(lat) && Number.isFinite(lng)
+        ? { lat, lng }
+        : null
+
+      const out: IncomingBus[] = []
+      const seen = new Set<string>()
+      for (const bus of buses.values()) {
+        if (!allowedKors.has(bus.kor)) continue
+
+        // Resolve heading via leg progress instead of trusting
+        // bus.new_shel_t alone — terminus halte get pinned to that
+        // field forever once a bus parks there. Fall back to the
+        // legacy new_shel_t check while per-leg data is still
+        // loading (busLegProgress needs a non-empty leg array).
+        let headingHere = false
+        const corridor = corridorByKor.value.get(bus.kor)
+        if (corridor) {
+          const originName = bus.toward === corridor.toward ? corridor.origin : corridor.toward
+          const leg = getHalteForLeg(bus.kor, bus.toward, originName)
+          if (leg.length) {
+            const progressIdx = busLegProgress(bus, leg)
+            for (let i = progressIdx; i < leg.length; i++) {
+              if (shIds.has(leg[i].sh_id)) { headingHere = true; break }
+            }
+          }
+        }
+        if (!headingHere && bus.new_shel_t && shIds.has(bus.new_shel_t)) {
+          headingHere = true
+        }
+
+        let nearby = false
+        if (
+          halteCoord
+          && Number.isFinite(bus.lat)
+          && Number.isFinite(bus.lng)
+        ) {
+          const d = haversineMeters(
+            halteCoord,
+            { lat: Number(bus.lat), lng: Number(bus.lng) },
+          )
+          nearby = d <= AT_STOP_RADIUS_M
+        }
+        if (!headingHere && !nearby) continue
+
+        const key = bus.imei || bus.id
+        if (seen.has(key)) continue
+        seen.add(key)
+
+        // dist_shel from upstream applies to new_shel_t, not
+        // necessarily to this halte — force haversine fallback.
+        let etaMin: number | null = null
+        let distM: number | null = null
+        if (
+          headingHere && !nearby
+          && halteCoord
+          && Number.isFinite(bus.lat) && Number.isFinite(bus.lng)
+        ) {
+          const eta = etaToHalte(
+            { lat: Number(bus.lat), lng: Number(bus.lng), speed: bus.speed, dist_shel: null },
+            target,
+          )
+          distM = eta?.distM ?? null
+          etaMin = eta?.etaMin ?? null
+        }
+
+        out.push({
+          bus,
+          etaMin: nearby ? 0 : etaMin,
+          distM: nearby ? 0 : distM,
+          atStop: nearby,
+          fresh: !isStale(bus),
+          quality: getEtaQuality(bus),
+          corridorColor: colorForKor.value(bus.kor) || '#0EA5E9',
+          arrivalAt: !nearby && etaMin != null ? wallClockFor(etaMin) : null,
+        })
+      }
+
+      out.sort((a, b) => {
+        if (a.atStop !== b.atStop) return a.atStop ? -1 : 1
+        if (a.etaMin == null && b.etaMin == null) return 0
+        if (a.etaMin == null) return 1
+        if (b.etaMin == null) return -1
+        return a.etaMin - b.etaMin
+      })
+      return out
+    })
+  }
+
+  /** Upcoming halte for the given bus along its current leg, with
+   *  ETAs. Replaces BusDetailCard.upcomingStops. */
+  function upcomingStopsForBus(
+    busRef: MaybeRefOrGetter<BrtBus | null | undefined>,
+  ): ComputedRef<UpcomingStop[]> {
+    return computed(() => {
+      const bus = toValue(busRef)
+      if (!bus?.kor) return []
+      const corridor = corridorByKor.value.get(bus.kor)
+      if (!corridor) return []
+
+      const originName = bus.toward === corridor.toward ? corridor.origin : corridor.toward
+      const orderedHalte = getHalteForLeg(bus.kor, bus.toward, originName)
+      if (!orderedHalte.length) return []
+
+      // GPS-based progress so stale new_shel_t doesn't include
+      // halte the bus already passed (Wisma Donggala terminus case).
+      const startIdx = busLegProgress(bus, orderedHalte)
+      const slice = orderedHalte.slice(startIdx)
+
+      return slice.map((h, i): UpcomingStop => {
+        let distM: number | null = null
+        let etaMin: number | null = null
+
+        if (i === 0 && h.sh_id === bus.new_shel_t) {
+          // First upcoming halte AND it matches the upstream-reported
+          // next-stop — trust dist_shel if present.
+          const eta = etaToHalte(bus, h)
+          distM = eta?.distM ?? null
+          etaMin = eta?.etaMin ?? null
+        } else if (Number.isFinite(bus.lat) && Number.isFinite(bus.lng)) {
+          const hLat = parseFloat(h.sh_lat)
+          const hLng = parseFloat(h.sh_lng)
+          if (Number.isFinite(hLat) && Number.isFinite(hLng)) {
+            distM = haversineMeters(
+              { lat: bus.lat as number, lng: bus.lng as number },
+              { lat: hLat, lng: hLng },
+            )
+            const speed = Number.isFinite(bus.speed) && Number(bus.speed) >= 5
+              ? Number(bus.speed)
+              : FALLBACK_RIDE_SPEED_KMH
+            etaMin = (distM / 1000) / speed * 60
+          }
+        }
+
+        return {
+          sh_id: h.sh_id,
+          sh_name: h.sh_name,
+          etaMin,
+          distM,
+          arrivalAt: etaMin != null ? wallClockFor(etaMin) : null,
+        }
+      })
+    })
+  }
+
   return {
     cities,
     corridors,
@@ -205,5 +433,7 @@ export const useBrtStore = defineStore('brt', () => {
     halteByLeg,
     ensureHalteForLeg,
     getHalteForLeg,
+    incomingBusesForHalte,
+    upcomingStopsForBus,
   }
 })

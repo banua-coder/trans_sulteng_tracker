@@ -65,5 +65,18 @@ export default defineConfig({
     target: 'es2022',
     sourcemap: false,
     cssCodeSplit: true,
+    rollupOptions: {
+      output: {
+        // Split heavy third-party libs into their own long-lived chunks.
+        // Leaflet + polyline rarely change so cache-busting only the
+        // app chunk on each deploy saves repeat visitors a few hundred
+        // KB of re-download. socket.io is similarly stable.
+        manualChunks: {
+          leaflet: ['leaflet', '@mapbox/polyline'],
+          'vue-vendor': ['vue', 'vue-router', 'pinia', 'vue-i18n'],
+          socket: ['socket.io-client'],
+        },
+      },
+    },
   },
 })

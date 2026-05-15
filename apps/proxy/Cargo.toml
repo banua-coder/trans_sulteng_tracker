@@ -1,6 +1,6 @@
 [package]
 name = "cektrans-proxy"
-version = "0.5.0"
+version = "0.6.0"
 edition = "2021"
 license = "Apache-2.0"
 description = "BRT Nusantara → cektrans.banuacoder.com proxy: token + crypto + Socket.IO fan-out"
@@ -14,10 +14,11 @@ path = "src/main.rs"
 # HTTP / async runtime
 axum = { version = "0.7", features = ["macros", "ws"] }
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "signal", "sync", "time"] }
-tower = "0.5"
+# tower & cipher dropped: only used transitively through tower-http
+# and aes::cipher::* respectively (verified via cargo-machete + grep).
 tower-http = { version = "0.6", features = ["cors", "trace", "compression-gzip", "timeout"] }
 
-# REST client (rustls — no openssl)
+# REST client. rustls-tls (not native-tls) is musl-friendly.
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json", "gzip"] }
 
 # Realtime
@@ -27,7 +28,6 @@ rust_socketio = { version = "0.6", features = ["async"] }
 # Crypto for BRT token + bodies
 aes = "0.8"
 cbc = { version = "0.1", features = ["std"] }
-cipher = { version = "0.4", features = ["block-padding"] }
 base64 = "0.22"
 
 # Cache
@@ -48,8 +48,31 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 # Config
 dotenvy = "0.15"
 
+# Size-optimised release profile.
+#
+# opt-level = "z" trades ~5 % runtime for ~15 % smaller code than the
+#   default opt-level = 3. The proxy is I/O bound so the runtime hit
+#   is invisible.
+# lto = "fat" runs link-time optimisation across crates, killing dead
+#   monomorphisations and inlining across the whole binary.
+# codegen-units = 1 maximises LTO's reach (more CGUs lets rustc skip
+#   optimising across boundaries).
+# strip = "symbols" removes debug symbols + section names.
+# panic = "abort" drops unwinding tables. The proxy can't recover
+#   from a panic anyway — we want it to exit and let the orchestrator
+#   restart, not climb the stack on the way out.
 [profile.release]
-opt-level = 3
-lto = "thin"
+opt-level = "z"
+lto = "fat"
 codegen-units = 1
 strip = "symbols"
+panic = "abort"
+
+# Keep dev fast: no LTO, parallel codegen, full debuginfo.
+[profile.dev]
+opt-level = 0
+debug = true
+
+[package.metadata.cargo-machete]
+# Empty for now; placeholder so machete output stays stable in CI.
+ignored = []
