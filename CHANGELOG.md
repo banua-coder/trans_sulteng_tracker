@@ -2,6 +2,18 @@
 
 All notable releases of cektrans are recorded here. Generated automatically by `release-finalize.yml`.
 
+## v0.6.15 — 2026-05-16
+
+### ✨ Features
+
+- feat(web): donate modal — prominent Saweria CTA + warmer copy (0299bae)
+
+### 🧹 Chore
+
+- chore: bump version to 0.6.15 (ac17d38)
+
+
+
 ## v0.6.14 — 2026-05-16
 
 ### ✨ Features
