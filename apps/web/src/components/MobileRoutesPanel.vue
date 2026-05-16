@@ -104,71 +104,80 @@ function pickHalte(shId: string) {
 
 <template>
   <div ref="scrollEl" class="flex flex-col gap-3">
-    <!-- tabs -->
-    <div class="flex shrink-0 gap-2">
-      <button
-        type="button"
-        class="flex-1 rounded-full px-4 py-1.5 font-mono text-xs font-bold uppercase tracking-wider transition-colors"
-        :class="
-          tab === 'routes'
-            ? 'bg-bnc-primary text-white shadow-sm'
-            : 'bg-bnc-stone-100 text-bnc-stone-600 dark:bg-bnc-stone-800 dark:text-bnc-stone-300'
-        "
-        @click="tab = 'routes'"
-      >
-        {{ t('route.tabRoute') }}
-      </button>
-      <button
-        type="button"
-        class="flex-1 rounded-full px-4 py-1.5 font-mono text-xs font-bold uppercase tracking-wider transition-colors"
-        :class="
-          tab === 'halte'
-            ? 'bg-bnc-primary text-white shadow-sm'
-            : 'bg-bnc-stone-100 text-bnc-stone-600 dark:bg-bnc-stone-800 dark:text-bnc-stone-300'
-        "
-        @click="tab = 'halte'"
-      >
-        {{ t('route.tabHalte') }}
-      </button>
-      <button
-        type="button"
-        class="flex-1 rounded-full px-4 py-1.5 font-mono text-xs font-bold uppercase tracking-wider transition-colors"
-        :class="
-          tab === 'plan'
-            ? 'bg-bnc-primary text-white shadow-sm'
-            : 'bg-bnc-stone-100 text-bnc-stone-600 dark:bg-bnc-stone-800 dark:text-bnc-stone-300'
-        "
-        @click="tab = 'plan'"
-      >
-        {{ t('route.tabPlan') }}
-      </button>
+    <!-- Sticky header: tabs + search stay pinned to the top of the
+         bottom sheet's scroll container so the user always has the
+         tab switcher + search in reach while paging through the list.
+         -mx-4 px-4 makes the sticky band span the sheet's content
+         padding; bg matches the sheet so list rows don't bleed through. -->
+    <div
+      class="sticky -top-1 z-10 -mx-4 flex flex-col gap-2 bg-bnc-paper px-4 pb-2 pt-1 shadow-[0_4px_8px_-6px_rgba(10,14,20,0.12)] dark:bg-bnc-stone-900"
+    >
+      <!-- tabs -->
+      <div class="flex shrink-0 gap-2">
+        <button
+          type="button"
+          class="flex-1 rounded-full px-4 py-1.5 font-mono text-xs font-bold uppercase tracking-wider transition-colors"
+          :class="
+            tab === 'routes'
+              ? 'bg-bnc-primary text-white shadow-sm'
+              : 'bg-bnc-stone-100 text-bnc-stone-600 dark:bg-bnc-stone-800 dark:text-bnc-stone-300'
+          "
+          @click="tab = 'routes'"
+        >
+          {{ t('route.tabRoute') }}
+        </button>
+        <button
+          type="button"
+          class="flex-1 rounded-full px-4 py-1.5 font-mono text-xs font-bold uppercase tracking-wider transition-colors"
+          :class="
+            tab === 'halte'
+              ? 'bg-bnc-primary text-white shadow-sm'
+              : 'bg-bnc-stone-100 text-bnc-stone-600 dark:bg-bnc-stone-800 dark:text-bnc-stone-300'
+          "
+          @click="tab = 'halte'"
+        >
+          {{ t('route.tabHalte') }}
+        </button>
+        <button
+          type="button"
+          class="flex-1 rounded-full px-4 py-1.5 font-mono text-xs font-bold uppercase tracking-wider transition-colors"
+          :class="
+            tab === 'plan'
+              ? 'bg-bnc-primary text-white shadow-sm'
+              : 'bg-bnc-stone-100 text-bnc-stone-600 dark:bg-bnc-stone-800 dark:text-bnc-stone-300'
+          "
+          @click="tab = 'plan'"
+        >
+          {{ t('route.tabPlan') }}
+        </button>
+      </div>
+
+      <!-- search (shared with BusListPanel via ui store so search persists across swaps) -->
+      <label v-if="tab !== 'plan'" class="relative block shrink-0">
+        <span class="sr-only">{{ t('route.search') }}</span>
+        <input
+          v-model="busSearch"
+          type="search"
+          autocomplete="off"
+          :placeholder="tab === 'routes' ? t('route.searchRoute') : t('route.searchHalte')"
+          class="w-full rounded-[var(--radius-md)] border border-bnc-stone-200 bg-bnc-stone-50 px-3 py-2 pr-9 text-sm placeholder:text-bnc-stone-400 focus:border-bnc-accent focus:outline-none dark:border-bnc-stone-800 dark:bg-bnc-stone-800"
+        />
+        <svg
+          class="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-bnc-stone-400"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+        >
+          <circle cx="11" cy="11" r="7" />
+          <path d="m20 20-3.5-3.5" />
+        </svg>
+      </label>
     </div>
 
     <!-- trip planner tab -->
     <TripPlannerPanel v-if="tab === 'plan'" />
-
-    <!-- search (shared with BusListPanel via ui store so search persists across swaps) -->
-    <label v-if="tab !== 'plan'" class="relative block shrink-0">
-      <span class="sr-only">{{ t('route.search') }}</span>
-      <input
-        v-model="busSearch"
-        type="search"
-        autocomplete="off"
-        :placeholder="tab === 'routes' ? t('route.searchRoute') : t('route.searchHalte')"
-        class="w-full rounded-[var(--radius-md)] border border-bnc-stone-200 bg-bnc-stone-50 px-3 py-2 pr-9 text-sm placeholder:text-bnc-stone-400 focus:border-bnc-accent focus:outline-none dark:border-bnc-stone-800 dark:bg-bnc-stone-800"
-      />
-      <svg
-        class="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-bnc-stone-400"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-        stroke-linecap="round"
-      >
-        <circle cx="11" cy="11" r="7" />
-        <path d="m20 20-3.5-3.5" />
-      </svg>
-    </label>
 
     <!-- list -->
     <ul v-if="tab === 'routes'" class="flex flex-col gap-2">

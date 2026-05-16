@@ -82,7 +82,7 @@ const upcomingStops = brt.upcomingStopsForBus(selectedBus)
             type="button"
             class="grid h-8 w-8 shrink-0 place-items-center rounded-full text-bnc-stone-600 transition-colors hover:bg-bnc-stone-100 dark:text-bnc-stone-300 dark:hover:bg-bnc-stone-800"
             :aria-label="t('a11y.back')"
-            @click="selection.clear()"
+            @click="selection.back()"
           >
             <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M15 6l-6 6 6 6" />
