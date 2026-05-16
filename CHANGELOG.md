@@ -2,6 +2,18 @@
 
 All notable releases of cektrans are recorded here. Generated automatically by `release-finalize.yml`.
 
+## v0.6.11 — 2026-05-16
+
+### 🐛 Bug Fixes
+
+- fix(web): trip planner origin/dest inputs crop on narrow viewports (0389477)
+
+### 🧹 Chore
+
+- chore: bump version to 0.6.11 (01d96d8)
+
+
+
 ## v0.6.10 — 2026-05-16
 
 ### 🐛 Bug Fixes
