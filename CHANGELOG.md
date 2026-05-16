@@ -2,6 +2,18 @@
 
 All notable releases of cektrans are recorded here. Generated automatically by `release-finalize.yml`.
 
+## v0.6.10 — 2026-05-16
+
+### 🐛 Bug Fixes
+
+- fix(web): MobileRoutesPanel sticky tabs/search inside flex parent (0ee6af7)
+
+### 🧹 Chore
+
+- chore: bump version to 0.6.10 (d422ba8)
+
+
+
 ## v0.6.9 — 2026-05-16
 
 ### 🐛 Bug Fixes
