@@ -91,6 +91,13 @@ export const messages = {
       myLocation: 'Lokasi saya',
       close: 'Tutup',
       back: 'Kembali',
+      donate: 'Dukung kami',
+    },
+    donate: {
+      title: 'Dukung cektrans',
+      subtitle: 'Pindai QR di bawah untuk berdonasi lewat Saweria.',
+      scanHint: 'Buka aplikasi pemindai atau dompet digital, lalu arahkan ke QR ini.',
+      close: 'Tutup',
     },
     route: {
       indexTitle: 'Rute & Halte',
@@ -245,6 +252,13 @@ export const messages = {
       myLocation: 'My location',
       close: 'Close',
       back: 'Back',
+      donate: 'Support us',
+    },
+    donate: {
+      title: 'Support cektrans',
+      subtitle: 'Scan the QR below to donate via Saweria.',
+      scanHint: 'Open a QR scanner or e-wallet app and aim it at this code.',
+      close: 'Close',
     },
     route: {
       indexTitle: 'Routes & Stops',
