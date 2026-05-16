@@ -103,14 +103,17 @@ function pickHalte(shId: string) {
 </script>
 
 <template>
-  <div ref="scrollEl" class="flex flex-col gap-3">
+  <!-- No outer flex/gap wrapper: position:sticky inside a flex item
+       can break in some browsers, and the previous sticky attempt
+       wasn't pinning reliably. Plain block + sticky child + sibling
+       list works everywhere. -->
+  <div ref="scrollEl">
     <!-- Sticky header: tabs + search stay pinned to the top of the
-         bottom sheet's scroll container so the user always has the
-         tab switcher + search in reach while paging through the list.
-         -mx-4 px-4 makes the sticky band span the sheet's content
-         padding; bg matches the sheet so list rows don't bleed through. -->
+         bottom sheet's scroll container. -mx-4 + px-4 spans the
+         sheet's content padding; bg matches the sheet so list rows
+         don't bleed through; pt offsets the sheet's top inset. -->
     <div
-      class="sticky -top-1 z-10 -mx-4 flex flex-col gap-2 bg-bnc-paper px-4 pb-2 pt-1 shadow-[0_4px_8px_-6px_rgba(10,14,20,0.12)] dark:bg-bnc-stone-900"
+      class="sticky top-0 z-10 -mx-4 -mt-1 flex flex-col gap-2 bg-bnc-paper px-4 pb-3 pt-2 shadow-[0_4px_8px_-6px_rgba(10,14,20,0.12)] dark:bg-bnc-stone-900"
     >
       <!-- tabs -->
       <div class="flex shrink-0 gap-2">
@@ -177,10 +180,10 @@ function pickHalte(shId: string) {
     </div>
 
     <!-- trip planner tab -->
-    <TripPlannerPanel v-if="tab === 'plan'" />
+    <TripPlannerPanel v-if="tab === 'plan'" class="mt-3" />
 
     <!-- list -->
-    <ul v-if="tab === 'routes'" class="flex flex-col gap-2">
+    <ul v-if="tab === 'routes'" class="mt-3 flex flex-col gap-2">
       <li v-for="c in filteredRoutes" :key="c.kor">
         <button type="button" class="w-full" @click="pickRoute(c.kor)">
           <RouteListItem
@@ -201,7 +204,7 @@ function pickHalte(shId: string) {
       </li>
     </ul>
 
-    <ul v-else-if="tab === 'halte'" class="flex flex-col gap-2">
+    <ul v-else-if="tab === 'halte'" class="mt-3 flex flex-col gap-2">
       <li v-for="h in filteredHalte" :key="h.sh_id">
         <button
           type="button"
