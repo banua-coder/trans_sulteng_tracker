@@ -2,6 +2,18 @@
 
 All notable releases of cektrans are recorded here. Generated automatically by `release-finalize.yml`.
 
+## v0.6.9 — 2026-05-16
+
+### 🐛 Bug Fixes
+
+- fix(web): selection back-stack + sticky tabs/search + slim image (069e443)
+
+### 🧹 Chore
+
+- chore: bump version to 0.6.9 (430bbc7)
+
+
+
 ## v0.6.8 — 2026-05-15
 
 ### 🐛 Bug Fixes
