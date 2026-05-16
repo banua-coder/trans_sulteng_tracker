@@ -2,6 +2,19 @@
 
 All notable releases of cektrans are recorded here. Generated automatically by `release-finalize.yml`.
 
+## v0.6.16 — 2026-05-16
+
+### 🐛 Bug Fixes
+
+- fix(web): corridor timeline drops buses with stale/wrong-dir new_shel_t (a1db159)
+- fix(web): corridor timeline + passed halte lingering in upcoming list (abca80c)
+
+### 🧹 Chore
+
+- chore: bump version to 0.6.16 (123f472)
+
+
+
 ## v0.6.15 — 2026-05-16
 
 ### ✨ Features
