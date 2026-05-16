@@ -2,6 +2,18 @@
 
 All notable releases of cektrans are recorded here. Generated automatically by `release-finalize.yml`.
 
+## v0.6.13 — 2026-05-16
+
+### 🐛 Bug Fixes
+
+- fix(web): SPA fallback env var name (SERVER_FALLBACK_PAGE, not SERVER_PAGE_FALLBACK) (d0e6f39)
+
+### 🧹 Chore
+
+- chore: bump version to 0.6.13 (fa2eff9)
+
+
+
 ## v0.6.12 — 2026-05-16
 
 ### 🐛 Bug Fixes
