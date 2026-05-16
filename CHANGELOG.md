@@ -2,6 +2,18 @@
 
 All notable releases of cektrans are recorded here. Generated automatically by `release-finalize.yml`.
 
+## v0.6.12 — 2026-05-16
+
+### 🐛 Bug Fixes
+
+- fix(web): origin selector clipped under sticky tabs in plan tab (86fb6d2)
+
+### 🧹 Chore
+
+- chore: bump version to 0.6.12 (a248b29)
+
+
+
 ## v0.6.11 — 2026-05-16
 
 ### 🐛 Bug Fixes
