@@ -186,18 +186,29 @@ export function getEtaQuality(b: BrtBus | null | undefined): 'good' | 'warn' | '
  *
  *  Falls back to the `new_shel_t` index when GPS is missing. */
 export function busLegProgress(
-  bus: Pick<BrtBus, 'lat' | 'lng' | 'new_shel_t'>,
+  bus: Pick<BrtBus, 'lat' | 'lng' | 'new_shel_t' | 'old_shel_t'>,
   orderedHalte: BrtHalte[],
 ): number {
   if (!orderedHalte.length) return 0
+
+  // Hard lower bound: if upstream tagged `old_shel_t` = halte N, the
+  // bus has confirmed leaving N, so upcoming starts at N+1 at the
+  // earliest. This is what makes a just-passed halte disappear from
+  // the upcoming list immediately instead of lingering until the bus
+  // crosses the geographic midpoint to the next halte.
+  let lowerBound = 0
+  if (bus.old_shel_t) {
+    const oldIdx = orderedHalte.findIndex((h) => h.sh_id === bus.old_shel_t)
+    if (oldIdx >= 0) lowerBound = Math.min(oldIdx + 1, orderedHalte.length - 1)
+  }
 
   const hasGps = Number.isFinite(bus.lat) && Number.isFinite(bus.lng)
   if (!hasGps) {
     if (bus.new_shel_t) {
       const idx = orderedHalte.findIndex((h) => h.sh_id === bus.new_shel_t)
-      if (idx >= 0) return idx
+      if (idx >= 0) return Math.max(idx, lowerBound)
     }
-    return 0
+    return lowerBound
   }
 
   const busPt = { lat: bus.lat as number, lng: bus.lng as number }
@@ -224,13 +235,14 @@ export function busLegProgress(
   // bus than the closest itself, the bus has driven past closestIdx and
   // closestIdx+1 is the real upcoming stop. Otherwise the bus is still
   // approaching closestIdx (or parked at it) and that's the upcoming.
+  let geoIdx = closestIdx
   if (closestIdx < orderedHalte.length - 1) {
     const distNext = dists[closestIdx + 1]
     if (Number.isFinite(distNext) && distNext < closestDist) {
-      return closestIdx + 1
+      geoIdx = closestIdx + 1
     }
   }
-  return closestIdx
+  return Math.max(geoIdx, lowerBound)
 }
 
 /** Haversine distance in metres between two lat/lng points. */
