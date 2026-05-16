@@ -94,9 +94,10 @@ export const messages = {
       donate: 'Dukung kami',
     },
     donate: {
-      title: 'Dukung cektrans',
-      subtitle: 'Pindai QR di bawah untuk berdonasi lewat Saweria.',
-      scanHint: 'Buka aplikasi pemindai atau dompet digital, lalu arahkan ke QR ini.',
+      title: 'Traktir kami kopi ☕',
+      subtitle: 'cektrans dibuat satu orang di waktu luang dan akan selalu gratis. Donasimu bikin server tetap nyala dan update berikutnya datang lebih cepat.',
+      cta: 'Donasi via Saweria',
+      scanHint: 'Atau pindai QR ini dari aplikasi dompet digital favoritmu',
       close: 'Tutup',
     },
     route: {
@@ -255,9 +256,10 @@ export const messages = {
       donate: 'Support us',
     },
     donate: {
-      title: 'Support cektrans',
-      subtitle: 'Scan the QR below to donate via Saweria.',
-      scanHint: 'Open a QR scanner or e-wallet app and aim it at this code.',
+      title: 'Buy us a coffee ☕',
+      subtitle: 'cektrans is built by one person in their free time and will stay free. Your donation keeps the servers on and the next update shipping sooner.',
+      cta: 'Donate on Saweria',
+      scanHint: 'Or scan this QR with your favourite e-wallet app',
       close: 'Close',
     },
     route: {

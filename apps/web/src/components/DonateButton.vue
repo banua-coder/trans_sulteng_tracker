@@ -70,25 +70,43 @@ onBeforeUnmount(() => {
             </svg>
           </button>
 
-          <h2 class="font-display text-base font-bold tracking-tight">
+          <h2 class="text-center font-display text-lg font-bold tracking-tight">
             {{ t('donate.title') }}
           </h2>
-          <p class="text-center text-xs text-bnc-stone-600 dark:text-bnc-stone-300">
+          <p class="text-center text-xs leading-relaxed text-bnc-stone-600 dark:text-bnc-stone-300">
             {{ t('donate.subtitle') }}
           </p>
+
+          <a
+            href="https://saweria.co/ryanaidilp"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="inline-flex w-full items-center justify-center gap-2 rounded-full bg-rose-500 px-4 py-2.5 font-display text-sm font-semibold text-white shadow-sm transition-colors hover:bg-rose-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-bnc-stone-900"
+          >
+            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+              <path d="M12 21s-7.5-4.6-9.5-9.3C1.2 8 3.4 4.5 7 4.5c2 0 3.6 1 5 2.7 1.4-1.7 3-2.7 5-2.7 3.6 0 5.8 3.5 4.5 7.2C19.5 16.4 12 21 12 21z" />
+            </svg>
+            {{ t('donate.cta') }}
+            <svg class="h-3.5 w-3.5 opacity-80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden>
+              <path d="M7 17 17 7" />
+              <path d="M8 7h9v9" />
+            </svg>
+          </a>
+
+          <div class="flex w-full items-center gap-3 text-bnc-stone-400">
+            <span class="h-px flex-1 bg-bnc-stone-200 dark:bg-bnc-stone-700" />
+            <span class="font-mono text-[10px] uppercase tracking-wider">{{ t('donate.scanHint') }}</span>
+            <span class="h-px flex-1 bg-bnc-stone-200 dark:bg-bnc-stone-700" />
+          </div>
 
           <img
             src="/saweria-qr.webp"
             :alt="t('donate.title')"
-            width="240"
-            height="240"
+            width="200"
+            height="200"
             class="rounded-[var(--radius-md)] bg-white p-2"
             decoding="async"
           />
-
-          <p class="text-center font-mono text-[10px] uppercase tracking-wider text-bnc-stone-500">
-            {{ t('donate.scanHint') }}
-          </p>
         </div>
       </div>
     </transition>
