@@ -270,7 +270,7 @@ const showNoResults = computed(
 
       <!-- Chip when origin set -->
       <template v-else-if="origin">
-        <span class="flex flex-1 items-center gap-1.5 rounded-full bg-bnc-stone-100 px-3 py-1.5 text-sm dark:bg-bnc-stone-800">
+        <span class="flex min-w-0 flex-1 items-center gap-1.5 rounded-full bg-bnc-stone-100 px-3 py-1.5 text-sm dark:bg-bnc-stone-800">
           <svg class="h-3 w-3 shrink-0 text-bnc-accent" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
             <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" />
           </svg>
@@ -288,7 +288,10 @@ const showNoResults = computed(
         </span>
       </template>
 
-      <!-- Search input -->
+      <!-- Search input. min-w-0 + a small width:1px override the
+           browser's default min-width:auto on flex inputs so the row
+           can shrink below the input's intrinsic width on narrow
+           viewports without overflowing the bottom sheet. -->
       <input
         v-else
         ref="originInputEl"
@@ -296,7 +299,7 @@ const showNoResults = computed(
         type="text"
         autocomplete="off"
         :placeholder="t('trip.originPlaceholder')"
-        class="flex-1 rounded-[var(--radius-md)] border border-bnc-stone-200 bg-bnc-stone-50 px-3 py-2 text-sm placeholder:text-bnc-stone-400 focus:border-bnc-accent focus:outline-none dark:border-bnc-stone-800 dark:bg-bnc-stone-800"
+        class="w-px min-w-0 flex-1 rounded-[var(--radius-md)] border border-bnc-stone-200 bg-bnc-stone-50 px-3 py-2 text-sm placeholder:text-bnc-stone-400 focus:border-bnc-accent focus:outline-none dark:border-bnc-stone-800 dark:bg-bnc-stone-800"
         @focus="originFocused = true"
       />
     </div>
@@ -372,7 +375,7 @@ const showNoResults = computed(
 
       <!-- Chip when destination set -->
       <template v-if="destination">
-        <span class="flex flex-1 items-center gap-1.5 rounded-full bg-bnc-stone-100 px-3 py-1.5 text-sm dark:bg-bnc-stone-800">
+        <span class="flex min-w-0 flex-1 items-center gap-1.5 rounded-full bg-bnc-stone-100 px-3 py-1.5 text-sm dark:bg-bnc-stone-800">
           <svg class="h-3 w-3 shrink-0 text-bnc-primary dark:text-bnc-accent" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
             <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" />
           </svg>
@@ -390,7 +393,7 @@ const showNoResults = computed(
         </span>
       </template>
 
-      <!-- Search input -->
+      <!-- Search input -- see origin input above for min-w-0 rationale. -->
       <input
         v-else
         ref="destInputEl"
@@ -398,7 +401,7 @@ const showNoResults = computed(
         type="text"
         autocomplete="off"
         :placeholder="t('trip.destinationPlaceholder')"
-        class="flex-1 rounded-[var(--radius-md)] border border-bnc-stone-200 bg-bnc-stone-50 px-3 py-2 text-sm placeholder:text-bnc-stone-400 focus:border-bnc-accent focus:outline-none dark:border-bnc-stone-800 dark:bg-bnc-stone-800"
+        class="w-px min-w-0 flex-1 rounded-[var(--radius-md)] border border-bnc-stone-200 bg-bnc-stone-50 px-3 py-2 text-sm placeholder:text-bnc-stone-400 focus:border-bnc-accent focus:outline-none dark:border-bnc-stone-800 dark:bg-bnc-stone-800"
         @focus="destFocused = true"
       />
     </div>
