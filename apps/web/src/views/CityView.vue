@@ -119,14 +119,17 @@ onBeforeUnmount(() => {
       <MobileRoutesPanel v-else />
     </BottomSheet>
 
-    <!-- Desktop info panel — only on lg+. Exclusive: only one detail
-         panel is visible at a time (stores enforce mutual exclusivity). -->
+    <!-- Desktop info panel — only on lg+. Selection (bus/halte) wins
+         over corridor focus so the drill-down flow stays intact:
+         focus corridor -> tap bus -> bus detail covers the corridor
+         panel -> close bus -> corridor panel returns. Same cascade
+         order as the mobile bottom sheet. -->
     <div
       class="pointer-events-none fixed bottom-4 right-4 z-[1000] hidden lg:block lg:max-w-md"
     >
-      <CorridorFocusPanel v-if="isFocused" />
-      <BusDetailCard v-else-if="selectionKind === 'bus'" />
+      <BusDetailCard v-if="selectionKind === 'bus'" />
       <HalteDetailCard v-else-if="selectionKind === 'halte'" />
+      <CorridorFocusPanel v-else-if="isFocused" />
       <TripDetailPanel v-else-if="tripSelectedPlan" />
     </div>
   </div>

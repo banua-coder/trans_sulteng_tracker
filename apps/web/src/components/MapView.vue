@@ -689,10 +689,10 @@ function upsertBusMarker(b: BrtBus) {
 }
 
 function focusBus(key: string, _b: BrtBus) {
-  // Toggle: clicking the focused bus again (or its close button) restores
-  // the prior viewport via the selection watcher below.
+  // Toggle: clicking the focused bus again pops the bus level off the
+  // selection stack — drops back to whatever was visible before.
   if (selection.kind === 'bus' && selection.id === key) {
-    selection.clear()
+    selection.back()
     return
   }
   selection.selectBus(key)
