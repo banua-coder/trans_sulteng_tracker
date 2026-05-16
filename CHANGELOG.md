@@ -2,6 +2,18 @@
 
 All notable releases of cektrans are recorded here. Generated automatically by `release-finalize.yml`.
 
+## v0.6.14 — 2026-05-16
+
+### ✨ Features
+
+- feat(web): donate button + QR modal in top bar (d9e8781)
+
+### 🧹 Chore
+
+- chore: bump version to 0.6.14 (bd28a1e)
+
+
+
 ## v0.6.13 — 2026-05-16
 
 ### 🐛 Bug Fixes

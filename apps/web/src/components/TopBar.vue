@@ -8,6 +8,7 @@ import { useBrtStore } from '@/stores/brt'
 import { useTheme } from '@/lib/theme'
 import BanuacoderLogo from '@/components/BanuacoderLogo.vue'
 import CekTransLogo from '@/components/CekTransLogo.vue'
+import DonateButton from '@/components/DonateButton.vue'
 import { CITY_PREF, type CitySlug } from '@/types/brt'
 
 const { t, locale } = useI18n()
@@ -160,6 +161,8 @@ function pickCity(slug: CitySlug) {
           <span class="font-mono">{{ socket.viewers }}</span>
         </template>
       </span>
+
+      <DonateButton />
 
       <button
         type="button"
