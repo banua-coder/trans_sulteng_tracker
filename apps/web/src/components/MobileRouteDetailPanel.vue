@@ -14,7 +14,7 @@ import { storeToRefs } from 'pinia'
 import { useBrtStore } from '@/stores/brt'
 import { useFocusStore } from '@/stores/focus'
 import { useSelectionStore } from '@/stores/selection'
-import { etaToHalte, getEtaQuality, isStale, parseProgress } from '@/lib/format'
+import { busLegProgress, etaToHalte, getEtaQuality, isStale, parseProgress } from '@/lib/format'
 import HalteTimelineNode from '@/components/HalteTimelineNode.vue'
 import IncomingBusCard from '@/components/IncomingBusCard.vue'
 import CopyLinkButton from '@/components/CopyLinkButton.vue'
@@ -68,14 +68,30 @@ interface HalteRow {
 const rows = computed<HalteRow[]>(() => {
   void tick.value
   if (!corridor.value) return []
+  const haltes = halte.value
   const buses = [...brt.buses.values()].filter((b) => b.kor === corridor.value!.kor)
+
+  // Same fallback as CorridorFocusPanel: new_shel_t when present and
+  // in this direction's halte list, otherwise busLegProgress places
+  // the bus under its geographic next-stop on the focused leg.
+  const idxBySh = new Map<string, number>()
+  for (let i = 0; i < haltes.length; i++) idxBySh.set(haltes[i].sh_id, i)
+  const busToIdx = new Map<string, number>()
+  for (const bus of buses) {
+    let idx = bus.new_shel_t ? idxBySh.get(bus.new_shel_t) : undefined
+    if (idx == null && haltes.length) idx = busLegProgress(bus, haltes)
+    if (idx != null && idx >= 0 && idx < haltes.length) {
+      busToIdx.set(bus.imei || bus.id, idx)
+    }
+  }
+
   const out: HalteRow[] = []
-  for (let i = 0; i < halte.value.length; i++) {
-    const h = halte.value[i]
-    const isTerminal = i === halte.value.length - 1
+  for (let i = 0; i < haltes.length; i++) {
+    const h = haltes[i]
+    const isTerminal = i === haltes.length - 1
     const incoming: IncomingBus[] = []
     for (const bus of buses) {
-      if (bus.new_shel_t !== h.sh_id) continue
+      if (busToIdx.get(bus.imei || bus.id) !== i) continue
       const eta = etaToHalte(bus, h)
       const etaMin = eta?.etaMin ?? null
       incoming.push({
