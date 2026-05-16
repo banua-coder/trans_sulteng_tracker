@@ -1,0 +1,51 @@
+# Files docker doesn't need to send across to the daemon. Keeps the
+# build context small (the whole monorepo would otherwise ship every
+# build, including node_modules, target/, etc).
+
+# Dependencies
+**/node_modules
+**/.pnpm-store
+
+# Build artefacts
+**/dist
+**/.next
+**/.nuxt
+**/.svelte-kit
+**/.vite
+**/target
+**/.cargo-cache
+
+# Test / coverage
+**/coverage
+**/.nyc_output
+**/.pytest_cache
+
+# Editor / OS
+.git
+.gitignore
+.gitattributes
+.github
+**/.vscode
+**/.idea
+**/.DS_Store
+**/Thumbs.db
+
+# Logs
+**/*.log
+**/npm-debug.log*
+**/yarn-debug.log*
+**/yarn-error.log*
+
+# Env (real values live in secrets / .env on the VPS, not in builds)
+**/.env
+**/.env.local
+**/.env.*.local
+
+# Misc
+README.md
+CHANGELOG.md
+LICENSE
+**/*.md
+beads
+.beads
+.context-os
