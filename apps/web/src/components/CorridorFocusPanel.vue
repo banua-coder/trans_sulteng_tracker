@@ -8,6 +8,7 @@ import { getEtaQuality, parseProgress } from '@/lib/format'
 import CopyLinkButton from '@/components/CopyLinkButton.vue'
 import HalteTimelineNode from '@/components/HalteTimelineNode.vue'
 import IncomingBusCard from '@/components/IncomingBusCard.vue'
+import DirectionSelector from '@/components/DirectionSelector.vue'
 import type { BrtBus, BrtHalte } from '@/types/brt'
 
 const brt = useBrtStore()
@@ -93,53 +94,14 @@ function pickBus(bus: BrtBus) {
         </div>
       </header>
 
-      <div
-        class="border-b border-bnc-stone-200 px-4 py-3 dark:border-bnc-stone-800"
-      >
-        <p class="font-mono text-[11px] uppercase tracking-wider text-bnc-stone-500">
-          Arah
-        </p>
-        <div class="mt-2 grid gap-1.5">
-          <button
-            v-if="directionAvailable.a"
-            type="button"
-            class="flex items-center gap-2 rounded-md border px-3 py-2 text-left text-sm transition-colors"
-            :class="
-              direction === 'a'
-                ? 'border-bnc-ink bg-bnc-ink text-bnc-paper dark:border-bnc-paper dark:bg-bnc-paper dark:text-bnc-ink'
-                : 'border-bnc-stone-200 bg-bnc-stone-50 text-bnc-stone-700 hover:border-bnc-stone-300 dark:border-bnc-stone-800 dark:bg-bnc-stone-800/50 dark:text-bnc-stone-200'
-            "
-            @click="focus.setDirection('a')"
-          >
-            <span class="shrink-0 font-mono text-[11px] uppercase tracking-wider opacity-70">
-              →
-            </span>
-            <span class="font-display font-semibold">{{ corridor?.toward || '—' }}</span>
-          </button>
-          <button
-            v-if="directionAvailable.b"
-            type="button"
-            class="flex items-center gap-2 rounded-md border px-3 py-2 text-left text-sm transition-colors"
-            :class="
-              direction === 'b'
-                ? 'border-bnc-ink bg-bnc-ink text-bnc-paper dark:border-bnc-paper dark:bg-bnc-paper dark:text-bnc-ink'
-                : 'border-bnc-stone-200 bg-bnc-stone-50 text-bnc-stone-700 hover:border-bnc-stone-300 dark:border-bnc-stone-800 dark:bg-bnc-stone-800/50 dark:text-bnc-stone-200'
-            "
-            @click="focus.setDirection('b')"
-          >
-            <span class="shrink-0 font-mono text-[11px] uppercase tracking-wider opacity-70">
-              →
-            </span>
-            <span class="font-display font-semibold">{{ corridor?.origin || '—' }}</span>
-          </button>
-          <p
-            v-if="!directionAvailable.a || !directionAvailable.b"
-            class="rounded-md bg-bnc-stone-100 px-2 py-1.5 text-[11px] text-bnc-stone-600 dark:bg-bnc-stone-800 dark:text-bnc-stone-300"
-          >
-            Operator hanya menyediakan halte satu arah untuk koridor ini.
-          </p>
-        </div>
-      </div>
+      <DirectionSelector
+        layout="desktop"
+        :direction="direction"
+        :available="directionAvailable"
+        :toward-label="corridor?.toward || ''"
+        :origin-label="corridor?.origin || ''"
+        @update:direction="focus.setDirection($event)"
+      />
 
       <ol v-if="rows.length" class="flex-1 overflow-y-auto px-4 py-3">
         <HalteTimelineNode

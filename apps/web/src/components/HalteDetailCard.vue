@@ -8,6 +8,7 @@ import { formatDistance, formatSpeed, parsePassenger } from '@/lib/format'
 import CopyLinkButton from '@/components/CopyLinkButton.vue'
 import PlateBadge from '@/components/PlateBadge.vue'
 import EtaQualityGuide from '@/components/EtaQualityGuide.vue'
+import SheetStickyHeader from '@/components/SheetStickyHeader.vue'
 
 const { t } = useI18n()
 const selection = useSelectionStore()
@@ -83,58 +84,49 @@ function openDirections() {
            static on desktop where the article is already a floating card.
            The bg matches the sheet surface so scrolling buses don't bleed
            through. -->
-      <div
-        class="sticky -top-1 z-20 -mx-4 flex flex-col gap-2 bg-bnc-paper px-4 pb-3 pt-2 shadow-[0_4px_8px_-6px_rgba(10,14,20,0.12)] dark:bg-bnc-stone-900 lg:static lg:mx-0 lg:bg-transparent lg:p-0 lg:shadow-none dark:lg:bg-transparent"
+      <SheetStickyHeader
+        :back-label="t('a11y.back') || 'Tutup'"
+        mobile-only
+        @back="selection.back()"
       >
-        <header class="flex items-center gap-2">
+        <div class="min-w-0 flex-1">
+          <p class="font-mono text-[10px] uppercase tracking-wider text-bnc-stone-500">
+            {{ t('bus.halte') }}
+          </p>
+          <h3 class="truncate font-display text-sm font-bold tracking-tight">
+            {{ selectedHalte.sh_name }}
+          </h3>
+        </div>
+        <div class="flex shrink-0 items-center gap-0.5">
           <button
             type="button"
-            class="grid h-8 w-8 shrink-0 place-items-center rounded-full text-bnc-stone-600 transition-colors hover:bg-bnc-stone-100 dark:text-bnc-stone-300 dark:hover:bg-bnc-stone-800"
-            :aria-label="t('a11y.back') || 'Tutup'"
-            @click="selection.back()"
+            class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-bnc-stone-500 transition-colors hover:bg-bnc-stone-100 hover:text-bnc-accent dark:hover:bg-bnc-stone-800"
+            :aria-label="t('halte.directions')"
+            :title="t('halte.directions')"
+            @click="openDirections"
           >
-            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M15 6l-6 6 6 6" />
+            <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden>
+              <path d="M3 11 22 2l-9 19-2-8z" />
             </svg>
           </button>
-          <div class="min-w-0 flex-1">
-            <p class="font-mono text-[10px] uppercase tracking-wider text-bnc-stone-500">
-              {{ t('bus.halte') }}
-            </p>
-            <h3 class="truncate font-display text-sm font-bold tracking-tight">
-              {{ selectedHalte.sh_name }}
-            </h3>
-          </div>
-          <div class="flex shrink-0 items-center gap-0.5">
-            <button
-              type="button"
-              class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-bnc-stone-500 transition-colors hover:bg-bnc-stone-100 hover:text-bnc-accent dark:hover:bg-bnc-stone-800"
-              :aria-label="t('halte.directions')"
-              :title="t('halte.directions')"
-              @click="openDirections"
-            >
-              <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden>
-                <path d="M3 11 22 2l-9 19-2-8z" />
-              </svg>
-            </button>
-            <EtaQualityGuide class="lg:hidden" />
-            <CopyLinkButton />
-          </div>
-        </header>
-
-        <!-- Corridor badges — rounded rectangles, not circles, so the
-             code is readable when the user is on a multi-corridor stop. -->
-        <div v-if="corridorsAtHalte.length" class="flex flex-wrap gap-1">
-          <span
-            v-for="c in corridorsAtHalte"
-            :key="c.kor"
-            class="inline-flex items-center rounded-md px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-white"
-            :style="{ background: c.color }"
-          >
-            {{ c.kor }}
-          </span>
+          <EtaQualityGuide class="lg:hidden" />
+          <CopyLinkButton />
         </div>
-      </div>
+        <template #belowTitle>
+          <!-- Corridor badges — rounded rectangles, not circles, so the
+               code is readable when the user is on a multi-corridor stop. -->
+          <div v-if="corridorsAtHalte.length" class="flex flex-wrap gap-1">
+            <span
+              v-for="c in corridorsAtHalte"
+              :key="c.kor"
+              class="inline-flex items-center rounded-md px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-white"
+              :style="{ background: c.color }"
+            >
+              {{ c.kor }}
+            </span>
+          </div>
+        </template>
+      </SheetStickyHeader>
 
       <section class="border-t border-bnc-stone-200 pt-3 dark:border-bnc-stone-800">
         <h4 class="flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-wider text-bnc-stone-500">

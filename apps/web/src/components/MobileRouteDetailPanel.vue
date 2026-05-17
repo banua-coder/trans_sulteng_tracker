@@ -19,6 +19,8 @@ import HalteTimelineNode from '@/components/HalteTimelineNode.vue'
 import IncomingBusCard from '@/components/IncomingBusCard.vue'
 import CopyLinkButton from '@/components/CopyLinkButton.vue'
 import EtaQualityGuide from '@/components/EtaQualityGuide.vue'
+import SheetStickyHeader from '@/components/SheetStickyHeader.vue'
+import DirectionSelector from '@/components/DirectionSelector.vue'
 import type { BrtBus, BrtHalte } from '@/types/brt'
 
 const { t } = useI18n()
@@ -52,26 +54,8 @@ function corridorBadgesFor(h: BrtHalte) {
 
 <template>
   <article v-if="corridor" class="flex flex-col gap-3">
-    <!-- Sticky header — the BottomSheet's slot container is the
-         scroll context. With sticky top-0 the corridor info +
-         direction tabs stay visible at the top of the sheet while
-         the halte timeline scrolls underneath.
-         z-20 keeps us above the timeline track. The solid bg matches
-         the sheet's surface so scrolling content never bleeds
-         through, and the bottom shadow provides a subtle separator. -->
-    <div class="sticky -top-1 z-20 -mx-4 flex flex-col gap-3 bg-bnc-paper px-4 pb-3 pt-2 shadow-[0_4px_8px_-6px_rgba(10,14,20,0.12)] dark:bg-bnc-stone-900">
-    <header class="flex items-center justify-between gap-2">
-      <div class="flex min-w-0 items-center gap-2">
-        <button
-          type="button"
-          class="grid h-8 w-8 shrink-0 place-items-center rounded-full text-bnc-stone-600 transition-colors hover:bg-bnc-stone-100 dark:text-bnc-stone-300 dark:hover:bg-bnc-stone-800"
-          :aria-label="t('a11y.back')"
-          @click="focus.clear()"
-        >
-          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M15 6l-6 6 6 6" />
-          </svg>
-        </button>
+    <SheetStickyHeader :back-label="t('a11y.back')" @back="focus.clear()">
+      <div class="flex min-w-0 flex-1 items-center gap-2">
         <span
           class="grid h-7 w-7 shrink-0 place-items-center rounded-full font-mono text-[11px] font-extrabold text-white"
           :style="{ background: accentColor }"
@@ -89,79 +73,48 @@ function corridorBadgesFor(h: BrtHalte) {
         </div>
       </div>
       <CopyLinkButton />
-    </header>
-
-    <!-- summary chips: halte count + active bus count -->
-    <div class="flex flex-wrap items-center gap-1.5">
-      <span
-        class="inline-flex items-center gap-1 rounded-full bg-bnc-stone-100 px-2 py-[3px] font-mono text-[10px] uppercase tracking-wider text-bnc-stone-600 dark:bg-bnc-stone-800 dark:text-bnc-stone-300"
-      >
-        <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden>
-          <circle cx="12" cy="10" r="3" />
-          <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" />
-        </svg>
-        {{ halteCount }} halte
-      </span>
-      <span
-        class="inline-flex items-center gap-1 rounded-full px-2 py-[3px] font-mono text-[10px] uppercase tracking-wider"
-        :class="
-          activeBusCount > 0
-            ? 'bg-bnc-accent/15 text-bnc-accent'
-            : 'bg-bnc-stone-100 text-bnc-stone-500 dark:bg-bnc-stone-800'
-        "
-      >
-        <span
-          class="h-1.5 w-1.5 rounded-full"
-          :style="{
-            background: activeBusCount > 0 ? 'var(--color-bnc-accent)' : 'var(--color-stale)',
-          }"
-          aria-hidden
+      <template #belowTitle>
+        <!-- summary chips: halte count + active bus count -->
+        <div class="flex flex-wrap items-center gap-1.5">
+          <span
+            class="inline-flex items-center gap-1 rounded-full bg-bnc-stone-100 px-2 py-[3px] font-mono text-[10px] uppercase tracking-wider text-bnc-stone-600 dark:bg-bnc-stone-800 dark:text-bnc-stone-300"
+          >
+            <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden>
+              <circle cx="12" cy="10" r="3" />
+              <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" />
+            </svg>
+            {{ halteCount }} halte
+          </span>
+          <span
+            class="inline-flex items-center gap-1 rounded-full px-2 py-[3px] font-mono text-[10px] uppercase tracking-wider"
+            :class="
+              activeBusCount > 0
+                ? 'bg-bnc-accent/15 text-bnc-accent'
+                : 'bg-bnc-stone-100 text-bnc-stone-500 dark:bg-bnc-stone-800'
+            "
+          >
+            <span
+              class="h-1.5 w-1.5 rounded-full"
+              :style="{
+                background: activeBusCount > 0 ? 'var(--color-bnc-accent)' : 'var(--color-stale)',
+              }"
+              aria-hidden
+            />
+            {{ activeBusCount }} {{ t('route.busActive') }}
+          </span>
+          <EtaQualityGuide />
+        </div>
+        <!-- direction tabs -->
+        <DirectionSelector
+          layout="mobile"
+          :direction="direction"
+          :available="directionAvailable"
+          :toward-label="corridor.toward"
+          :origin-label="corridor.origin"
+          @update:direction="focus.setDirection($event)"
         />
-        {{ activeBusCount }} {{ t('route.busActive') }}
-      </span>
-      <EtaQualityGuide />
-    </div>
-
-    <!-- direction tabs -->
-    <div
-      v-if="directionAvailable.a || directionAvailable.b"
-      class="flex border-b border-bnc-stone-200 dark:border-bnc-stone-800"
-    >
-      <button
-        v-if="directionAvailable.a"
-        type="button"
-        class="flex-1 truncate px-2 pb-1.5 pt-1 font-mono text-[10px] font-bold uppercase tracking-wider transition-colors"
-        :class="
-          direction === 'a'
-            ? 'border-b-2 border-bnc-primary text-bnc-primary dark:border-bnc-accent dark:text-bnc-accent'
-            : 'text-bnc-stone-500 hover:text-bnc-stone-700 dark:hover:text-bnc-stone-200'
-        "
-        @click="focus.setDirection('a')"
-      >
-        {{ corridor.toward }}
-      </button>
-      <button
-        v-if="directionAvailable.b"
-        type="button"
-        class="flex-1 truncate px-2 pb-1.5 pt-1 font-mono text-[10px] font-bold uppercase tracking-wider transition-colors"
-        :class="
-          direction === 'b'
-            ? 'border-b-2 border-bnc-primary text-bnc-primary dark:border-bnc-accent dark:text-bnc-accent'
-            : 'text-bnc-stone-500 hover:text-bnc-stone-700 dark:hover:text-bnc-stone-200'
-        "
-        @click="focus.setDirection('b')"
-      >
-        {{ corridor.origin }}
-      </button>
-    </div>
-
-    <p
-      v-if="!directionAvailable.a || !directionAvailable.b"
-      class="rounded-md bg-bnc-stone-100 px-2 py-1.5 text-[10px] text-bnc-stone-600 dark:bg-bnc-stone-800 dark:text-bnc-stone-300"
-    >
-      {{ t('route.oneWayOnly') }}
-    </p>
-    </div>
+      </template>
+    </SheetStickyHeader>
 
     <!-- timeline -->
     <ol class="flex flex-col">
