@@ -242,7 +242,14 @@ export function busLegProgress(
       geoIdx = closestIdx + 1
     }
   }
-  return Math.max(geoIdx, lowerBound)
+
+  // Only honor the upstream-derived lower bound if GPS agrees within
+  // one halte. Upstream sometimes flips `old_shel_t` to a halte well
+  // ahead of the bus's actual position (K4A bug: old_shel_t jumps to
+  // a halte near TAMAN GOR while the bus is still upstream of Gajah
+  // Mada). Without this guard, the bus visually skips multiple stops.
+  if (lowerBound <= geoIdx + 1) return Math.max(geoIdx, lowerBound)
+  return geoIdx
 }
 
 /** Haversine distance in metres between two lat/lng points. */
