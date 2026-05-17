@@ -2,6 +2,18 @@
 
 All notable releases of cektrans are recorded here. Generated automatically by `release-finalize.yml`.
 
+## v0.6.17 — 2026-05-17
+
+### 🐛 Bug Fixes
+
+- fix(web): corridor timeline shows buses from both directions (9d73e1a)
+
+### 🧹 Chore
+
+- chore: bump version to 0.6.17 (572c260)
+
+
+
 ## v0.6.16 — 2026-05-16
 
 ### 🐛 Bug Fixes

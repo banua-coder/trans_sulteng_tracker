@@ -67,13 +67,20 @@ interface HalteRow {
 
 const rows = computed<HalteRow[]>(() => {
   void tick.value
-  if (!corridor.value) return []
+  const c = corridor.value
+  if (!c) return []
   const haltes = halte.value
-  const buses = [...brt.buses.values()].filter((b) => b.kor === corridor.value!.kor)
 
-  // Same fallback as CorridorFocusPanel: new_shel_t when present and
-  // in this direction's halte list, otherwise busLegProgress places
-  // the bus under its geographic next-stop on the focused leg.
+  // Only buses heading in the focused direction — otherwise the
+  // busLegProgress fallback puts opposite-leg buses on this timeline.
+  const focusedToward = direction.value === 'a' ? c.toward : c.origin
+  const buses = [...brt.buses.values()].filter(
+    (b) => b.kor === c.kor && b.toward === focusedToward,
+  )
+
+  // Same fallback as CorridorFocusPanel: new_shel_t when it maps to a
+  // visible halte, otherwise busLegProgress places the bus under its
+  // geographic next-stop on the focused leg.
   const idxBySh = new Map<string, number>()
   for (let i = 0; i < haltes.length; i++) idxBySh.set(haltes[i].sh_id, i)
   const busToIdx = new Map<string, number>()
