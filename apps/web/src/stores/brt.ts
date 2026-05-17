@@ -384,13 +384,15 @@ export const useBrtStore = defineStore('brt', () => {
       const startIdx = busLegProgress(bus, orderedHalte)
       let displayStart = startIdx
 
-      // If upstream tagged old_shel_t = current halte (so busLegProgress
-      // already advanced past it) but the bus is still physically at
-      // that halte, walk back one so the user sees the "AT STOP" row
-      // during the dwell window instead of having the halte vanish the
-      // instant old_shel_t flips.
+      // Walk back one to keep the just-departed halte visible during
+      // the dwell window — but ONLY when the bus is actually dwelling
+      // (slow + within radius). If the bus is already moving away from
+      // the halte, drop it immediately so the user doesn't see a halte
+      // labelled "AT STOP" while the bus is clearly leaving it on the map.
+      const speed = Number.isFinite(bus.speed) ? Number(bus.speed) : 0
       if (
         startIdx > 0
+        && speed < 5
         && Number.isFinite(bus.lat)
         && Number.isFinite(bus.lng)
       ) {
@@ -433,11 +435,9 @@ export const useBrtStore = defineStore('brt', () => {
           }
         }
 
-        // Mark "at stop" when the bus's GPS is within radius of this
-        // halte regardless of position in the slice — covers both the
-        // walked-back "just-departed but still dwelling" row and the
-        // normal "approached and arrived" row at the head of the list.
-        const atStop = distM != null && distM <= AT_STOP_RADIUS_M
+        // Mark "at stop" only when bus is both close AND slow — a bus
+        // passing through within 80m at full speed isn't dwelling.
+        const atStop = distM != null && distM <= AT_STOP_RADIUS_M && speed < 5
 
         return {
           sh_id: h.sh_id,
