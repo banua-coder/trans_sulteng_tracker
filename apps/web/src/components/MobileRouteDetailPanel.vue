@@ -83,11 +83,13 @@ const rows = computed<HalteRow[]>(() => {
     if (b.new_shel_t && idxBySh.has(b.new_shel_t)) return true
     return b.toward === focusedToward
   })
+  // Place by busLegProgress only — see CorridorFocusPanel for why we
+  // no longer trust bus.new_shel_t as a direct index (premature jumps).
   const busToIdx = new Map<string, number>()
   for (const bus of buses) {
-    let idx = bus.new_shel_t ? idxBySh.get(bus.new_shel_t) : undefined
-    if (idx == null && haltes.length) idx = busLegProgress(bus, haltes)
-    if (idx != null && idx >= 0 && idx < haltes.length) {
+    if (!haltes.length) continue
+    const idx = busLegProgress(bus, haltes)
+    if (idx >= 0 && idx < haltes.length) {
       busToIdx.set(bus.imei || bus.id, idx)
     }
   }
