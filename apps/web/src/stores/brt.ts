@@ -41,6 +41,32 @@ export interface UpcomingStop {
   atStop: boolean
 }
 
+/** One halte row on the corridor-focus timeline. The `incoming` list is
+ *  the same shape the halte/trip selectors return; the row is presented
+ *  by CorridorFocusPanel (desktop) and MobileRouteDetailPanel (mobile). */
+export interface CorridorTimelineRow {
+  halte: BrtHalte
+  incoming: TimelineIncomingBus[]
+}
+
+export interface TimelineIncomingBus {
+  bus: BrtBus
+  etaMin: number | null
+  distM: number | null
+  arrivalAt: string | null
+  status: 'last' | 'approaching'
+  stale: boolean
+}
+
+/** Corridor badges shown next to a halte name — every corridor that
+ *  passes through this physical stop. `current` flags the corridor we
+ *  are presently viewing so the renderer can dim the rest. */
+export interface CorridorBadge {
+  kor: string
+  color: string
+  current: boolean
+}
+
 const AT_STOP_RADIUS_M = 80
 const FALLBACK_RIDE_SPEED_KMH = 22
 
@@ -451,6 +477,103 @@ export const useBrtStore = defineStore('brt', () => {
     })
   }
 
+  /** Per-halte timeline rows for the corridor-focus view. Used by both
+   *  CorridorFocusPanel (desktop) and MobileRouteDetailPanel (mobile)
+   *  to render the corridor's halte list with incoming buses placed
+   *  under each stop. Placement uses busLegProgress (geographic +
+   *  GPS-clamped old_shel_t lower bound) — never trusts new_shel_t as
+   *  a direct index because upstream prematurely jumps it ahead. */
+  function corridorTimelineRowsFor(
+    korRef: MaybeRefOrGetter<string | null | undefined>,
+    directionRef: MaybeRefOrGetter<'a' | 'b'>,
+  ): ComputedRef<CorridorTimelineRow[]> {
+    return computed(() => {
+      const kor = toValue(korRef)
+      if (!kor) return []
+      const c = corridorByKor.value.get(kor)
+      if (!c) return []
+      const dir = toValue(directionRef)
+      const wantOrigin = dir === 'a' ? c.origin : c.toward
+      const wantToward = dir === 'a' ? c.toward : c.origin
+      const haltes = getHalteForLeg(c.kor, wantToward, wantOrigin)
+      if (!haltes.length) return []
+
+      // Direction filter: include a bus when EITHER its new_shel_t
+      // maps to a halte in this direction's list (rescues corridors
+      // like K2A whose buses keep upstream-toward pinned to the
+      // forward direction) OR bus.toward matches the focused leg's
+      // toward (catches buses with stale new_shel_t).
+      const focusedToward = wantToward
+      const idxBySh = new Map<string, number>()
+      for (let i = 0; i < haltes.length; i++) idxBySh.set(haltes[i].sh_id, i)
+      const candidateBuses = [...buses.values()].filter((b) => {
+        if (b.kor !== c.kor) return false
+        if (b.new_shel_t && idxBySh.has(b.new_shel_t)) return true
+        return b.toward === focusedToward
+      })
+
+      const busToIdx = new Map<string, number>()
+      for (const bus of candidateBuses) {
+        const idx = busLegProgress(bus, haltes)
+        if (idx >= 0 && idx < haltes.length) {
+          busToIdx.set(bus.imei || bus.id, idx)
+        }
+      }
+
+      const rows: CorridorTimelineRow[] = []
+      for (let i = 0; i < haltes.length; i++) {
+        const h = haltes[i]
+        const isTerminal = i === haltes.length - 1
+        const incoming: TimelineIncomingBus[] = []
+        for (const bus of candidateBuses) {
+          if (busToIdx.get(bus.imei || bus.id) !== i) continue
+          const eta = etaToHalte(bus, h)
+          const etaMin = eta?.etaMin ?? null
+          incoming.push({
+            bus,
+            etaMin,
+            distM: eta?.distM ?? null,
+            arrivalAt: etaMin != null ? wallClockFor(etaMin) : null,
+            status: isTerminal ? 'last' : 'approaching',
+            stale: isStale(bus),
+          })
+        }
+        incoming.sort((a, b) => {
+          if (a.etaMin == null && b.etaMin == null) return 0
+          if (a.etaMin == null) return 1
+          if (b.etaMin == null) return -1
+          return a.etaMin - b.etaMin
+        })
+        rows.push({ halte: h, incoming })
+      }
+      return rows
+    })
+  }
+
+  /** Badges listing every corridor that passes through `halte`. The
+   *  `current` flag identifies the corridor presently viewed (so the
+   *  renderer can dim the rest). */
+  function corridorBadgesForHalte(
+    halte: BrtHalte,
+    currentKor?: string | null,
+  ): CorridorBadge[] {
+    const kors = halte.in_koridor
+      ? halte.in_koridor.split('|').filter(Boolean)
+      : [halte.kor]
+    const seen = new Set<string>()
+    const out: CorridorBadge[] = []
+    for (const kor of kors) {
+      if (seen.has(kor)) continue
+      seen.add(kor)
+      out.push({
+        kor,
+        color: colorForKor.value(kor) || halte.color || '#0EA5E9',
+        current: currentKor != null && kor === currentKor,
+      })
+    }
+    return out
+  }
+
   return {
     cities,
     corridors,
@@ -471,5 +594,7 @@ export const useBrtStore = defineStore('brt', () => {
     getHalteForLeg,
     incomingBusesForHalte,
     upcomingStopsForBus,
+    corridorTimelineRowsFor,
+    corridorBadgesForHalte,
   }
 })

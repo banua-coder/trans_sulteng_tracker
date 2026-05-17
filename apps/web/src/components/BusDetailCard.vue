@@ -8,6 +8,7 @@ import { ageSeconds, formatAge, formatSpeed, getEtaQuality, isStale, parsePassen
 import CopyLinkButton from '@/components/CopyLinkButton.vue'
 import PlateBadge from '@/components/PlateBadge.vue'
 import EtaQualityGuide from '@/components/EtaQualityGuide.vue'
+import SheetStickyHeader from '@/components/SheetStickyHeader.vue'
 
 const { t } = useI18n()
 const selection = useSelectionStore()
@@ -72,67 +73,51 @@ const upcomingStops = brt.upcomingStopsForBus(selectedBus)
       role="dialog"
       :aria-label="t('bus.plate')"
     >
-      <!-- Sticky header on mobile (inside the bottom sheet's scroll
-           context), static on desktop. Bg matches the sheet surface. -->
-      <div
-        class="sticky -top-1 z-20 -mx-4 flex flex-col gap-2 bg-bnc-paper px-4 pb-3 pt-2 shadow-[0_4px_8px_-6px_rgba(10,14,20,0.12)] dark:bg-bnc-stone-900 lg:static lg:mx-0 lg:bg-transparent lg:p-0 lg:shadow-none dark:lg:bg-transparent"
-      >
-        <header class="flex items-center gap-2">
-          <button
-            type="button"
-            class="grid h-8 w-8 shrink-0 place-items-center rounded-full text-bnc-stone-600 transition-colors hover:bg-bnc-stone-100 dark:text-bnc-stone-300 dark:hover:bg-bnc-stone-800"
-            :aria-label="t('a11y.back')"
-            @click="selection.back()"
-          >
-            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M15 6l-6 6 6 6" />
-            </svg>
-          </button>
-          <span
-            class="grid h-7 w-7 shrink-0 place-items-center rounded-full font-mono text-[10px] font-bold text-white"
-            :style="{ background: corridorColor }"
-            aria-hidden
-          >
-            {{ selectedBus.kor || '·' }}
-          </span>
-          <div class="min-w-0 flex-1">
-            <div class="flex flex-wrap items-center gap-1.5">
-              <PlateBadge :plate="selectedBus.plate_number" size="sm" />
-              <span
-                v-if="selectedBus.name"
-                class="inline-flex shrink-0 items-center whitespace-nowrap rounded bg-bnc-stone-100 px-1 py-[1px] font-mono text-[10px] font-bold leading-none tracking-wider text-bnc-ink dark:bg-bnc-stone-800 dark:text-bnc-paper"
-              >
-                {{ selectedBus.name }}
-              </span>
-            </div>
-            <p class="mt-0.5 truncate font-mono text-[10px] uppercase tracking-wider text-bnc-stone-500">
-              → {{ selectedBus.toward || '—' }}
-            </p>
-            <!-- Inline bus telemetry: speed + freshness + (optional) pax.
-                 Lives directly under the last-stop line so we don't waste
-                 a separate stats grid full of whitespace. -->
-            <p class="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 font-mono text-[10px] tabular-nums">
-              <span class="text-bnc-stone-700 dark:text-bnc-stone-200">
-                <span class="font-bold">{{ formatSpeed(selectedBus.speed) }}</span>
-                <span class="text-bnc-stone-500"> {{ t('units.kmh') }}</span>
-              </span>
-              <span class="text-bnc-stone-300 dark:text-bnc-stone-600">·</span>
-              <span :class="stale ? 'text-bnc-stone-500' : 'text-bnc-stone-700 dark:text-bnc-stone-200'">
-                {{ updatedLabel }}
-              </span>
-              <template v-if="passenger != null">
-                <span class="text-bnc-stone-300 dark:text-bnc-stone-600">·</span>
-                <span class="text-bnc-stone-700 dark:text-bnc-stone-200">
-                  <span class="font-bold">{{ passenger }}</span>
-                  <span class="text-bnc-stone-500"> {{ t('bus.pax') }}</span>
-                </span>
-              </template>
-            </p>
+      <SheetStickyHeader :back-label="t('a11y.back')" mobile-only @back="selection.back()">
+        <span
+          class="grid h-7 w-7 shrink-0 place-items-center rounded-full font-mono text-[10px] font-bold text-white"
+          :style="{ background: corridorColor }"
+          aria-hidden
+        >
+          {{ selectedBus.kor || '·' }}
+        </span>
+        <div class="min-w-0 flex-1">
+          <div class="flex flex-wrap items-center gap-1.5">
+            <PlateBadge :plate="selectedBus.plate_number" size="sm" />
+            <span
+              v-if="selectedBus.name"
+              class="inline-flex shrink-0 items-center whitespace-nowrap rounded bg-bnc-stone-100 px-1 py-[1px] font-mono text-[10px] font-bold leading-none tracking-wider text-bnc-ink dark:bg-bnc-stone-800 dark:text-bnc-paper"
+            >
+              {{ selectedBus.name }}
+            </span>
           </div>
-          <EtaQualityGuide class="lg:hidden" />
-          <CopyLinkButton />
-        </header>
-      </div>
+          <p class="mt-0.5 truncate font-mono text-[10px] uppercase tracking-wider text-bnc-stone-500">
+            → {{ selectedBus.toward || '—' }}
+          </p>
+          <!-- Inline bus telemetry: speed + freshness + (optional) pax.
+               Lives directly under the last-stop line so we don't waste
+               a separate stats grid full of whitespace. -->
+          <p class="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 font-mono text-[10px] tabular-nums">
+            <span class="text-bnc-stone-700 dark:text-bnc-stone-200">
+              <span class="font-bold">{{ formatSpeed(selectedBus.speed) }}</span>
+              <span class="text-bnc-stone-500"> {{ t('units.kmh') }}</span>
+            </span>
+            <span class="text-bnc-stone-300 dark:text-bnc-stone-600">·</span>
+            <span :class="stale ? 'text-bnc-stone-500' : 'text-bnc-stone-700 dark:text-bnc-stone-200'">
+              {{ updatedLabel }}
+            </span>
+            <template v-if="passenger != null">
+              <span class="text-bnc-stone-300 dark:text-bnc-stone-600">·</span>
+              <span class="text-bnc-stone-700 dark:text-bnc-stone-200">
+                <span class="font-bold">{{ passenger }}</span>
+                <span class="text-bnc-stone-500"> {{ t('bus.pax') }}</span>
+              </span>
+            </template>
+          </p>
+        </div>
+        <EtaQualityGuide class="lg:hidden" />
+        <CopyLinkButton />
+      </SheetStickyHeader>
 
       <!-- Upcoming stops -->
       <section

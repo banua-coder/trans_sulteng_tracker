@@ -6,6 +6,10 @@ defineProps<{
   accentColor: string
   isFirst?: boolean
   isLast?: boolean
+  /** Other corridors that also stop here. The focused corridor renders
+   *  at full opacity; others render dimmed so multi-corridor transfer
+   *  points are obvious at a glance. */
+  corridorBadges?: { kor: string; color: string; current: boolean }[]
 }>()
 
 const emit = defineEmits<{ halteClick: [id: string] }>()
@@ -52,6 +56,20 @@ const emit = defineEmits<{ halteClick: [id: string] }>()
       >
         {{ platform }}
       </p>
+
+      <div
+        v-if="corridorBadges && corridorBadges.length > 1"
+        class="mt-1 flex flex-wrap gap-1"
+      >
+        <span
+          v-for="b in corridorBadges"
+          :key="b.kor"
+          class="inline-flex items-center rounded px-1.5 py-[1px] font-mono text-[9px] font-bold uppercase tracking-wider text-white transition-opacity"
+          :style="{ background: b.color, opacity: b.current ? 1 : 0.45 }"
+        >
+          {{ b.kor }}
+        </span>
+      </div>
 
       <div class="mt-2 flex flex-col gap-2">
         <slot />

@@ -2,6 +2,22 @@
 
 All notable releases of cektrans are recorded here. Generated automatically by `release-finalize.yml`.
 
+## v0.6.21 — 2026-05-17
+
+### ✨ Features
+
+- feat(web): corridor badges per halte row + extract rows/badges to brt store (21013f3)
+
+### ♻️ Refactor
+
+- refactor(web): extract SheetStickyHeader + DirectionSelector (5c8a77d)
+
+### 🧹 Chore
+
+- chore: bump version to 0.6.21 (f38f3f5)
+
+
+
 ## v0.6.20 — 2026-05-17
 
 ### 🐛 Bug Fixes

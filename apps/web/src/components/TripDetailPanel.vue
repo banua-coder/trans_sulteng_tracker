@@ -16,6 +16,7 @@ import { useBrtStore, type IncomingBus } from '@/stores/brt'
 import { useSelectionStore } from '@/stores/selection'
 import CopyLinkButton from '@/components/CopyLinkButton.vue'
 import PlateBadge from '@/components/PlateBadge.vue'
+import SheetStickyHeader from '@/components/SheetStickyHeader.vue'
 import type { PlanStep } from '@/lib/tripPlanner'
 
 const { t } = useI18n()
@@ -113,46 +114,32 @@ function focusStep(step: PlanStep) {
     v-if="selectedPlan"
     class="pointer-events-auto flex w-full flex-col gap-3 sm:max-w-sm lg:max-w-md lg:rounded-[var(--radius-md)] lg:border lg:border-bnc-stone-200 lg:bg-white lg:p-4 lg:shadow-[var(--shadow-elevated)] dark:lg:border-bnc-stone-800 dark:lg:bg-bnc-stone-900"
   >
-    <!-- Sticky header on mobile -->
-    <div
-      class="sticky -top-1 z-20 -mx-4 flex flex-col gap-2 bg-bnc-paper px-4 pb-3 pt-2 shadow-[0_4px_8px_-6px_rgba(10,14,20,0.12)] dark:bg-bnc-stone-900 lg:static lg:mx-0 lg:bg-transparent lg:p-0 lg:shadow-none dark:lg:bg-transparent"
-    >
-      <header class="flex items-center gap-2">
-        <button
-          type="button"
-          class="grid h-8 w-8 shrink-0 place-items-center rounded-full text-bnc-stone-600 transition-colors hover:bg-bnc-stone-100 dark:text-bnc-stone-300 dark:hover:bg-bnc-stone-800"
-          :aria-label="t('a11y.back')"
-          @click="back"
-        >
-          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M15 6l-6 6 6 6" />
-          </svg>
-        </button>
-        <div class="min-w-0 flex-1">
-          <p class="font-mono text-[10px] uppercase tracking-wider text-bnc-stone-500">
-            {{ t('trip.itineraryTitle') }}
-          </p>
-          <h2 class="truncate font-display text-sm font-bold tracking-tight">
-            {{ origin?.label ?? '—' }} → {{ destination?.label ?? '—' }}
-          </h2>
-        </div>
-        <CopyLinkButton />
-      </header>
-
-      <!-- summary chips -->
-      <div class="flex flex-wrap items-center gap-1.5">
-        <span class="inline-flex items-center gap-1 rounded-full bg-bnc-stone-100 px-2 py-[3px] font-mono text-[10px] uppercase tracking-wider text-bnc-stone-600 dark:bg-bnc-stone-800 dark:text-bnc-stone-300">
-          <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden>
-            <circle cx="12" cy="12" r="10" />
-            <path d="M12 6v6l4 2" />
-          </svg>
-          {{ Math.round(selectedPlan.totalMin) }} {{ t('units.minutes') }}
-        </span>
-        <span class="inline-flex items-center gap-1 rounded-full bg-bnc-stone-100 px-2 py-[3px] font-mono text-[10px] uppercase tracking-wider text-bnc-stone-600 dark:bg-bnc-stone-800 dark:text-bnc-stone-300">
-          {{ totalKm.toFixed(1) }} km
-        </span>
+    <SheetStickyHeader :back-label="t('a11y.back')" mobile-only @back="back">
+      <div class="min-w-0 flex-1">
+        <p class="font-mono text-[10px] uppercase tracking-wider text-bnc-stone-500">
+          {{ t('trip.itineraryTitle') }}
+        </p>
+        <h2 class="truncate font-display text-sm font-bold tracking-tight">
+          {{ origin?.label ?? '—' }} → {{ destination?.label ?? '—' }}
+        </h2>
       </div>
-    </div>
+      <CopyLinkButton />
+      <template #belowTitle>
+        <!-- summary chips -->
+        <div class="flex flex-wrap items-center gap-1.5">
+          <span class="inline-flex items-center gap-1 rounded-full bg-bnc-stone-100 px-2 py-[3px] font-mono text-[10px] uppercase tracking-wider text-bnc-stone-600 dark:bg-bnc-stone-800 dark:text-bnc-stone-300">
+            <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden>
+              <circle cx="12" cy="12" r="10" />
+              <path d="M12 6v6l4 2" />
+            </svg>
+            {{ Math.round(selectedPlan.totalMin) }} {{ t('units.minutes') }}
+          </span>
+          <span class="inline-flex items-center gap-1 rounded-full bg-bnc-stone-100 px-2 py-[3px] font-mono text-[10px] uppercase tracking-wider text-bnc-stone-600 dark:bg-bnc-stone-800 dark:text-bnc-stone-300">
+            {{ totalKm.toFixed(1) }} km
+          </span>
+        </div>
+      </template>
+    </SheetStickyHeader>
 
     <!-- Step timeline -->
     <ol class="flex flex-col">
