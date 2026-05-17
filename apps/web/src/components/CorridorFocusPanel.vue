@@ -66,15 +66,17 @@ const rows = computed<HalteRow[]>(() => {
     return b.toward === focusedToward
   })
 
-  // Map each bus to the halte index it should appear under. Primary
-  // signal is upstream's new_shel_t. Fallback to busLegProgress so a
-  // bus with stale new_shel_t still shows up under its geographic
-  // next-stop on the focused leg.
+  // Place each bus by busLegProgress (geographic + old_shel_t lower
+  // bound, GPS-agreement clamped). Don't use bus.new_shel_t as the
+  // direct index — upstream prematurely jumps it ahead (TP4A 05
+  // reports new_shel_t = TAMAN GOR while still upstream of Gajah Mada,
+  // which would place the bus at the terminus and disagree with the
+  // BusDetailCard view that uses the same busLegProgress).
   const busToIdx = new Map<string, number>()
   for (const bus of buses) {
-    let idx = bus.new_shel_t ? idxBySh.get(bus.new_shel_t) : undefined
-    if (idx == null && haltes.length) idx = busLegProgress(bus, haltes)
-    if (idx != null && idx >= 0 && idx < haltes.length) {
+    if (!haltes.length) continue
+    const idx = busLegProgress(bus, haltes)
+    if (idx >= 0 && idx < haltes.length) {
       busToIdx.set(bus.imei || bus.id, idx)
     }
   }

@@ -2,6 +2,18 @@
 
 All notable releases of cektrans are recorded here. Generated automatically by `release-finalize.yml`.
 
+## v0.6.20 — 2026-05-17
+
+### 🐛 Bug Fixes
+
+- fix(web): corridor timeline ignores premature new_shel_t (f14912a)
+
+### 🧹 Chore
+
+- chore: bump version to 0.6.20 (b15e37c)
+
+
+
 ## v0.6.19 — 2026-05-17
 
 ### 🐛 Bug Fixes
