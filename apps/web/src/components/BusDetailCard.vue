@@ -164,18 +164,27 @@ const upcomingStops = brt.upcomingStopsForBus(selectedBus)
               <span class="min-w-0 flex-1 truncate text-xs font-medium">{{ stop.sh_name }}</span>
               <span class="shrink-0 text-right">
                 <span
-                  class="block font-mono text-sm font-extrabold tabular-nums text-bnc-accent"
-                  :style="etaColorStyle"
+                  v-if="stop.atStop"
+                  class="inline-flex items-center rounded-full px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-white"
+                  :style="{ background: 'var(--color-good)' }"
                 >
-                  <template v-if="stop.etaMin != null">
-                    {{ Math.max(1, Math.round(stop.etaMin)) }}
-                    <span class="text-[10px] font-normal text-bnc-stone-500">{{ t('units.minutes') }}</span>
-                  </template>
-                  <template v-else>—</template>
+                  {{ t('halte.atStop') }}
                 </span>
-                <span v-if="stop.arrivalAt" class="block font-mono text-[10px] text-bnc-stone-500">
-                  {{ stop.arrivalAt }}
-                </span>
+                <template v-else>
+                  <span
+                    class="block font-mono text-sm font-extrabold tabular-nums text-bnc-accent"
+                    :style="etaColorStyle"
+                  >
+                    <template v-if="stop.etaMin != null">
+                      {{ Math.max(1, Math.round(stop.etaMin)) }}
+                      <span class="text-[10px] font-normal text-bnc-stone-500">{{ t('units.minutes') }}</span>
+                    </template>
+                    <template v-else>—</template>
+                  </span>
+                  <span v-if="stop.arrivalAt" class="block font-mono text-[10px] text-bnc-stone-500">
+                    {{ stop.arrivalAt }}
+                  </span>
+                </template>
               </span>
             </button>
           </li>
