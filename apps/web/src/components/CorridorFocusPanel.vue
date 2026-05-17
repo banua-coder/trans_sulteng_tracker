@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useBrtStore } from '@/stores/brt'
 import { useFocusStore } from '@/stores/focus'
 import { useSelectionStore } from '@/stores/selection'
-import { busLegProgress, etaToHalte, getEtaQuality, isStale, parseProgress } from '@/lib/format'
+import { getEtaQuality, parseProgress } from '@/lib/format'
 import CopyLinkButton from '@/components/CopyLinkButton.vue'
 import HalteTimelineNode from '@/components/HalteTimelineNode.vue'
 import IncomingBusCard from '@/components/IncomingBusCard.vue'
@@ -13,102 +13,9 @@ import type { BrtBus, BrtHalte } from '@/types/brt'
 const brt = useBrtStore()
 const focus = useFocusStore()
 const selection = useSelectionStore()
-const { corridor, halte, direction, directionAvailable } = storeToRefs(focus)
+const { corridor, direction, directionAvailable } = storeToRefs(focus)
 
-const tick = ref(0)
-let timer: number | undefined
-onMounted(() => {
-  timer = window.setInterval(() => (tick.value += 1), 15_000)
-})
-onBeforeUnmount(() => {
-  if (timer) window.clearInterval(timer)
-})
-
-interface IncomingBus {
-  bus: BrtBus
-  etaMin: number | null
-  distM: number | null
-  arrivalAt: string | null
-  status: 'last' | 'approaching'
-  stale: boolean
-}
-interface HalteRow {
-  halte: BrtHalte
-  incoming: IncomingBus[]
-}
-
-function formatArrivalAt(etaMin: number): string {
-  const d = new Date(Date.now() + Math.max(0, etaMin) * 60_000)
-  const pad = (n: number) => (n < 10 ? `0${n}` : String(n))
-  return `${pad(d.getHours())}:${pad(d.getMinutes())}`
-}
-
-const rows = computed<HalteRow[]>(() => {
-  void tick.value
-  const c = corridor.value
-  if (!c) return []
-  const haltes = halte.value
-
-  // Direction filter. Include a bus when EITHER:
-  //   - its new_shel_t points at a halte in this direction's list
-  //     (covers K2A where upstream keeps bus.toward at the forward
-  //     value even on the reverse leg, so toward alone misses them), OR
-  //   - bus.toward exactly matches the focused leg's toward (catches
-  //     buses whose new_shel_t is stale or doesn't map yet).
-  // Without one of these, the busLegProgress fallback would place
-  // opposite-leg buses on this timeline via geography.
-  const focusedToward = direction.value === 'a' ? c.toward : c.origin
-  const idxBySh = new Map<string, number>()
-  for (let i = 0; i < haltes.length; i++) idxBySh.set(haltes[i].sh_id, i)
-  const buses = [...brt.buses.values()].filter((b) => {
-    if (b.kor !== c.kor) return false
-    if (b.new_shel_t && idxBySh.has(b.new_shel_t)) return true
-    return b.toward === focusedToward
-  })
-
-  // Place each bus by busLegProgress (geographic + old_shel_t lower
-  // bound, GPS-agreement clamped). Don't use bus.new_shel_t as the
-  // direct index — upstream prematurely jumps it ahead (TP4A 05
-  // reports new_shel_t = TAMAN GOR while still upstream of Gajah Mada,
-  // which would place the bus at the terminus and disagree with the
-  // BusDetailCard view that uses the same busLegProgress).
-  const busToIdx = new Map<string, number>()
-  for (const bus of buses) {
-    if (!haltes.length) continue
-    const idx = busLegProgress(bus, haltes)
-    if (idx >= 0 && idx < haltes.length) {
-      busToIdx.set(bus.imei || bus.id, idx)
-    }
-  }
-
-  const list: HalteRow[] = []
-  for (let i = 0; i < haltes.length; i++) {
-    const h = haltes[i]
-    const isTerminal = i === haltes.length - 1
-    const incoming: IncomingBus[] = []
-    for (const bus of buses) {
-      if (busToIdx.get(bus.imei || bus.id) !== i) continue
-      const eta = etaToHalte(bus, h)
-      const etaMin = eta?.etaMin ?? null
-      incoming.push({
-        bus,
-        etaMin,
-        distM: eta?.distM ?? null,
-        arrivalAt: etaMin != null ? formatArrivalAt(etaMin) : null,
-        status: isTerminal ? 'last' : 'approaching',
-        stale: isStale(bus),
-      })
-    }
-    incoming.sort((a, b) => {
-      if (a.etaMin == null && b.etaMin == null) return 0
-      if (a.etaMin == null) return 1
-      if (b.etaMin == null) return -1
-      return a.etaMin - b.etaMin
-    })
-    list.push({ halte: h, incoming })
-  }
-  return list
-})
+const rows = brt.corridorTimelineRowsFor(() => corridor.value?.kor, () => direction.value)
 
 const activeBuses = computed(() => {
   const c = corridor.value
@@ -117,6 +24,10 @@ const activeBuses = computed(() => {
 })
 
 const accentColor = computed(() => corridor.value?.color || '#1D9CD4')
+
+function corridorBadgesFor(h: BrtHalte) {
+  return brt.corridorBadgesForHalte(h, corridor.value?.kor ?? null)
+}
 
 const directionLabel = computed(() => {
   const c = corridor.value
@@ -239,6 +150,7 @@ function pickBus(bus: BrtBus) {
           :accent-color="accentColor"
           :is-first="idx === 0"
           :is-last="idx === rows.length - 1"
+          :corridor-badges="corridorBadgesFor(r.halte)"
           @halte-click="selection.selectHalte($event)"
         >
           <button

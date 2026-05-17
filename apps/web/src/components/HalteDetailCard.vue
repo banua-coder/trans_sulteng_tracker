@@ -42,26 +42,15 @@ watch(
 // renderer over `arrivals`.
 const arrivals = brt.incomingBusesForHalte(selectedHalte)
 
-const corridorsAtHalte = computed(() => {
-  const halte = selectedHalte.value
-  if (!halte) return []
-
-  // Parse in_koridor and color_koridor the same way the Android app does:
-  // split by "|", pair each corridor code with its color, fall back to
-  // halte.color or the corridor store color if the color list is shorter.
-  const kors = halte.in_koridor ? halte.in_koridor.split('|').filter(Boolean) : [halte.kor]
-  const colors = halte.color_koridor ? halte.color_koridor.split('|') : []
-
-  const seen = new Set<string>()
-  const result: { kor: string; color: string }[] = []
-  kors.forEach((kor, i) => {
-    if (seen.has(kor)) return
-    seen.add(kor)
-    const pairedColor = colors[i] || halte.color || '#0EA5E9'
-    result.push({ kor, color: brt.colorForKor(kor) || pairedColor })
-  })
-  return result
-})
+// HalteDetailCard shows badges without a "current" highlight (the
+// card is reached from the map or a corridor, not anchored to one),
+// so we pass null for currentKor — every badge renders at full
+// opacity in the template below.
+const corridorsAtHalte = computed(() =>
+  selectedHalte.value
+    ? brt.corridorBadgesForHalte(selectedHalte.value, null)
+    : [],
+)
 
 function pickBus(imei: string) {
   selection.selectBus(imei)

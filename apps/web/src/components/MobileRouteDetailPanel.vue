@@ -8,13 +8,13 @@
  * Mirrors the TJ Transjakarta "Route Details" screen — direction
  * tabs, then each halte node with its incoming buses stacked below.
  */
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
 import { useBrtStore } from '@/stores/brt'
 import { useFocusStore } from '@/stores/focus'
 import { useSelectionStore } from '@/stores/selection'
-import { busLegProgress, etaToHalte, getEtaQuality, isStale, parseProgress } from '@/lib/format'
+import { getEtaQuality, parseProgress } from '@/lib/format'
 import HalteTimelineNode from '@/components/HalteTimelineNode.vue'
 import IncomingBusCard from '@/components/IncomingBusCard.vue'
 import CopyLinkButton from '@/components/CopyLinkButton.vue'
@@ -31,15 +31,6 @@ function pickBus(bus: BrtBus) {
   selection.selectBus(bus.imei || bus.id)
 }
 
-const tick = ref(0)
-let timer: number | undefined
-onMounted(() => {
-  timer = window.setInterval(() => (tick.value += 1), 15_000)
-})
-onBeforeUnmount(() => {
-  if (timer) window.clearInterval(timer)
-})
-
 const accentColor = computed(() => corridor.value?.color || '#1D9CD4')
 
 const activeBusCount = computed(() => {
@@ -52,83 +43,10 @@ const activeBusCount = computed(() => {
 
 const halteCount = computed(() => halte.value.length)
 
-interface IncomingBus {
-  bus: BrtBus
-  etaMin: number | null
-  distM: number | null
-  arrivalAt: string | null
-  status: 'last' | 'approaching'
-  stale: boolean
-}
-interface HalteRow {
-  halte: BrtHalte
-  incoming: IncomingBus[]
-}
+const rows = brt.corridorTimelineRowsFor(() => corridor.value?.kor, () => direction.value)
 
-const rows = computed<HalteRow[]>(() => {
-  void tick.value
-  const c = corridor.value
-  if (!c) return []
-  const haltes = halte.value
-
-  // See CorridorFocusPanel for the full rationale: include a bus when
-  // its new_shel_t is in the focused halte list OR bus.toward matches
-  // the focused leg's toward. The first clause rescues K2A reverse
-  // buses whose upstream-toward stays pinned to the forward direction.
-  const focusedToward = direction.value === 'a' ? c.toward : c.origin
-  const idxBySh = new Map<string, number>()
-  for (let i = 0; i < haltes.length; i++) idxBySh.set(haltes[i].sh_id, i)
-  const buses = [...brt.buses.values()].filter((b) => {
-    if (b.kor !== c.kor) return false
-    if (b.new_shel_t && idxBySh.has(b.new_shel_t)) return true
-    return b.toward === focusedToward
-  })
-  // Place by busLegProgress only — see CorridorFocusPanel for why we
-  // no longer trust bus.new_shel_t as a direct index (premature jumps).
-  const busToIdx = new Map<string, number>()
-  for (const bus of buses) {
-    if (!haltes.length) continue
-    const idx = busLegProgress(bus, haltes)
-    if (idx >= 0 && idx < haltes.length) {
-      busToIdx.set(bus.imei || bus.id, idx)
-    }
-  }
-
-  const out: HalteRow[] = []
-  for (let i = 0; i < haltes.length; i++) {
-    const h = haltes[i]
-    const isTerminal = i === haltes.length - 1
-    const incoming: IncomingBus[] = []
-    for (const bus of buses) {
-      if (busToIdx.get(bus.imei || bus.id) !== i) continue
-      const eta = etaToHalte(bus, h)
-      const etaMin = eta?.etaMin ?? null
-      incoming.push({
-        bus,
-        etaMin,
-        distM: eta?.distM ?? null,
-        arrivalAt: etaMin != null ? formatArrivalAt(etaMin) : null,
-        status: isTerminal ? 'last' : 'approaching',
-        stale: isStale(bus),
-      })
-    }
-    incoming.sort((a, b) => {
-      if (a.etaMin == null && b.etaMin == null) return 0
-      if (a.etaMin == null) return 1
-      if (b.etaMin == null) return -1
-      return a.etaMin - b.etaMin
-    })
-    out.push({ halte: h, incoming })
-  }
-  return out
-})
-
-function formatArrivalAt(etaMin: number): string {
-  const t = new Date(Date.now() + Math.max(0, etaMin) * 60_000)
-  return `${pad(t.getHours())}:${pad(t.getMinutes())}`
-}
-function pad(n: number) {
-  return n < 10 ? `0${n}` : String(n)
+function corridorBadgesFor(h: BrtHalte) {
+  return brt.corridorBadgesForHalte(h, corridor.value?.kor ?? null)
 }
 </script>
 
@@ -255,6 +173,7 @@ function pad(n: number) {
         :accent-color="accentColor"
         :is-first="idx === 0"
         :is-last="idx === rows.length - 1"
+        :corridor-badges="corridorBadgesFor(r.halte)"
         @halte-click="selection.selectHalte($event)"
       >
         <button
