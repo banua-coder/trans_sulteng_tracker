@@ -45,14 +45,24 @@ function formatArrivalAt(etaMin: number): string {
 
 const rows = computed<HalteRow[]>(() => {
   void tick.value
-  if (!corridor.value) return []
+  const c = corridor.value
+  if (!c) return []
   const haltes = halte.value
-  const buses = [...brt.buses.values()].filter((b) => b.kor === corridor.value!.kor)
+
+  // Only buses actually heading in the focused direction. Without
+  // this, the busLegProgress fallback below would place opposite-leg
+  // buses under their geographically-closest halte on this leg, so a
+  // bus showed up in BOTH dir=a and dir=b timelines (especially on
+  // corridors like K2 where many sh_id are shared between legs).
+  const focusedToward = direction.value === 'a' ? c.toward : c.origin
+  const buses = [...brt.buses.values()].filter(
+    (b) => b.kor === c.kor && b.toward === focusedToward,
+  )
 
   // Map each bus to the halte index it should appear under. Primary
   // signal is upstream's new_shel_t. Fallback to busLegProgress so a
-  // bus with stale or wrong-direction new_shel_t still shows up under
-  // its geographic next-stop on the focused leg.
+  // bus with stale new_shel_t still shows up under its geographic
+  // next-stop on the focused leg.
   const idxBySh = new Map<string, number>()
   for (let i = 0; i < haltes.length; i++) idxBySh.set(haltes[i].sh_id, i)
   const busToIdx = new Map<string, number>()
