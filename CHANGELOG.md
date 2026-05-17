@@ -2,6 +2,18 @@
 
 All notable releases of cektrans are recorded here. Generated automatically by `release-finalize.yml`.
 
+## v0.6.19 — 2026-05-17
+
+### 🐛 Bug Fixes
+
+- fix(web): dwell + K2A reverse + K4A premature skip (0317363)
+
+### 🧹 Chore
+
+- chore: bump version to 0.6.19 (3c6742e)
+
+
+
 ## v0.6.18 — 2026-05-17
 
 ### 🐛 Bug Fixes
