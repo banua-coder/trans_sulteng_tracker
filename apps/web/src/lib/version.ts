@@ -5,7 +5,7 @@
  * Bump this manually when cutting a `cektrans/vX.Y.Z` tag. The build
  * SHA comes from CI (VITE_BUILD_SHA) and is shortened to 7 chars.
  */
-export const APP_VERSION = "0.6.17"
+export const APP_VERSION = "0.7.0"
 
 export const BUILD_SHA: string =
   (import.meta.env.VITE_BUILD_SHA as string | undefined)?.slice(0, 7) ?? ''
