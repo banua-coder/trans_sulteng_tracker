@@ -71,18 +71,18 @@ const rows = computed<HalteRow[]>(() => {
   if (!c) return []
   const haltes = halte.value
 
-  // Only buses heading in the focused direction — otherwise the
-  // busLegProgress fallback puts opposite-leg buses on this timeline.
+  // See CorridorFocusPanel for the full rationale: include a bus when
+  // its new_shel_t is in the focused halte list OR bus.toward matches
+  // the focused leg's toward. The first clause rescues K2A reverse
+  // buses whose upstream-toward stays pinned to the forward direction.
   const focusedToward = direction.value === 'a' ? c.toward : c.origin
-  const buses = [...brt.buses.values()].filter(
-    (b) => b.kor === c.kor && b.toward === focusedToward,
-  )
-
-  // Same fallback as CorridorFocusPanel: new_shel_t when it maps to a
-  // visible halte, otherwise busLegProgress places the bus under its
-  // geographic next-stop on the focused leg.
   const idxBySh = new Map<string, number>()
   for (let i = 0; i < haltes.length; i++) idxBySh.set(haltes[i].sh_id, i)
+  const buses = [...brt.buses.values()].filter((b) => {
+    if (b.kor !== c.kor) return false
+    if (b.new_shel_t && idxBySh.has(b.new_shel_t)) return true
+    return b.toward === focusedToward
+  })
   const busToIdx = new Map<string, number>()
   for (const bus of buses) {
     let idx = bus.new_shel_t ? idxBySh.get(bus.new_shel_t) : undefined
