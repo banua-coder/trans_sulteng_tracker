@@ -34,6 +34,11 @@ export interface UpcomingStop {
   etaMin: number | null
   distM: number | null
   arrivalAt: string | null
+  /** Bus is currently dwelling at this halte (GPS within AT_STOP_RADIUS_M).
+   *  Used by BusDetailCard to keep the halte visible with an "AT STOP"
+   *  badge during the dwell window instead of dropping it the moment
+   *  upstream's old_shel_t advances. */
+  atStop: boolean
 }
 
 const AT_STOP_RADIUS_M = 80
@@ -377,7 +382,31 @@ export const useBrtStore = defineStore('brt', () => {
       // GPS-based progress so stale new_shel_t doesn't include
       // halte the bus already passed (Wisma Donggala terminus case).
       const startIdx = busLegProgress(bus, orderedHalte)
-      const slice = orderedHalte.slice(startIdx)
+      let displayStart = startIdx
+
+      // If upstream tagged old_shel_t = current halte (so busLegProgress
+      // already advanced past it) but the bus is still physically at
+      // that halte, walk back one so the user sees the "AT STOP" row
+      // during the dwell window instead of having the halte vanish the
+      // instant old_shel_t flips.
+      if (
+        startIdx > 0
+        && Number.isFinite(bus.lat)
+        && Number.isFinite(bus.lng)
+      ) {
+        const prev = orderedHalte[startIdx - 1]
+        const pLat = parseFloat(prev.sh_lat)
+        const pLng = parseFloat(prev.sh_lng)
+        if (Number.isFinite(pLat) && Number.isFinite(pLng)) {
+          const d = haversineMeters(
+            { lat: bus.lat as number, lng: bus.lng as number },
+            { lat: pLat, lng: pLng },
+          )
+          if (d <= AT_STOP_RADIUS_M) displayStart = startIdx - 1
+        }
+      }
+
+      const slice = orderedHalte.slice(displayStart)
 
       return slice.map((h, i): UpcomingStop => {
         let distM: number | null = null
@@ -404,12 +433,19 @@ export const useBrtStore = defineStore('brt', () => {
           }
         }
 
+        // Mark "at stop" when the bus's GPS is within radius of this
+        // halte regardless of position in the slice — covers both the
+        // walked-back "just-departed but still dwelling" row and the
+        // normal "approached and arrived" row at the head of the list.
+        const atStop = distM != null && distM <= AT_STOP_RADIUS_M
+
         return {
           sh_id: h.sh_id,
           sh_name: h.sh_name,
-          etaMin,
+          etaMin: atStop ? 0 : etaMin,
           distM,
-          arrivalAt: etaMin != null ? wallClockFor(etaMin) : null,
+          arrivalAt: atStop ? null : (etaMin != null ? wallClockFor(etaMin) : null),
+          atStop,
         }
       })
     })
