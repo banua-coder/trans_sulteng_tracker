@@ -2,6 +2,18 @@
 
 All notable releases of cektrans are recorded here. Generated automatically by `release-finalize.yml`.
 
+## v0.6.18 — 2026-05-17
+
+### 🐛 Bug Fixes
+
+- fix(web): bus detail upcoming list now shows AT STOP during dwell (b20c781)
+
+### 🧹 Chore
+
+- chore: bump version to 0.6.18 (a2a46ac)
+
+
+
 ## v0.6.17 — 2026-05-17
 
 ### 🐛 Bug Fixes
