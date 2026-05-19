@@ -2,6 +2,18 @@
 
 All notable releases of cektrans are recorded here. Generated automatically by `release-finalize.yml`.
 
+## v0.6.22 — 2026-05-19
+
+### 🐛 Bug Fixes
+
+- fix(deps): override ws to >=8.20.1 (GHSA-58qx-3vcg-4xpx) (ddc5ae0)
+
+### 🧹 Chore
+
+- chore: bump version to 0.6.22 (74d4cc9)
+
+
+
 ## v0.6.21 — 2026-05-17
 
 ### ✨ Features
