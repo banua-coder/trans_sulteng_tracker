@@ -20,5 +20,10 @@
     "node": ">=20",
     "pnpm": ">=10"
   },
-  "packageManager": "pnpm@10.0.0"
+  "packageManager": "pnpm@10.0.0",
+  "pnpm": {
+    "overrides": {
+      "ws@>=8.0.0 <8.20.1": "^8.20.1"
+    }
+  }
 }
