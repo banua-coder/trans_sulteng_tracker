@@ -2,6 +2,18 @@
 
 All notable releases of cektrans are recorded here. Generated automatically by `release-finalize.yml`.
 
+## v0.6.23 — 2026-05-19
+
+### 🐛 Bug Fixes
+
+- fix(deps): bump vite to ^6.4.2 (GHSA-4w7w-66w2-5vf9, GHSA-67mh-4wv8-2f99) (33d53b0)
+
+### 🧹 Chore
+
+- chore: bump version to 0.6.23 (f47d0f7)
+
+
+
 ## v0.6.22 — 2026-05-19
 
 ### 🐛 Bug Fixes
