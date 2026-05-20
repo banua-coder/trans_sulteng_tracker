@@ -279,10 +279,12 @@ export const useBrtStore = defineStore('brt', () => {
    *  planner's per-step disclosure. */
   function incomingBusesForHalte(
     halteRef: MaybeRefOrGetter<BrtHalte | null | undefined>,
+    korFilterRef?: MaybeRefOrGetter<string | null | undefined>,
   ): ComputedRef<IncomingBus[]> {
     return computed(() => {
       const target = toValue(halteRef)
       if (!target) return []
+      const korFilter = korFilterRef ? toValue(korFilterRef) ?? null : null
 
       // All sh_ids that share this physical stop (same name across
       // corridors — covers the multi-row case where a transfer
@@ -310,6 +312,7 @@ export const useBrtStore = defineStore('brt', () => {
       const seen = new Set<string>()
       for (const bus of buses.values()) {
         if (!allowedKors.has(bus.kor)) continue
+        if (korFilter && bus.kor !== korFilter) continue
 
         // Resolve heading via leg progress instead of trusting
         // bus.new_shel_t alone — terminus halte get pinned to that

@@ -60,6 +60,7 @@ export const messages = {
       noBuses: 'Tidak ada bus yang menuju halte ini.',
       directions: 'Arahkan',
       atStop: 'Di halte',
+      showAll: 'Semua',
     },
     etaGuide: {
       title: 'Panduan Estimasi Tiba',
@@ -222,6 +223,7 @@ export const messages = {
       noBuses: 'No buses approaching this stop.',
       directions: 'Directions',
       atStop: 'At stop',
+      showAll: 'All',
     },
     etaGuide: {
       title: 'Bus Arrival Time Guide',
