@@ -2,6 +2,18 @@
 
 All notable releases of cektrans are recorded here. Generated automatically by `release-finalize.yml`.
 
+## v0.7.2 — 2026-05-20
+
+### 🐛 Bug Fixes
+
+- fix(web): selected bus invisible when toward is stale but next stop is on active leg (d07f1c4)
+
+### 🧹 Chore
+
+- chore: bump version to 0.7.2 (20802ad)
+
+
+
 ## v0.7.1 — 2026-05-20
 
 ### 🐛 Bug Fixes
