@@ -505,11 +505,21 @@ let lastSpotlightInit = false
 
 function applyFocus(force = false) {
   const fk = spotlightKor()
+  // Active leg when a corridor is explicitly focused via focus.kor —
+  // 'a' = origin→toward, 'b' = toward→origin. Used to hide the other
+  // leg's polyline + halte markers so the map matches what the
+  // corridor detail panel shows in its direction tab. When the
+  // spotlight comes from a bus selection (spotlightKor fallback)
+  // rather than focus.kor, we still want both legs visible — the
+  // user is inspecting a single vehicle, not a direction.
+  const activeLeg: 'a' | 'b' | null = fk && focus.kor === fk ? focus.direction : null
   const planKors = tripPlanKors.value
   const planNames = planKors ? tripPlanHalteNames.value : null
-  // Cache key includes trip-plan kor set so the memoized fast-path
-  // also reacts to plan selection changes.
-  const cacheKey = planKors ? `plan:${[...planKors].sort().join(',')}` : `sk:${fk ?? ''}`
+  // Cache key includes trip-plan kor set + the active leg so the
+  // memoized fast-path reacts to direction toggles.
+  const cacheKey = planKors
+    ? `plan:${[...planKors].sort().join(',')}`
+    : `sk:${fk ?? ''}:${activeLeg ?? ''}`
   if (!force && lastSpotlightInit && cacheKey === lastSpotlight) {
     for (const bus of brt.buses.values()) upsertBusMarker(bus)
     applySelectedHalte()
@@ -535,7 +545,14 @@ function applyFocus(force = false) {
       const opacity = baseDim ? 0.35 : 0.85
       for (const ln of all) ln.setStyle({ color: baseColor, opacity, weight: 5 })
     } else if (kor === fk) {
-      for (const ln of all) ln.setStyle({ color: baseColor, opacity: 0.95, weight: 6 })
+      if (activeLeg) {
+        const active = activeLeg === 'a' ? byLeg.a : byLeg.b
+        const inactive = activeLeg === 'a' ? byLeg.b : byLeg.a
+        for (const ln of active) ln.setStyle({ color: baseColor, opacity: 0.95, weight: 6 })
+        for (const ln of inactive) ln.setStyle({ color: baseColor, opacity: 0, weight: 0 })
+      } else {
+        for (const ln of all) ln.setStyle({ color: baseColor, opacity: 0.95, weight: 6 })
+      }
     } else {
       for (const ln of all) ln.setStyle({ color: baseColor, opacity: 0.1, weight: 2 })
     }
@@ -559,6 +576,13 @@ function applyFocus(force = false) {
         const op = onPath ? 1 : 0
         m.setStyle({ opacity: op, fillOpacity: op })
       }
+      continue
+    }
+    if (fk && kor === fk && activeLeg) {
+      const active = activeLeg === 'a' ? byLeg.a : byLeg.b
+      const inactive = activeLeg === 'a' ? byLeg.b : byLeg.a
+      for (const m of active) m.setStyle({ opacity: 1, fillOpacity: 1 })
+      for (const m of inactive) m.setStyle({ opacity: 0, fillOpacity: 0 })
       continue
     }
     const opacity = fk === null || kor === fk ? 1 : 0.2
@@ -611,8 +635,19 @@ function busOpacityFor(b: BrtBus): string {
     return rideable.has(b.imei || b.id) ? '1' : '0'
   }
   const fk = spotlightKor()
-  if (fk === null || b.kor === fk) return '1'
-  return '0.18'
+  if (fk === null) return '1'
+  if (b.kor !== fk) return '0.18'
+  // Same kor as focused corridor — when focus.kor is explicitly set,
+  // also hide buses heading the wrong direction so the map only shows
+  // vehicles riding the active leg's polyline.
+  if (focus.kor === fk) {
+    const c = brt.corridorByKor.get(fk)
+    if (c) {
+      const wantToward = focus.direction === 'a' ? c.toward : c.origin
+      if (b.toward !== wantToward) return '0'
+    }
+  }
+  return '1'
 }
 
 function upsertBusMarker(b: BrtBus) {
@@ -840,10 +875,14 @@ watch(
     }
     if (map && fk) {
       const byLeg = corridorLines.get(fk)
-      const all = byLeg ? [...byLeg.a, ...byLeg.b] : []
-      if (all.length) {
+      // Fit to the active leg only when a direction is selected, so
+      // the camera follows the polyline the user is actually viewing.
+      const legLines = byLeg
+        ? (dir === 'a' ? byLeg.a : dir === 'b' ? byLeg.b : [...byLeg.a, ...byLeg.b])
+        : []
+      if (legLines.length) {
         const bounds = L.latLngBounds([])
-        for (const ln of all) bounds.extend(ln.getBounds())
+        for (const ln of legLines) bounds.extend(ln.getBounds())
         if (bounds.isValid()) {
           following = false
           map.flyToBounds(bounds.pad(0.12), { duration: 0.6 })
