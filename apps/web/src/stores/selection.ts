@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useBrtStore } from './brt'
 
 export type SelectionKind = 'bus' | 'halte' | null
@@ -30,6 +30,23 @@ export const useSelectionStore = defineStore('selection', () => {
     if (kind.value !== 'halte' || !id.value) return null
     return brt.halte.find((h) => h.sh_id === id.value) ?? null
   })
+
+  // Per-halte corridor filter for the incoming-bus list. null = show
+  // every approaching bus regardless of kor. Set by HalteDetailCard
+  // when the user taps a corridor pill on a multi-corridor stop.
+  // Reset whenever the selected halte itself changes — a filter
+  // chosen for stop A should not leak into stop B.
+  const halteFilterKor = ref<string | null>(null)
+  watch(
+    () => (kind.value === 'halte' ? id.value : null),
+    () => { halteFilterKor.value = null },
+  )
+  function toggleHalteFilter(kor: string) {
+    halteFilterKor.value = halteFilterKor.value === kor ? null : kor
+  }
+  function clearHalteFilter() {
+    halteFilterKor.value = null
+  }
 
   // Drill into a new selection. If the top frame already matches the
   // requested frame, no-op (avoids stack growth on re-tap). If the top
@@ -76,8 +93,11 @@ export const useSelectionStore = defineStore('selection', () => {
     id,
     selectedBus,
     selectedHalte,
+    halteFilterKor,
     selectBus,
     selectHalte,
+    toggleHalteFilter,
+    clearHalteFilter,
     back,
     clear,
   }

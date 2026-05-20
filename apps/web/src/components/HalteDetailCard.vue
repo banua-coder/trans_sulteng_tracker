@@ -13,7 +13,7 @@ import SheetStickyHeader from '@/components/SheetStickyHeader.vue'
 const { t } = useI18n()
 const selection = useSelectionStore()
 const brt = useBrtStore()
-const { selectedHalte } = storeToRefs(selection)
+const { selectedHalte, halteFilterKor } = storeToRefs(selection)
 
 // Once a halte is selected, eagerly pull both legs of every corridor
 // that serves it. The store's incomingBusesForHalte selector walks
@@ -40,8 +40,9 @@ watch(
 )
 
 // Derived data lives in the brt store — this component is a pure
-// renderer over `arrivals`.
-const arrivals = brt.incomingBusesForHalte(selectedHalte)
+// renderer over `arrivals`. The selector reacts to halteFilterKor so
+// tapping a corridor pill below narrows the bus list.
+const arrivals = brt.incomingBusesForHalte(selectedHalte, halteFilterKor)
 
 // HalteDetailCard shows badges without a "current" highlight (the
 // card is reached from the map or a corridor, not anchored to one),
@@ -114,16 +115,33 @@ function openDirections() {
         </div>
         <template #belowTitle>
           <!-- Corridor badges — rounded rectangles, not circles, so the
-               code is readable when the user is on a multi-corridor stop. -->
-          <div v-if="corridorsAtHalte.length" class="flex flex-wrap gap-1">
-            <span
+               code is readable when the user is on a multi-corridor stop.
+               When >1 corridor passes through, the badges become click
+               targets that filter the incoming-bus list below. -->
+          <div v-if="corridorsAtHalte.length" class="flex flex-wrap items-center gap-1">
+            <component
+              :is="corridorsAtHalte.length > 1 ? 'button' : 'span'"
               v-for="c in corridorsAtHalte"
               :key="c.kor"
-              class="inline-flex items-center rounded-md px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-white"
-              :style="{ background: c.color }"
+              :type="corridorsAtHalte.length > 1 ? 'button' : undefined"
+              class="inline-flex items-center rounded-md px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-white transition-opacity"
+              :style="{
+                background: c.color,
+                opacity: halteFilterKor === null || halteFilterKor === c.kor ? 1 : 0.4,
+              }"
+              :aria-pressed="corridorsAtHalte.length > 1 ? halteFilterKor === c.kor : undefined"
+              @click="corridorsAtHalte.length > 1 ? selection.toggleHalteFilter(c.kor) : undefined"
             >
               {{ c.kor }}
-            </span>
+            </component>
+            <button
+              v-if="halteFilterKor !== null && corridorsAtHalte.length > 1"
+              type="button"
+              class="inline-flex items-center rounded-md border border-bnc-stone-300 px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-bnc-stone-600 transition-colors hover:bg-bnc-stone-100 dark:border-bnc-stone-700 dark:text-bnc-stone-300 dark:hover:bg-bnc-stone-800"
+              @click="selection.clearHalteFilter()"
+            >
+              {{ t('halte.showAll') || 'All' }}
+            </button>
           </div>
         </template>
       </SheetStickyHeader>
