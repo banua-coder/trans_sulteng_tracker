@@ -2,6 +2,71 @@
 
 All notable releases of cektrans are recorded here. Generated automatically by `release-finalize.yml`.
 
+## v0.7.0 — 2026-05-20
+
+### ✨ Features
+
+- feat(web): per-corridor filter on halte detail + direction-aware corridor focus (#65) (f36392c)
+
+### 🧹 Chore
+
+- chore: bump dev version to 0.7.0 after v0.6.0 release (8ab82c4)
+- chore: align version to 0.7.0 for back-merge (develop was ahead) (4d79e2e)
+- chore: align version to 0.7.0 for back-merge (develop was ahead) (3cef333)
+- chore: align version to 0.7.0 for back-merge (develop was ahead) (c8162e9)
+- chore: align version to 0.7.0 for back-merge (develop was ahead) (ce2383d)
+- chore: align version to 0.7.0 for back-merge (develop was ahead) (9345bb9)
+- chore: align version to 0.7.0 for back-merge (develop was ahead) (7affee6)
+- chore: align version to 0.7.0 for back-merge (develop was ahead) (86898da)
+- chore: align version to 0.7.0 for back-merge (develop was ahead) (ce71efc)
+- chore: align version to 0.7.0 for back-merge (develop was ahead) (7364f07)
+- chore: align version to 0.7.0 for back-merge (develop was ahead) (6383897)
+- chore: align version to 0.7.0 for back-merge (develop was ahead) (79df681)
+- chore: align version to 0.7.0 for back-merge (develop was ahead) (43b88a3)
+- chore: align version to 0.7.0 for back-merge (develop was ahead) (aa69378)
+- chore: align version to 0.7.0 for back-merge (develop was ahead) (553d2df)
+- chore: align version to 0.7.0 for back-merge (develop was ahead) (ed9a9d2)
+- chore: align version to 0.7.0 for back-merge (develop was ahead) (f45c43e)
+- chore: align version to 0.7.0 for back-merge (develop was ahead) (21536a7)
+- chore: align version to 0.7.0 for back-merge (develop was ahead) (4358eb9)
+- chore: align version to 0.7.0 for back-merge (develop was ahead) (9795602)
+- chore: align version to 0.7.0 for back-merge (develop was ahead) (fd6bfeb)
+- chore: back-merge main into develop after v0.6.21 (#60) (2ecb053)
+- chore: align version to 0.7.0 for back-merge (develop was ahead) (d0fd53a)
+- chore: align version to 0.7.0 for back-merge (develop was ahead) (324f2b6)
+
+### 📌 Other
+
+- Merge pull request #17 from banua-coder/chore/bump-dev-version-v0.7.0 (029074f)
+- Merge pull request #18 from banua-coder/backmerge/main-to-develop-v0.6.0 (70fc4ab)
+- Merge pull request #20 from banua-coder/backmerge/main-to-develop-v0.6.1 (be98915)
+- Merge pull request #22 from banua-coder/backmerge/main-to-develop-v0.6.2 (5701076)
+- Merge pull request #24 from banua-coder/backmerge/main-to-develop-v0.6.3 (2b0748a)
+- Merge pull request #26 from banua-coder/backmerge/main-to-develop-v0.6.4 (e3c92cb)
+- Merge pull request #28 from banua-coder/backmerge/main-to-develop-v0.6.5 (178f364)
+- Merge pull request #30 from banua-coder/backmerge/main-to-develop-v0.6.6 (0fddf84)
+- Merge pull request #32 from banua-coder/backmerge/main-to-develop-v0.6.7 (84fc82f)
+- Merge pull request #34 from banua-coder/backmerge/main-to-develop-v0.6.8 (7969e96)
+- Merge pull request #36 from banua-coder/backmerge/main-to-develop-v0.6.9 (0d5d586)
+- Merge pull request #38 from banua-coder/backmerge/main-to-develop-v0.6.10 (2511cbc)
+- Merge pull request #40 from banua-coder/backmerge/main-to-develop-v0.6.11 (09cd0fd)
+- Merge pull request #42 from banua-coder/backmerge/main-to-develop-v0.6.12 (ba61818)
+- Merge pull request #44 from banua-coder/backmerge/main-to-develop-v0.6.13 (0b7d738)
+- Merge pull request #46 from banua-coder/backmerge/main-to-develop-v0.6.14 (6e86b8e)
+- Merge pull request #48 from banua-coder/backmerge/main-to-develop-v0.6.15 (05a0a55)
+- Merge pull request #50 from banua-coder/backmerge/main-to-develop-v0.6.16 (fad1ad8)
+- Merge pull request #52 from banua-coder/backmerge/main-to-develop-v0.6.17 (08b4b6f)
+- Merge pull request #54 from banua-coder/backmerge/main-to-develop-v0.6.18 (846b24a)
+- Merge pull request #56 from banua-coder/backmerge/main-to-develop-v0.6.19 (34d833d)
+- Merge pull request #58 from banua-coder/backmerge/main-to-develop-v0.6.20 (f22a32f)
+- Merge branch 'develop' into pr-62 (6566f25)
+- Merge branch 'develop' into pr-64 (a0d9374)
+- Merge pull request #62 from banua-coder/backmerge/main-to-develop-v0.6.22 (c38ef48)
+- Merge remote-tracking branch 'origin/develop' into pr-64 (d9011bc)
+- Merge pull request #64 from banua-coder/backmerge/main-to-develop-v0.6.23 (025dc0c)
+
+
+
 ## v0.6.23 — 2026-05-19
 
 ### 🐛 Bug Fixes
