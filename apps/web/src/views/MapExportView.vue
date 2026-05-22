@@ -7,7 +7,7 @@
  * browser print dialog ("Save as PDF") emits one PDF page per sheet
  * thanks to page-break-after: always in the child's print CSS.
  */
-import { computed, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useRouter } from 'vue-router'
 
@@ -21,7 +21,7 @@ const props = defineProps<{ city: CitySlug }>()
 const router = useRouter()
 const cityStore = useCityStore()
 const brt = useBrtStore()
-const { corridors, halte } = storeToRefs(brt)
+const { corridors } = storeToRefs(brt)
 
 const cityName = computed(() => (props.city === 'palu' ? 'TransPalu' : 'TransDonggala'))
 const cityIconUrl = computed(() => brt.cityByPref.get(cityStore.pref)?.icon ?? null)
@@ -32,6 +32,8 @@ const todayLabel = computed(() => {
 })
 
 const qrUrl = computed(() => `${window.location.origin}/${props.city}`)
+
+const tileMode = ref<'map' | 'satellite'>('map')
 
 const orderedCorridors = computed(() =>
   [...corridors.value].sort((a, b) => a.kor.localeCompare(b.kor, undefined, { numeric: true })),
@@ -74,9 +76,32 @@ function printPage() {
           · {{ orderedCorridors.length }} koridor
         </span>
       </p>
+      <div class="ml-auto flex items-center gap-2">
+        <div class="inline-flex overflow-hidden rounded-md border border-bnc-stone-300 dark:border-bnc-stone-700">
+          <button
+            type="button"
+            class="px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-wider transition-colors"
+            :class="
+              tileMode === 'map'
+                ? 'bg-bnc-ink text-bnc-paper dark:bg-bnc-paper dark:text-bnc-ink'
+                : 'bg-white text-bnc-stone-600 hover:bg-bnc-stone-100 dark:bg-bnc-stone-900 dark:text-bnc-stone-300 dark:hover:bg-bnc-stone-800'
+            "
+            @click="tileMode = 'map'"
+          >Peta</button>
+          <button
+            type="button"
+            class="px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-wider transition-colors"
+            :class="
+              tileMode === 'satellite'
+                ? 'bg-bnc-ink text-bnc-paper dark:bg-bnc-paper dark:text-bnc-ink'
+                : 'bg-white text-bnc-stone-600 hover:bg-bnc-stone-100 dark:bg-bnc-stone-900 dark:text-bnc-stone-300 dark:hover:bg-bnc-stone-800'
+            "
+            @click="tileMode = 'satellite'"
+          >Satelit</button>
+        </div>
       <button
         type="button"
-        class="ml-auto inline-flex items-center gap-2 rounded-md bg-bnc-ink px-3 py-1.5 font-mono text-[11px] font-bold uppercase tracking-wider text-bnc-paper transition-colors hover:bg-bnc-stone-800 dark:bg-bnc-paper dark:text-bnc-ink dark:hover:bg-bnc-stone-200"
+        class="inline-flex items-center gap-2 rounded-md bg-bnc-ink px-3 py-1.5 font-mono text-[11px] font-bold uppercase tracking-wider text-bnc-paper transition-colors hover:bg-bnc-stone-800 dark:bg-bnc-paper dark:text-bnc-ink dark:hover:bg-bnc-stone-200"
         @click="printPage"
       >
         <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden>
@@ -84,17 +109,18 @@ function printPage() {
         </svg>
         Cetak Semua / Simpan PDF
       </button>
+      </div>
     </div>
 
     <CorridorMapSheet
       v-for="c in orderedCorridors"
       :key="c.kor"
       :corridor="c"
-      :halte="halte"
       :city-name="cityName"
       :city-icon-url="cityIconUrl"
       :qr-url="qrUrl"
       :today-label="todayLabel"
+      :tile-mode="tileMode"
     />
   </div>
 </template>

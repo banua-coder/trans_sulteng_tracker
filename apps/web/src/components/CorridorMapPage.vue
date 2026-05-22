@@ -13,7 +13,7 @@ import polyline from '@mapbox/polyline'
 import QRCode from 'qrcode'
 import { computed, onBeforeUnmount, onMounted, shallowRef, watch } from 'vue'
 import { useBrtStore } from '@/stores/brt'
-import { voyagerTiles } from '@/lib/leaflet/tiles'
+import { satelliteTiles, voyagerTiles } from '@/lib/leaflet/tiles'
 import BanuacoderLogo from '@/components/BanuacoderLogo.vue'
 import type { BrtCorridor, BrtHalte } from '@/types/brt'
 
@@ -38,6 +38,8 @@ const props = defineProps<{
   legPageTotal: number
   /** Show Keterangan + QR (only on the last overall page). */
   showLegendExtras: boolean
+  /** Basemap style — 'map' (CARTO Voyager) or 'satellite' (ESRI). */
+  tileMode: 'map' | 'satellite'
 }>()
 
 const brt = useBrtStore()
@@ -64,10 +66,12 @@ function indexOf(h: BrtHalte): number {
   return indexByName.value.get(h.sh_name) ?? 0
 }
 
-const directionLabel = computed(() =>
-  props.leg === 'a'
-    ? `${props.corridor.origin} → ${props.corridor.toward}`
-    : `${props.corridor.toward} → ${props.corridor.origin}`,
+// Canonical corridor title — always origin – toward regardless of
+// which leg this page is rendering. Direction is communicated by
+// the "Arah A/B" tag in the eyebrow so the title stays a stable
+// identifier across pages.
+const titleLabel = computed(
+  () => `${props.corridor.origin} – ${props.corridor.toward}`,
 )
 
 function drawMap() {
@@ -123,6 +127,12 @@ async function renderQR() {
   })
 }
 
+let tileLayer: L.TileLayer | null = null
+
+function makeTileLayer(): L.TileLayer {
+  return props.tileMode === 'satellite' ? satelliteTiles() : voyagerTiles()
+}
+
 onMounted(async () => {
   if (!mapEl.value) return
   map = L.map(mapEl.value, {
@@ -136,9 +146,18 @@ onMounted(async () => {
     keyboard: false,
     touchZoom: false,
   })
-  voyagerTiles().addTo(map)
+  tileLayer = makeTileLayer().addTo(map)
   drawMap()
-  if (props.showLegendExtras) await renderQR()
+  await renderQR()
+})
+
+watch(() => props.tileMode, () => {
+  if (!map) return
+  if (tileLayer) {
+    tileLayer.remove()
+    tileLayer = null
+  }
+  tileLayer = makeTileLayer().addTo(map)
 })
 
 watch(() => props.legHalte, () => {
@@ -171,7 +190,7 @@ onBeforeUnmount(() => {
         </p>
         <h1>
           <span class="chip" :style="{ background: corridor.color || '#0EA5E9' }">{{ corridor.kor }}</span>
-          {{ directionLabel }}
+          {{ titleLabel }}
         </h1>
         <p class="footnote">
           cektrans.banuacoder.com · {{ todayLabel }}
@@ -216,25 +235,23 @@ onBeforeUnmount(() => {
             </li>
           </ul>
         </section>
-        <template v-if="showLegendExtras">
-          <section class="key">
-            <h2>Keterangan</h2>
-            <ul>
-              <li>
-                <span class="key-dot" />
-                <span>Halte biasa</span>
-              </li>
-              <li>
-                <span class="key-dot transfer" />
-                <span>Transfer point — kode di sampingnya menunjukkan koridor lain</span>
-              </li>
-            </ul>
-          </section>
-          <div class="qr-block">
-            <canvas ref="qrEl" />
-            <p>Pindai untuk pelacak live</p>
-          </div>
-        </template>
+        <section v-if="showLegendExtras" class="key">
+          <h2>Keterangan</h2>
+          <ul>
+            <li>
+              <span class="key-dot" />
+              <span>Halte biasa</span>
+            </li>
+            <li>
+              <span class="key-dot transfer" />
+              <span>Transfer point — kode di sampingnya menunjukkan koridor lain</span>
+            </li>
+          </ul>
+        </section>
+        <div class="qr-block">
+          <canvas ref="qrEl" />
+          <p>Pindai untuk pelacak live</p>
+        </div>
       </aside>
     </div>
 

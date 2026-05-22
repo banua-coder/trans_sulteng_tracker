@@ -11,6 +11,7 @@ import MapView from '@/components/MapView.vue'
 import MapLegend from '@/components/MapLegend.vue'
 import BusDataBadge from '@/components/BusDataBadge.vue'
 import MyLocationButton from '@/components/MyLocationButton.vue'
+import BasemapToggle from '@/components/BasemapToggle.vue'
 import NearbyHaltePanel from '@/components/NearbyHaltePanel.vue'
 import CorridorPanel from '@/components/CorridorPanel.vue'
 import BusListPanel from '@/components/BusListPanel.vue'
@@ -110,6 +111,7 @@ onBeforeUnmount(() => {
       <MapLegend />
       <div class="pointer-events-none absolute right-3 top-3 z-[800] flex flex-col gap-2">
         <MyLocationButton class="pointer-events-auto" />
+        <BasemapToggle class="pointer-events-auto" />
       </div>
     </section>
 

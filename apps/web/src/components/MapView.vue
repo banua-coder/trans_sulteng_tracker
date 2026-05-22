@@ -12,9 +12,10 @@ import { useFocusStore } from '@/stores/focus'
 import { useGeoStore } from '@/stores/geo'
 import { useSelectionStore } from '@/stores/selection'
 import { useTripStore } from '@/stores/trip'
+import { useUiStore } from '@/stores/ui'
 import type { PlanResult } from '@/lib/tripPlanner'
 import { busIcon, halteHaloMarker, halteMarker } from '@/lib/leaflet/markers'
-import { darkMatterTiles, voyagerTiles } from '@/lib/leaflet/tiles'
+import { darkMatterTiles, satelliteTiles, voyagerTiles } from '@/lib/leaflet/tiles'
 import { useTheme } from '@/lib/theme'
 import { haversineMeters, isStale } from '@/lib/format'
 import { trackEvent } from '@/lib/analytics'
@@ -26,9 +27,11 @@ const selection = useSelectionStore()
 const focus = useFocusStore()
 const geo = useGeoStore()
 const trip = useTripStore()
+const ui = useUiStore()
 const { t } = useI18n()
 const { isDark } = useTheme()
 const { corridors, halte, buses } = storeToRefs(brt)
+const { tileMode } = storeToRefs(ui)
 const {
   selectedPlan: tripSelectedPlan,
   origin: tripOrigin,
@@ -146,7 +149,7 @@ function initMap() {
   }).setView(CITY_CENTER[city.pref] ?? [-0.81, 119.85], 13)
 
   L.control.zoom({ position: 'bottomright' }).addTo(map)
-  tileLayer = (isDark.value ? darkMatterTiles() : voyagerTiles()).addTo(map)
+  tileLayer = currentTiles().addTo(map)
 
   corridorLayer.addTo(map)
   halteLayer.addTo(map)
@@ -938,10 +941,18 @@ watch(
 )
 
 // Swap the basemap when the theme toggles.
-watch(isDark, (dark) => {
+/** Pick the tile layer that matches the current basemap mode and
+ *  theme. Satellite mode ignores dark mode (ESRI doesn't offer a
+ *  dark variant); CARTO swaps between Voyager + Dark Matter. */
+function currentTiles(): L.TileLayer {
+  if (tileMode.value === 'satellite') return satelliteTiles()
+  return isDark.value ? darkMatterTiles() : voyagerTiles()
+}
+
+watch([isDark, tileMode], () => {
   if (!map) return
   if (tileLayer) tileLayer.remove()
-  tileLayer = (dark ? darkMatterTiles() : voyagerTiles()).addTo(map)
+  tileLayer = currentTiles().addTo(map)
 })
 
 // When focus changes, re-apply dimming + fit to the focused corridor's bounds.

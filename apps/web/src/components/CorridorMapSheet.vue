@@ -19,6 +19,7 @@ const props = defineProps<{
   cityIconUrl: string | null
   qrUrl: string
   todayLabel: string
+  tileMode: 'map' | 'satellite'
 }>()
 
 const brt = useBrtStore()
@@ -96,5 +97,6 @@ const pages = computed<PageSpec[]>(() => {
     :qr-url="qrUrl"
     :today-label="todayLabel"
     :show-legend-extras="p.isLastOverall"
+    :tile-mode="tileMode"
   />
 </template>

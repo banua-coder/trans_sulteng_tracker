@@ -15,6 +15,9 @@ const KEY_PANELS = 'cektrans:ui:panels'
 const KEY_LEGEND = 'cektrans:ui:legend'
 const KEY_SEARCH = 'cektrans:ui:busSearch'
 const KEY_MOBILE_TAB = 'cektrans:ui:mobileTab'
+const KEY_TILE_MODE = 'cektrans:ui:tileMode'
+
+export type TileMode = 'map' | 'satellite'
 
 function readJson<T>(key: string, fallback: T): T {
   try {
@@ -46,6 +49,14 @@ export const useUiStore = defineStore('ui', () => {
   type MobileTab = 'routes' | 'halte' | 'plan'
   const mobileTab = ref<MobileTab>(readJson<MobileTab>(KEY_MOBILE_TAB, 'routes'))
   const mobileScrollY = ref<number>(0)
+
+  // Live map basemap — 'map' = CARTO Voyager/Dark Matter (theme
+  // aware), 'satellite' = ESRI World Imagery. Stored so the user's
+  // pick survives reloads.
+  const tileMode = ref<TileMode>(readJson<TileMode>(KEY_TILE_MODE, 'map'))
+  function setTileMode(next: TileMode) { tileMode.value = next }
+  function toggleTileMode() { tileMode.value = tileMode.value === 'map' ? 'satellite' : 'map' }
+  watch(tileMode, (v) => writeJson(KEY_TILE_MODE, v))
 
   // Corridor filter for the halte tab list. null = show every halte
   // in the city. Stored in the ui store rather than the component so
@@ -99,6 +110,9 @@ export const useUiStore = defineStore('ui', () => {
     busSearch,
     mobileTab,
     mobileScrollY,
+    tileMode,
+    setTileMode,
+    toggleTileMode,
     halteListFilterKor,
     isPanelOpen,
     setPanelOpen,
