@@ -164,6 +164,18 @@ function pickCity(slug: CitySlug) {
 
       <DonateButton />
 
+      <router-link
+        v-if="showCitySwitcher"
+        :to="{ name: 'map-export', params: { city: city.slug } }"
+        class="grid h-8 w-8 place-items-center rounded-full text-bnc-stone-600 transition-colors hover:bg-bnc-stone-100 dark:text-bnc-stone-300 dark:hover:bg-bnc-stone-800"
+        :aria-label="t('a11y.downloadMap')"
+        :title="t('a11y.downloadMap')"
+      >
+        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden>
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" />
+        </svg>
+      </router-link>
+
       <button
         type="button"
         class="grid h-8 w-8 place-items-center rounded-full text-bnc-stone-600 transition-colors hover:bg-bnc-stone-100 dark:text-bnc-stone-300 dark:hover:bg-bnc-stone-800"

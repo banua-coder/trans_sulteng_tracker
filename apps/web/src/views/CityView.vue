@@ -80,6 +80,15 @@ onBeforeUnmount(() => {
         <NearbyHaltePanel />
         <CorridorPanel />
         <BusListPanel />
+        <router-link
+          :to="{ name: 'map-export', params: { city: city.slug } }"
+          class="inline-flex items-center gap-2 self-start rounded-md border border-bnc-stone-200 bg-white px-3 py-1.5 font-mono text-[11px] font-bold uppercase tracking-wider text-bnc-ink transition-colors hover:bg-bnc-stone-100 dark:border-bnc-stone-700 dark:bg-bnc-stone-900 dark:text-bnc-paper dark:hover:bg-bnc-stone-800"
+        >
+          <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden>
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" />
+          </svg>
+          Unduh Peta Koridor
+        </router-link>
       </div>
     </aside>
 

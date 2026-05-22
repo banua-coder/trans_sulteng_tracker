@@ -93,6 +93,7 @@ export const messages = {
       close: 'Tutup',
       back: 'Kembali',
       donate: 'Dukung kami',
+      downloadMap: 'Unduh peta koridor',
     },
     donate: {
       title: 'Traktir kami kopi ☕',
@@ -256,6 +257,7 @@ export const messages = {
       close: 'Close',
       back: 'Back',
       donate: 'Support us',
+      downloadMap: 'Download corridor map',
     },
     donate: {
       title: 'Buy us a coffee ☕',
