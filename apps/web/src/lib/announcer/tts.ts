@@ -110,3 +110,8 @@ export async function speak(text: string, opts: SpeakOptions): Promise<void> {
 export function cancelSpeech() {
   if (isSpeechSupported()) window.speechSynthesis.cancel()
 }
+
+export function resumeSpeech() {
+  if (!isSpeechSupported()) return
+  try { window.speechSynthesis.resume() } catch {}
+}
