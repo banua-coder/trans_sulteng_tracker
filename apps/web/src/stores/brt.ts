@@ -589,6 +589,44 @@ export const useBrtStore = defineStore('brt', () => {
     return out
   }
 
+  /** Corridor pills shown above the halte list filter. Sorted by
+   *  kor so the order is stable across cities. */
+  const corridorPills = computed(() =>
+    [...corridors.value]
+      .sort((a, b) => a.kor.localeCompare(b.kor, undefined, { numeric: true }))
+      .map((c) => ({ kor: c.kor, color: c.color || '#0EA5E9' })),
+  )
+
+  /** Halte tab list: deduped to one row per physical stop (sh_name),
+   *  optionally narrowed to one corridor (in_koridor includes the
+   *  filter kor), and optionally filtered by a free-text search. */
+  function halteListFor(
+    searchRef: MaybeRefOrGetter<string | null | undefined>,
+    filterKorRef: MaybeRefOrGetter<string | null | undefined>,
+  ): ComputedRef<BrtHalte[]> {
+    return computed(() => {
+      const seen = new Map<string, BrtHalte>()
+      for (const h of halte.value) {
+        if (!seen.has(h.sh_name)) seen.set(h.sh_name, h)
+      }
+      let list = [...seen.values()]
+      const filterKor = toValue(filterKorRef) ?? null
+      if (filterKor) {
+        list = list.filter((h) => {
+          const kors = h.in_koridor ? h.in_koridor.split('|') : [h.kor]
+          return kors.includes(filterKor)
+        })
+      }
+      const q = (toValue(searchRef) ?? '').trim().toLowerCase()
+      if (q) {
+        list = list.filter((h) =>
+          [h.sh_name, h.in_koridor || h.kor].filter(Boolean).join(' ').toLowerCase().includes(q),
+        )
+      }
+      return list
+    })
+  }
+
   return {
     cities,
     corridors,
@@ -611,5 +649,7 @@ export const useBrtStore = defineStore('brt', () => {
     upcomingStopsForBus,
     corridorTimelineRowsFor,
     corridorBadgesForHalte,
+    corridorPills,
+    halteListFor,
   }
 })

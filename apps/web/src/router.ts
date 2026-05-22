@@ -13,6 +13,12 @@ const routes: RouteRecordRaw[] = [
     props: true,
   },
   {
+    path: '/peta/:city(palu|donggala)',
+    name: 'map-export',
+    component: () => import('@/views/MapExportView.vue'),
+    props: true,
+  },
+  {
     path: '/:pathMatch(.*)*',
     redirect: { name: 'home' },
   },

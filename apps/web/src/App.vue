@@ -37,8 +37,8 @@ watch(
 
 <template>
   <div class="flex min-h-dvh flex-col">
-    <TopBar />
-    <OperatingBanner />
+    <TopBar class="app-chrome" />
+    <OperatingBanner class="app-chrome" />
     <main class="relative flex-1">
       <router-view v-slot="{ Component }">
         <transition name="fade" mode="out-in">
@@ -57,5 +57,12 @@ watch(
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
+}
+
+/* Hide the app shell when printing so the browser's print pipeline
+   only emits the route content. Without this, the global TopBar +
+   OperatingBanner pile onto page 1 of the corridor booklet. */
+@media print {
+  .app-chrome { display: none !important; }
 }
 </style>
