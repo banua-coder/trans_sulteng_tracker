@@ -1,20 +1,20 @@
 <script setup lang="ts">
 /**
- * Printable booklet for a single corridor. Splits the halte list into
- * chunks of HALTE_PER_PAGE and renders one CorridorMapPage per chunk.
- * Every page repeats the corridor map and the same numbering scheme,
- * so the reader can flip between pages without losing context. The
- * Keterangan + QR block only appears on the LAST page to save room
- * on the earlier ones.
+ * Printable booklet for a single corridor — one set of pages per
+ * leg (A: origin → toward, then B: toward → origin). Each leg's
+ * map fits only its own polyline + halte so the zoom is much
+ * tighter than rendering both legs in one frame. Per-leg halte
+ * data is fetched eagerly on mount; without it the bulk feed
+ * leaks reverse halte for some corridors (FD01) and silently
+ * drops halte on others (K2A reverse).
  */
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useBrtStore } from '@/stores/brt'
 import CorridorMapPage from '@/components/CorridorMapPage.vue'
 import type { BrtCorridor, BrtHalte } from '@/types/brt'
 
 const props = defineProps<{
   corridor: BrtCorridor
-  halte: BrtHalte[]
   cityName: string
   cityIconUrl: string | null
   qrUrl: string
@@ -23,49 +23,78 @@ const props = defineProps<{
 
 const brt = useBrtStore()
 
-// Halte ordered along the forward leg (origin → toward) using the
-// per-leg authoritative data. The bulk feed's insertion order can be
-// reversed for some corridors (FD01 Donggala) so always derive from
-// getHalteForLeg, then append any reverse-only halte (K1 reverse
-// terminus, K2A reverse) that don't appear forward.
-const allHalte = computed(() => {
+onMounted(() => {
   const c = props.corridor
-  const fwd = brt.getHalteForLeg(c.kor, c.toward, c.origin)
-  const rev = brt.getHalteForLeg(c.kor, c.origin, c.toward)
-  const seen = new Map<string, BrtHalte>()
-  for (const h of fwd) if (!seen.has(h.sh_name)) seen.set(h.sh_name, h)
-  for (const h of rev) if (!seen.has(h.sh_name)) seen.set(h.sh_name, h)
-  return [...seen.values()]
+  brt.ensureHalteForLeg(c.kor, c.toward, c.origin).catch(() => {})
+  brt.ensureHalteForLeg(c.kor, c.origin, c.toward).catch(() => {})
 })
 
-// Empirical fit for the side column on A4 landscape after header,
-// keterangan and QR block. 20 fits comfortably.
+function dedupe(list: BrtHalte[]): BrtHalte[] {
+  const seen = new Map<string, BrtHalte>()
+  for (const h of list) if (!seen.has(h.sh_name)) seen.set(h.sh_name, h)
+  return [...seen.values()]
+}
+
+const legAHalte = computed(() =>
+  dedupe(brt.getHalteForLeg(props.corridor.kor, props.corridor.toward, props.corridor.origin)),
+)
+const legBHalte = computed(() =>
+  dedupe(brt.getHalteForLeg(props.corridor.kor, props.corridor.origin, props.corridor.toward)),
+)
+
 const HALTE_PER_PAGE = 20
 
-const pages = computed(() => {
-  const list = allHalte.value
-  if (!list.length) return [list]
+function chunk(list: BrtHalte[]): BrtHalte[][] {
+  if (!list.length) return []
   const out: BrtHalte[][] = []
   for (let i = 0; i < list.length; i += HALTE_PER_PAGE) {
     out.push(list.slice(i, i + HALTE_PER_PAGE))
   }
   return out
+}
+
+interface PageSpec {
+  leg: 'a' | 'b'
+  legHalte: BrtHalte[]
+  legChunks: BrtHalte[][]
+  chunk: BrtHalte[]
+  legPageNum: number
+  legPageTotal: number
+  isLastOverall: boolean
+}
+
+const pages = computed<PageSpec[]>(() => {
+  const a = legAHalte.value
+  const b = legBHalte.value
+  const aChunks = chunk(a)
+  const bChunks = chunk(b)
+  const out: Omit<PageSpec, 'isLastOverall'>[] = []
+  aChunks.forEach((ch, i) => out.push({
+    leg: 'a', legHalte: a, legChunks: aChunks, chunk: ch,
+    legPageNum: i + 1, legPageTotal: aChunks.length,
+  }))
+  bChunks.forEach((ch, i) => out.push({
+    leg: 'b', legHalte: b, legChunks: bChunks, chunk: ch,
+    legPageNum: i + 1, legPageTotal: bChunks.length,
+  }))
+  return out.map((p, i) => ({ ...p, isLastOverall: i === out.length - 1 }))
 })
 </script>
 
 <template>
   <CorridorMapPage
-    v-for="(chunk, i) in pages"
-    :key="corridor.kor + '-' + i"
+    v-for="(p, i) in pages"
+    :key="corridor.kor + '-' + p.leg + '-' + i"
     :corridor="corridor"
-    :all-halte="allHalte"
-    :chunk="chunk"
+    :leg="p.leg"
+    :leg-halte="p.legHalte"
+    :chunk="p.chunk"
+    :leg-page-num="p.legPageNum"
+    :leg-page-total="p.legPageTotal"
     :city-name="cityName"
     :city-icon-url="cityIconUrl"
     :qr-url="qrUrl"
     :today-label="todayLabel"
-    :page="i + 1"
-    :total-pages="pages.length"
-    :show-legend-extras="i === pages.length - 1"
+    :show-legend-extras="p.isLastOverall"
   />
 </template>

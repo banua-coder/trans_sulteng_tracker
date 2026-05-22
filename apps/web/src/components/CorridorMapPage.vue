@@ -19,20 +19,24 @@ import type { BrtCorridor, BrtHalte } from '@/types/brt'
 
 const props = defineProps<{
   corridor: BrtCorridor
-  /** Full ordered halte sequence for this corridor — used to find
-   *  each chunk row's absolute index (so the number on the map dot
-   *  matches the number in the side legend). */
-  allHalte: BrtHalte[]
+  /** Which leg this page belongs to. 'a' = origin → toward
+   *  (forward), 'b' = toward → origin (reverse). The map draws
+   *  only this leg's polyline + halte so the fit is tight. */
+  leg: 'a' | 'b'
+  /** Ordered halte sequence for this leg — used to compute the
+   *  per-leg index of each chunk row so the number on the map dot
+   *  matches the side legend. */
+  legHalte: BrtHalte[]
   /** Slice to render in the side legend on this page. */
   chunk: BrtHalte[]
   cityName: string
   cityIconUrl: string | null
   qrUrl: string
   todayLabel: string
-  /** 1-based page number out of totalPages, used in the header. */
-  page: number
-  totalPages: number
-  /** Show Keterangan + QR (only on the last page to save room). */
+  /** 1-based page number within this leg. */
+  legPageNum: number
+  legPageTotal: number
+  /** Show Keterangan + QR (only on the last overall page). */
   showLegendExtras: boolean
 }>()
 
@@ -49,17 +53,22 @@ function otherCorridorsAt(h: BrtHalte): string[] {
   return h.in_koridor ? h.in_koridor.split('|').filter((k) => k && k !== props.corridor.kor) : []
 }
 
-// Index of a halte in the corridor's full sequence — drives both
-// the map dot number and the side legend number, so they always
-// stay in sync across pages.
+// Index of a halte in this LEG's sequence — drives the number on
+// the map dot and the side legend so they always match.
 const indexByName = computed(() => {
   const m = new Map<string, number>()
-  props.allHalte.forEach((h, i) => m.set(h.sh_name, i))
+  props.legHalte.forEach((h, i) => m.set(h.sh_name, i))
   return m
 })
 function indexOf(h: BrtHalte): number {
   return indexByName.value.get(h.sh_name) ?? 0
 }
+
+const directionLabel = computed(() =>
+  props.leg === 'a'
+    ? `${props.corridor.origin} → ${props.corridor.toward}`
+    : `${props.corridor.toward} → ${props.corridor.origin}`,
+)
 
 function drawMap() {
   if (!map) return
@@ -67,20 +76,23 @@ function drawMap() {
   const color = props.corridor.color || '#0EA5E9'
   const bounds = L.latLngBounds([])
 
-  for (const enc of [props.corridor.points_a, props.corridor.points_b]) {
-    if (!enc) continue
-    const coords = polyline.decode(enc) as L.LatLngTuple[]
-    if (!coords.length) continue
-    L.polyline(coords, {
-      color,
-      weight: 5,
-      opacity: 0.95,
-      smoothFactor: 1,
-    }).addTo(m)
-    for (const ll of coords) bounds.extend(ll)
+  // Draw ONLY this leg's polyline so the fit hugs one direction's
+  // geometry instead of the union of both legs.
+  const encoded = props.leg === 'a' ? props.corridor.points_a : props.corridor.points_b
+  if (encoded) {
+    const coords = polyline.decode(encoded) as L.LatLngTuple[]
+    if (coords.length) {
+      L.polyline(coords, {
+        color,
+        weight: 5,
+        opacity: 0.95,
+        smoothFactor: 1,
+      }).addTo(m)
+      for (const ll of coords) bounds.extend(ll)
+    }
   }
 
-  for (const h of props.allHalte) {
+  for (const h of props.legHalte) {
     const lat = parseFloat(h.sh_lat)
     const lng = parseFloat(h.sh_lng)
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue
@@ -99,7 +111,7 @@ function drawMap() {
     bounds.extend([lat, lng])
   }
 
-  if (bounds.isValid()) m.fitBounds(bounds.pad(0.02))
+  if (bounds.isValid()) m.fitBounds(bounds.pad(0.01))
 }
 
 async function renderQR() {
@@ -129,7 +141,7 @@ onMounted(async () => {
   if (props.showLegendExtras) await renderQR()
 })
 
-watch(() => props.allHalte, () => {
+watch(() => props.legHalte, () => {
   if (!map) return
   drawMap()
 })
@@ -154,12 +166,12 @@ onBeforeUnmount(() => {
       />
       <div class="title">
         <p class="eyebrow">
-          Peta Koridor · {{ cityName }}
-          <template v-if="totalPages > 1">· hal. {{ page }} dari {{ totalPages }}</template>
+          Peta Koridor · {{ cityName }} · Arah {{ leg === 'a' ? 'A' : 'B' }}
+          <template v-if="legPageTotal > 1">· hal. {{ legPageNum }}/{{ legPageTotal }}</template>
         </p>
         <h1>
           <span class="chip" :style="{ background: corridor.color || '#0EA5E9' }">{{ corridor.kor }}</span>
-          {{ corridor.origin }} – {{ corridor.toward }}
+          {{ directionLabel }}
         </h1>
         <p class="footnote">
           cektrans.banuacoder.com · {{ todayLabel }}
@@ -182,7 +194,7 @@ onBeforeUnmount(() => {
         <section>
           <h2>
             Daftar Halte
-            <template v-if="totalPages > 1">
+            <template v-if="legPageTotal > 1">
               · {{ indexOf(chunk[0]) + 1 }}–{{ indexOf(chunk[chunk.length - 1]) + 1 }}
             </template>
           </h2>
