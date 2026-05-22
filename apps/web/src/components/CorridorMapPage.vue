@@ -115,7 +115,18 @@ function drawMap() {
     bounds.extend([lat, lng])
   }
 
-  if (bounds.isValid()) m.fitBounds(bounds.pad(0.01))
+  if (bounds.isValid()) {
+    // Pixel-based padding so the marker circles (radius ~9 px) never
+    // crop at the edges. A fractional pad(0.01) was less than the
+    // marker radius, so dots near the leg's east/west extremes
+    // showed as half-circles. maxZoom caps fits for very short
+    // legs so we don't zoom past readable street detail.
+    m.fitBounds(bounds, {
+      paddingTopLeft: [20, 20],
+      paddingBottomRight: [20, 20],
+      maxZoom: 16,
+    })
+  }
 }
 
 async function renderQR() {
