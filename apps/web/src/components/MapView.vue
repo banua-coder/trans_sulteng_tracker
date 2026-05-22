@@ -393,7 +393,14 @@ function drawCorridors(items: BrtCorridor[]) {
           lineJoin: 'round',
           interactive: true,
         })
-        line.on('click', () => focus.focus(c.kor))
+        line.on('click', () => {
+        // When a different corridor is already focused, ignore clicks
+        // on other corridors' (dimmed) polylines — the user explicitly
+        // narrowed to one route. They can click the back button on the
+        // panel to clear focus and then pick a new corridor.
+        if (focus.kor && focus.kor !== c.kor) return
+        focus.focus(c.kor)
+      })
         line.addTo(corridorLayer)
         byLeg[leg].push(line)
         allBounds.extend(line.getBounds())
@@ -450,11 +457,31 @@ function drawHalte(items: BrtHalte[]) {
     const coordKey = `${lat.toFixed(5)},${lng.toFixed(5)}`
     let marker = halteSeen.get(coordKey)
     if (!marker) {
-      marker = halteMarker([lat, lng])
+      const newMarker = halteMarker([lat, lng])
         .bindTooltip(h.sh_name, { direction: 'top', offset: [0, -6] })
-      marker.on('click', () => selection.selectHalte(h.sh_id))
-      marker.addTo(halteLayer)
-      halteSeen.set(coordKey, marker)
+      newMarker.on('click', () => {
+        // When a corridor is focused, only halte on that corridor's
+        // active leg are interactive. The marker may be shared across
+        // kors via coord dedup, so we check the active-leg sh_id set
+        // (the same one applyFocus uses for visibility) and pick the
+        // matching sh_id from this marker's id list.
+        if (focus.kor) {
+          const active = activeLegHalteShIds()
+          const shIds = halteMarkerShIds.get(newMarker)
+          if (!active || !shIds) return
+          let pickId: string | null = null
+          for (const id of shIds) {
+            if (active.has(id)) { pickId = id; break }
+          }
+          if (!pickId) return
+          selection.selectHalte(pickId)
+          return
+        }
+        selection.selectHalte(h.sh_id)
+      })
+      newMarker.addTo(halteLayer)
+      halteSeen.set(coordKey, newMarker)
+      marker = newMarker
     }
     const kors = halteMarkerKors.get(marker) ?? new Set<string>()
     kors.add(h.kor)
@@ -503,6 +530,22 @@ function spotlightKor(): string | null {
 let lastSpotlight: string | null = null
 let lastSpotlightInit = false
 
+/** sh_ids of the active-leg halte for the focused corridor. Used to
+ *  decide per-marker visibility (markers may be shared across kors via
+ *  coordinate dedup, so byLeg slot alone isn't authoritative) and to
+ *  gate halte clicks when corridor focus is active. Returns null when
+ *  no corridor is focused or no direction is active. */
+function activeLegHalteShIds(): Set<string> | null {
+  const fk = focus.kor
+  if (!fk) return null
+  const c = brt.corridorByKor.get(fk)
+  if (!c) return null
+  const wantToward = focus.direction === 'a' ? c.toward : c.origin
+  const wantOrigin = focus.direction === 'a' ? c.origin : c.toward
+  const leg = brt.getHalteForLeg(fk, wantToward, wantOrigin)
+  return new Set(leg.map((h) => h.sh_id))
+}
+
 function applyFocus(force = false) {
   const fk = spotlightKor()
   // Active leg when a corridor is explicitly focused via focus.kor —
@@ -513,6 +556,7 @@ function applyFocus(force = false) {
   // rather than focus.kor, we still want both legs visible — the
   // user is inspecting a single vehicle, not a direction.
   const activeLeg: 'a' | 'b' | null = fk && focus.kor === fk ? focus.direction : null
+  const activeShIds = activeLeg ? activeLegHalteShIds() : null
   const planKors = tripPlanKors.value
   const planNames = planKors ? tripPlanHalteNames.value : null
   // Cache key includes trip-plan kor set + the active leg so the
@@ -578,15 +622,30 @@ function applyFocus(force = false) {
       }
       continue
     }
-    if (fk && kor === fk && activeLeg) {
-      const active = activeLeg === 'a' ? byLeg.a : byLeg.b
-      const inactive = activeLeg === 'a' ? byLeg.b : byLeg.a
-      for (const m of active) m.setStyle({ opacity: 1, fillOpacity: 1 })
-      for (const m of inactive) m.setStyle({ opacity: 0, fillOpacity: 0 })
-      continue
-    }
     const opacity = fk === null || kor === fk ? 1 : 0.2
     for (const m of all) m.setStyle({ opacity, fillOpacity: opacity })
+  }
+
+  // Direction filter: override the above per-marker. We iterate the
+  // deduped halteSeen map (each physical stop visited once) and check
+  // its sh_id set against the active leg's authoritative halte list.
+  // This is necessary because coordinate-dedup makes byLeg slots
+  // unreliable — a transfer stop's marker lives in whichever
+  // corridor's slot was populated first, and per-leg-fetched halte
+  // can land in the wrong slot when their origin/toward fields are
+  // ambiguous (K2A reverse, K1 terminus).
+  if (activeShIds) {
+    for (const m of halteSeen.values()) {
+      const shIds = halteMarkerShIds.get(m)
+      let onActive = false
+      if (shIds) {
+        for (const id of shIds) {
+          if (activeShIds.has(id)) { onActive = true; break }
+        }
+      }
+      const op = onActive ? 1 : 0
+      m.setStyle({ opacity: op, fillOpacity: op })
+    }
   }
 
   // Bus-selected refinement: dim stops the bus has already passed so
@@ -664,7 +723,21 @@ function upsertBusMarker(b: BrtBus) {
   if (!cache) {
     const icon = busIcon({ color, code: b.kor || '·', angle, stale })
     const marker = L.marker([b.lat, b.lng], { icon, keyboard: false })
-    marker.on('click', () => focusBus(key, b))
+    marker.on('click', () => {
+      // When a corridor is focused, ignore clicks on buses outside it
+      // (other corridors) or on the wrong-direction half of the same
+      // corridor — these markers are visually dimmed/hidden but stay
+      // hit-testable, so we gate the action here.
+      if (focus.kor) {
+        if (b.kor !== focus.kor) return
+        const c = brt.corridorByKor.get(focus.kor)
+        if (c) {
+          const wantToward = focus.direction === 'a' ? c.toward : c.origin
+          if (b.toward !== wantToward) return
+        }
+      }
+      focusBus(key, b)
+    })
     marker.addTo(busLayer)
     cache = { marker, iconKey }
     busMarkers.set(key, cache)

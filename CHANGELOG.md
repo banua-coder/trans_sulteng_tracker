@@ -2,6 +2,24 @@
 
 All notable releases of cektrans are recorded here. Generated automatically by `release-finalize.yml`.
 
+## v0.7.1 — 2026-05-20
+
+### 🐛 Bug Fixes
+
+- fix(web): halte visibility + ignore off-corridor clicks under focus (52cf5c7)
+
+### 🧹 Chore
+
+- chore: bump dev version to 0.8.0 after v0.7.0 release (6b9a6fa)
+- chore: bump version to 0.7.1 (f784531)
+
+### 📌 Other
+
+- Merge pull request #67 from banua-coder/chore/bump-dev-version-v0.8.0 (274bc7d)
+- Merge pull request #68 from banua-coder/backmerge/main-to-develop-v0.7.0 (494d98f)
+
+
+
 ## v0.7.0 — 2026-05-20
 
 ### ✨ Features
