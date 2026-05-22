@@ -24,6 +24,7 @@ const brt = useBrtStore()
 const { corridors, halte } = storeToRefs(brt)
 
 const cityName = computed(() => (props.city === 'palu' ? 'TransPalu' : 'TransDonggala'))
+const cityIconUrl = computed(() => brt.cityByPref.get(cityStore.pref)?.icon ?? null)
 const todayLabel = computed(() => {
   const d = new Date()
   const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember']
@@ -91,6 +92,7 @@ function printPage() {
       :corridor="c"
       :halte="halte"
       :city-name="cityName"
+      :city-icon-url="cityIconUrl"
       :qr-url="qrUrl"
       :today-label="todayLabel"
     />
