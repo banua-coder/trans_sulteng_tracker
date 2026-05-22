@@ -120,11 +120,26 @@ function drawMap() {
   }
 
   if (bounds.isValid()) {
+    // Reshape the map element to match the corridor's natural aspect
+    // ratio (lng-span / lat-span). Without this, a tall-narrow
+    // corridor (K2C, K1) fits a wide landscape container with huge
+    // empty horizontal margins, and a wide-flat corridor (K4B) gets
+    // huge vertical margins. Clamp so we don't produce pathological
+    // strips. The map centers itself in its grid cell via
+    // margin: 0 auto; any leftover cell space becomes page chrome.
+    const dx = bounds.getEast() - bounds.getWest()
+    const dy = bounds.getNorth() - bounds.getSouth()
+    if (dx > 0 && dy > 0 && mapEl.value) {
+      const natural = dx / dy
+      const clamped = Math.max(0.55, Math.min(1.9, natural))
+      mapEl.value.style.aspectRatio = String(clamped)
+      // Leaflet caches the container size at init; force a
+      // re-measure now that the aspect changed.
+      m.invalidateSize({ animate: false })
+    }
     // Pixel-based padding so the marker circles (radius ~9 px) never
-    // crop at the edges. A fractional pad(0.01) was less than the
-    // marker radius, so dots near the leg's east/west extremes
-    // showed as half-circles. maxZoom caps fits for very short
-    // legs so we don't zoom past readable street detail.
+    // crop at the edges. maxZoom caps fits for very short legs so we
+    // don't zoom past readable street detail.
     m.fitBounds(bounds, {
       paddingTopLeft: [20, 20],
       paddingBottomRight: [20, 20],
@@ -368,6 +383,15 @@ onBeforeUnmount(() => {
 }
 
 .map {
+  /* aspect-ratio is set by drawMap() to match the corridor's natural
+     lng/lat span so a tall-narrow corridor doesn't sit in a sea of
+     empty wide map. Fall back to landscape for the first paint. */
+  aspect-ratio: 4 / 3;
+  width: 100%;
+  height: auto;
+  max-width: 100%;
+  max-height: 100%;
+  margin: 0 auto;
   border: 1px solid #cbd5e1;
   min-height: 0;
 }
