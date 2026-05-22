@@ -16,6 +16,9 @@ const KEY_LEGEND = 'cektrans:ui:legend'
 const KEY_SEARCH = 'cektrans:ui:busSearch'
 const KEY_MOBILE_TAB = 'cektrans:ui:mobileTab'
 const KEY_TILE_MODE = 'cektrans:ui:tileMode'
+const KEY_AUDIO_ENABLED = 'cektrans:ui:audioEnabled'
+const KEY_AUDIO_VOLUME = 'cektrans:ui:audioVolume'
+const KEY_VIBRATION = 'cektrans:ui:vibrationEnabled'
 
 export type TileMode = 'map' | 'satellite'
 
@@ -57,6 +60,22 @@ export const useUiStore = defineStore('ui', () => {
   function setTileMode(next: TileMode) { tileMode.value = next }
   function toggleTileMode() { tileMode.value = tileMode.value === 'map' ? 'satellite' : 'map' }
   watch(tileMode, (v) => writeJson(KEY_TILE_MODE, v))
+
+  // Audio announcer settings. Off by default — first interaction
+  // needs to be a user gesture anyway to unlock the autoplay
+  // policy. Volume is 0–100; vibration is hidden in the UI on iOS
+  // (Apple doesn't ship the API) but the flag still persists in case
+  // the user later opens the same browser profile on an Android
+  // device.
+  const audioEnabled = ref<boolean>(readJson<boolean>(KEY_AUDIO_ENABLED, false))
+  const audioVolume = ref<number>(readJson<number>(KEY_AUDIO_VOLUME, 80))
+  const vibrationEnabled = ref<boolean>(readJson<boolean>(KEY_VIBRATION, true))
+  function setAudioEnabled(v: boolean) { audioEnabled.value = v }
+  function setAudioVolume(v: number) { audioVolume.value = Math.max(0, Math.min(100, v)) }
+  function setVibrationEnabled(v: boolean) { vibrationEnabled.value = v }
+  watch(audioEnabled, (v) => writeJson(KEY_AUDIO_ENABLED, v))
+  watch(audioVolume, (v) => writeJson(KEY_AUDIO_VOLUME, v))
+  watch(vibrationEnabled, (v) => writeJson(KEY_VIBRATION, v))
 
   // Corridor filter for the halte tab list. null = show every halte
   // in the city. Stored in the ui store rather than the component so
@@ -113,6 +132,12 @@ export const useUiStore = defineStore('ui', () => {
     tileMode,
     setTileMode,
     toggleTileMode,
+    audioEnabled,
+    audioVolume,
+    vibrationEnabled,
+    setAudioEnabled,
+    setAudioVolume,
+    setVibrationEnabled,
     halteListFilterKor,
     isPanelOpen,
     setPanelOpen,

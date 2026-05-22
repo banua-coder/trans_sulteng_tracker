@@ -21,6 +21,7 @@ const isSatellite = computed(() => tileMode.value === 'satellite')
     :aria-label="isSatellite ? 'Tampilkan peta jalan' : 'Tampilkan citra satelit'"
     :title="isSatellite ? 'Tampilkan peta jalan' : 'Tampilkan citra satelit'"
     :aria-pressed="isSatellite"
+    data-tour="basemap-toggle"
     @click="ui.toggleTileMode()"
   >
     <svg

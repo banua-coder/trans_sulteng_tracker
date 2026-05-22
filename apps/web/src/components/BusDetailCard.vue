@@ -9,6 +9,7 @@ import CopyLinkButton from '@/components/CopyLinkButton.vue'
 import PlateBadge from '@/components/PlateBadge.vue'
 import EtaQualityGuide from '@/components/EtaQualityGuide.vue'
 import SheetStickyHeader from '@/components/SheetStickyHeader.vue'
+import { useBusAnnouncements } from '@/composables/useBusAnnouncements'
 
 const { t } = useI18n()
 const selection = useSelectionStore()
@@ -63,6 +64,10 @@ watch(
 
 // Derivation lives in the brt store.
 const upcomingStops = brt.upcomingStopsForBus(selectedBus)
+
+// Voice announcement on approach / arrival / departure for this bus.
+// No-op while audio is disabled.
+useBusAnnouncements(selectedBus, upcomingStops)
 </script>
 
 <template>

@@ -469,33 +469,35 @@ const showNoResults = computed(
         />
       </template>
     </div>
-  </div>
 
-  <!-- GPS out-of-range dialog. Teleported to body so it overlays the
-       map + sheet without z-index gymnastics. -->
-  <Teleport to="body">
-    <div
-      v-if="gpsOutOfRange"
-      class="fixed inset-0 z-[1300] flex items-end justify-center bg-bnc-ink/40 p-4 backdrop-blur-sm sm:items-center"
-      role="dialog"
-      aria-modal="true"
-      @click.self="gpsOutOfRange = false"
-    >
-      <div class="w-full max-w-sm rounded-[var(--radius-md)] bg-bnc-paper p-4 shadow-[var(--shadow-elevated)] dark:bg-bnc-stone-900">
-        <h3 class="font-display text-base font-bold tracking-tight">
-          {{ t('trip.gpsOutOfRangeTitle') }}
-        </h3>
-        <p class="mt-2 text-sm text-bnc-stone-600 dark:text-bnc-stone-300">
-          {{ t('trip.gpsOutOfRangeBody') }}
-        </p>
-        <button
-          type="button"
-          class="mt-4 inline-flex items-center justify-center rounded-full bg-bnc-primary px-4 py-2 font-mono text-xs font-bold uppercase tracking-wider text-white"
-          @click="gpsOutOfRange = false"
-        >
-          {{ t('trip.gpsOutOfRangeOk') }}
-        </button>
+    <!-- GPS out-of-range dialog. Teleported to body so it overlays the
+         map + sheet without z-index gymnastics. Kept inside the root
+         div so the template has a single root and class attrs from
+         the parent inherit cleanly. -->
+    <Teleport to="body">
+      <div
+        v-if="gpsOutOfRange"
+        class="fixed inset-0 z-[1300] flex items-end justify-center bg-bnc-ink/40 p-4 backdrop-blur-sm sm:items-center"
+        role="dialog"
+        aria-modal="true"
+        @click.self="gpsOutOfRange = false"
+      >
+        <div class="w-full max-w-sm rounded-[var(--radius-md)] bg-bnc-paper p-4 shadow-[var(--shadow-elevated)] dark:bg-bnc-stone-900">
+          <h3 class="font-display text-base font-bold tracking-tight">
+            {{ t('trip.gpsOutOfRangeTitle') }}
+          </h3>
+          <p class="mt-2 text-sm text-bnc-stone-600 dark:text-bnc-stone-300">
+            {{ t('trip.gpsOutOfRangeBody') }}
+          </p>
+          <button
+            type="button"
+            class="mt-4 inline-flex items-center justify-center rounded-full bg-bnc-primary px-4 py-2 font-mono text-xs font-bold uppercase tracking-wider text-white"
+            @click="gpsOutOfRange = false"
+          >
+            {{ t('trip.gpsOutOfRangeOk') }}
+          </button>
+        </div>
       </div>
-    </div>
-  </Teleport>
+    </Teleport>
+  </div>
 </template>

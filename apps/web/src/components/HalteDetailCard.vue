@@ -9,6 +9,7 @@ import CopyLinkButton from '@/components/CopyLinkButton.vue'
 import PlateBadge from '@/components/PlateBadge.vue'
 import EtaQualityGuide from '@/components/EtaQualityGuide.vue'
 import SheetStickyHeader from '@/components/SheetStickyHeader.vue'
+import { useHalteAnnouncements } from '@/composables/useHalteAnnouncements'
 
 const { t } = useI18n()
 const selection = useSelectionStore()
@@ -43,6 +44,11 @@ watch(
 // renderer over `arrivals`. The selector reacts to halteFilterKor so
 // tapping a corridor pill below narrows the bus list.
 const arrivals = brt.incomingBusesForHalte(selectedHalte, halteFilterKor)
+
+// Voice announcement on bus approach + arrival at this halte. No-op
+// when audio is disabled in Settings. State (which buses already
+// announced) lives inside the composable, scoped to selectedHalte.
+useHalteAnnouncements(selectedHalte, arrivals)
 
 // HalteDetailCard shows badges without a "current" highlight (the
 // card is reached from the map or a corridor, not anchored to one),
