@@ -118,6 +118,32 @@ export const messages = {
       next: 'Lanjut',
       prev: 'Kembali',
       done: 'Selesai',
+      full: {
+        city: {
+          title: 'Pilih kota',
+          body: 'Pindah antara Palu dan Donggala. Setiap kota punya koridor dan halte sendiri.',
+        },
+        myLocation: {
+          title: 'Lokasi saya',
+          body: 'Tap untuk pusatkan peta ke posisimu dan temukan bus terdekat.',
+        },
+        basemap: {
+          title: 'Peta atau satelit',
+          body: 'Beralih cepat antara peta jalan dan citra satelit untuk tampilan yang lebih jelas.',
+        },
+        halteFilter: {
+          title: 'Filter halte per koridor',
+          body: 'Tap kode koridor untuk menampilkan hanya halte yang dilewati koridor tersebut.',
+        },
+        exportMap: {
+          title: 'Unduh peta offline',
+          body: 'Cetak atau simpan PDF peta koridor lengkap dengan daftar halte — berguna saat tanpa sinyal.',
+        },
+        settings: {
+          title: 'Pengaturan',
+          body: 'Atur tema, bahasa, dan aktifkan pengumuman suara untuk bus yang mendekat.',
+        },
+      },
       v080: {
         settings: {
           title: 'Pengaturan terpusat',
@@ -324,6 +350,32 @@ export const messages = {
       next: 'Next',
       prev: 'Back',
       done: 'Done',
+      full: {
+        city: {
+          title: 'Pick a city',
+          body: 'Switch between Palu and Donggala. Each city has its own corridors and stops.',
+        },
+        myLocation: {
+          title: 'My location',
+          body: 'Tap to centre the map on you and surface the nearest buses.',
+        },
+        basemap: {
+          title: 'Map or satellite',
+          body: 'Flip between street tiles and satellite imagery for clearer context.',
+        },
+        halteFilter: {
+          title: 'Filter halte by corridor',
+          body: 'Tap a corridor code to narrow the halte list to that route only.',
+        },
+        exportMap: {
+          title: 'Offline corridor map',
+          body: 'Print or save a PDF of the corridor with its halte list — handy when offline.',
+        },
+        settings: {
+          title: 'Settings',
+          body: 'Set theme, language, and turn on voice announcements when a bus is approaching.',
+        },
+      },
       v080: {
         settings: {
           title: 'Settings in one place',

@@ -37,6 +37,7 @@ async function trigger() {
     :aria-label="label"
     :title="tooltip"
     :aria-busy="geo.status === 'pending'"
+    data-tour="my-location"
     @click="trigger"
   >
     <svg
