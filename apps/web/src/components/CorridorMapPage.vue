@@ -279,6 +279,17 @@ onBeforeUnmount(() => {
   font-family: ui-sans-serif, system-ui, sans-serif;
 }
 
+/* Mobile preview: drop the A4 aspect ratio (which would collapse the
+   sheet to ~280px tall on a phone and make the map unreadable) and
+   stack header/map/legend vertically so each part gets reasonable
+   room. Print rules below still force landscape A4. */
+@media screen and (max-width: 767px) {
+  .sheet {
+    aspect-ratio: auto;
+    padding: 12px;
+  }
+}
+
 .sheet-header {
   display: flex;
   align-items: center;
@@ -344,6 +355,24 @@ onBeforeUnmount(() => {
 .map {
   border: 1px solid #cbd5e1;
   min-height: 0;
+}
+
+@media screen and (max-width: 767px) {
+  .sheet-body {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .map {
+    height: 60vh;
+  }
+  .legend {
+    border-left: none;
+    border-top: 1px solid #e2e8f0;
+    padding-left: 0;
+    padding-top: 10px;
+    overflow: visible;
+  }
+  .halte-list { max-height: none; overflow: visible; }
 }
 
 .legend {
