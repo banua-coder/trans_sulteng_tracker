@@ -27,7 +27,7 @@ const focus = useFocusStore()
 const selection = useSelectionStore()
 const ui = useUiStore()
 const { corridors, halte } = storeToRefs(brt)
-const { busSearch, mobileTab: tab, mobileScrollY } = storeToRefs(ui)
+const { busSearch, mobileTab: tab, mobileScrollY, halteListFilterKor } = storeToRefs(ui)
 
 const scrollEl = ref<HTMLElement | null>(null)
 
@@ -79,19 +79,11 @@ const filteredRoutes = computed(() => {
   )
 })
 
-const filteredHalte = computed(() => {
-  const q = busSearch.value.trim().toLowerCase()
-  // Dedupe by sh_id — same physical stop appears once per direction.
-  const seen = new Map<string, (typeof halte.value)[number]>()
-  for (const h of halte.value) {
-    if (!seen.has(h.sh_id)) seen.set(h.sh_id, h)
-  }
-  const list = [...seen.values()]
-  if (!q) return list
-  return list.filter((h) =>
-    [h.sh_name, h.kor, h.sh_id].filter(Boolean).join(' ').toLowerCase().includes(q),
-  )
-})
+// Pure renderer: the halte list, corridor pills, and per-halte
+// badges all live in the brt store. The component just wires the
+// filter ref through and renders.
+const filteredHalte = brt.halteListFor(busSearch, halteListFilterKor)
+const corridorPills = brt.corridorPills
 
 function pickRoute(kor: string) {
   focus.focus(kor)
@@ -207,46 +199,82 @@ function pickHalte(shId: string) {
       </li>
     </ul>
 
-    <ul v-else-if="tab === 'halte'" class="mt-4 flex flex-col gap-2">
-      <li v-for="h in filteredHalte" :key="h.sh_id">
+    <template v-else-if="tab === 'halte'">
+      <!-- corridor filter pills — tap to narrow to one corridor,
+           tap again or "All" to clear. Halte serve multiple
+           corridors so the old single-kor dot was misleading. -->
+      <div class="mt-3 flex flex-wrap items-center gap-1.5">
         <button
           type="button"
-          class="flex w-full items-center gap-3 rounded-[var(--radius-md)] border border-bnc-stone-200 bg-white px-3 py-3 text-left transition-colors hover:border-bnc-stone-300 dark:border-bnc-stone-800 dark:bg-bnc-stone-900 dark:hover:border-bnc-stone-700"
-          @click="pickHalte(h.sh_id)"
+          class="inline-flex items-center rounded-md border px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider transition-colors"
+          :class="
+            halteListFilterKor === null
+              ? 'border-bnc-ink bg-bnc-ink text-bnc-paper dark:border-bnc-paper dark:bg-bnc-paper dark:text-bnc-ink'
+              : 'border-bnc-stone-300 bg-white text-bnc-stone-600 hover:bg-bnc-stone-100 dark:border-bnc-stone-700 dark:bg-bnc-stone-900 dark:text-bnc-stone-300 dark:hover:bg-bnc-stone-800'
+          "
+          @click="ui.setHalteListFilter(null)"
         >
-          <span
-            class="h-3 w-3 shrink-0 rounded-full border-2 border-white"
-            :style="{ background: brt.colorForKor(h.kor), boxShadow: '0 0 0 1px ' + brt.colorForKor(h.kor) }"
-            aria-hidden
-          />
-          <div class="min-w-0 flex-1">
-            <p class="truncate font-display text-sm font-semibold tracking-tight">
-              {{ h.sh_name }}
-            </p>
-            <p class="mt-0.5 font-mono text-[10px] uppercase tracking-wider text-bnc-stone-500">
-              {{ h.kor }} · {{ h.origin }} → {{ h.toward }}
-            </p>
-          </div>
-          <svg
-            class="h-4 w-4 shrink-0 text-bnc-stone-400"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            aria-hidden
-          >
-            <path d="M9 6l6 6-6 6" />
-          </svg>
+          {{ t('halte.showAll') }}
         </button>
-      </li>
-      <li
-        v-if="!filteredHalte.length"
-        class="rounded-md bg-bnc-stone-100 px-3 py-3 font-mono text-[11px] uppercase tracking-wider text-bnc-stone-500 dark:bg-bnc-stone-800"
-      >
-        {{ t('route.empty') }}
-      </li>
-    </ul>
+        <button
+          v-for="p in corridorPills"
+          :key="p.kor"
+          type="button"
+          class="inline-flex items-center rounded-md px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-white transition-opacity"
+          :style="{
+            background: p.color,
+            opacity: halteListFilterKor === null || halteListFilterKor === p.kor ? 1 : 0.4,
+          }"
+          :aria-pressed="halteListFilterKor === p.kor"
+          @click="ui.toggleHalteListFilter(p.kor)"
+        >
+          {{ p.kor }}
+        </button>
+      </div>
+
+      <ul class="mt-3 flex flex-col gap-2">
+        <li v-for="h in filteredHalte" :key="h.sh_name">
+          <button
+            type="button"
+            class="flex w-full items-center gap-3 rounded-[var(--radius-md)] border border-bnc-stone-200 bg-white px-3 py-3 text-left transition-colors hover:border-bnc-stone-300 dark:border-bnc-stone-800 dark:bg-bnc-stone-900 dark:hover:border-bnc-stone-700"
+            @click="pickHalte(h.sh_id)"
+          >
+            <div class="min-w-0 flex-1">
+              <p class="truncate font-display text-sm font-semibold tracking-tight">
+                {{ h.sh_name }}
+              </p>
+              <div class="mt-1 flex flex-wrap gap-1">
+                <span
+                  v-for="b in brt.corridorBadgesForHalte(h, halteListFilterKor)"
+                  :key="b.kor"
+                  class="inline-flex items-center rounded px-1.5 py-[1px] font-mono text-[9px] font-bold uppercase tracking-wider text-white transition-opacity"
+                  :style="{ background: b.color, opacity: halteListFilterKor === null || b.current ? 1 : 0.45 }"
+                >
+                  {{ b.kor }}
+                </span>
+              </div>
+            </div>
+            <svg
+              class="h-4 w-4 shrink-0 text-bnc-stone-400"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden
+            >
+              <path d="M9 6l6 6-6 6" />
+            </svg>
+          </button>
+        </li>
+        <li
+          v-if="!filteredHalte.length"
+          class="rounded-md bg-bnc-stone-100 px-3 py-3 font-mono text-[11px] uppercase tracking-wider text-bnc-stone-500 dark:bg-bnc-stone-800"
+        >
+          {{ t('route.empty') }}
+        </li>
+      </ul>
+    </template>
   </div>
 </template>

@@ -47,6 +47,19 @@ export const useUiStore = defineStore('ui', () => {
   const mobileTab = ref<MobileTab>(readJson<MobileTab>(KEY_MOBILE_TAB, 'routes'))
   const mobileScrollY = ref<number>(0)
 
+  // Corridor filter for the halte tab list. null = show every halte
+  // in the city. Stored in the ui store rather than the component so
+  // the choice survives tab swaps and panel re-mounts. Not persisted
+  // to localStorage — the filter is a temporary navigation aid, not
+  // a sticky preference.
+  const halteListFilterKor = ref<string | null>(null)
+  function setHalteListFilter(kor: string | null) {
+    halteListFilterKor.value = kor
+  }
+  function toggleHalteListFilter(kor: string) {
+    halteListFilterKor.value = halteListFilterKor.value === kor ? null : kor
+  }
+
   function isPanelOpen(name: string, defaultOpen = true): boolean {
     return panels[name] ?? defaultOpen
   }
@@ -86,11 +99,14 @@ export const useUiStore = defineStore('ui', () => {
     busSearch,
     mobileTab,
     mobileScrollY,
+    halteListFilterKor,
     isPanelOpen,
     setPanelOpen,
     togglePanel,
     setLegendOpen,
     setBusSearch,
+    setHalteListFilter,
+    toggleHalteListFilter,
     panelOpen,
   }
 })
