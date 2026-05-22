@@ -695,22 +695,22 @@ function busOpacityFor(b: BrtBus): string {
   }
   const fk = spotlightKor()
   if (fk === null) return '1'
-  if (b.kor !== fk) return '0.18'
-  // Same kor as focused corridor — when focus.kor is explicitly set,
-  // also hide buses heading the wrong direction so the map only shows
-  // vehicles riding the active leg's polyline. Mirrors the dual check
-  // in brt.corridorTimelineRowsFor: a bus counts as active-leg if its
-  // toward matches OR its next stop (new_shel_t) is in the active
-  // leg's halte list. Without the new_shel_t fallback, upstream-stale
-  // bus.toward values would make timeline buses invisible on the map
-  // even after the user clicks one.
+  // Other corridors hide completely when a route is focused — the
+  // user explicitly narrowed to one corridor, so foreign buses are
+  // pure noise on the map. (Previous behavior: dim to 0.18.)
+  if (b.kor !== fk) return '0'
+  // Same kor as focused corridor — opposite-direction buses on the
+  // focused route stay visible but transparent so the user can still
+  // see the full fleet on the corridor while their active direction
+  // reads cleanly. Active = toward matches OR upstream-reported next
+  // stop is on the active leg (mirrors corridorTimelineRowsFor).
   if (focus.kor === fk) {
     const c = brt.corridorByKor.get(fk)
     if (c) {
       const wantToward = focus.direction === 'a' ? c.toward : c.origin
       if (b.toward !== wantToward) {
         const active = activeLegHalteShIds()
-        if (!active || !b.new_shel_t || !active.has(b.new_shel_t)) return '0'
+        if (!active || !b.new_shel_t || !active.has(b.new_shel_t)) return '0.25'
       }
     }
   }
@@ -732,23 +732,15 @@ function upsertBusMarker(b: BrtBus) {
     const icon = busIcon({ color, code: b.kor || '·', angle, stale })
     const marker = L.marker([b.lat, b.lng], { icon, keyboard: false })
     marker.on('click', () => {
-      // When a corridor is focused, ignore clicks on buses outside it
-      // (other corridors) or on the wrong-direction half of the same
-      // corridor. Look up the live bus from the store so we don't
-      // gate on the captured-at-creation toward (which can be stale).
-      // Mirrors busOpacityFor's dual check: a bus counts as active
-      // when toward matches OR its next stop is on the active leg.
+      // When a corridor is focused, only block clicks on buses from
+      // other corridors (those markers are hidden anyway). Same-
+      // corridor opposite-direction buses are rendered transparent
+      // so the user can inspect them — let those clicks through.
+      // Look up the live bus from the store rather than the
+      // captured-at-creation `b` whose kor could be stale.
       if (focus.kor) {
         const liveBus = brt.buses.get(key) ?? b
         if (liveBus.kor !== focus.kor) return
-        const c = brt.corridorByKor.get(focus.kor)
-        if (c) {
-          const wantToward = focus.direction === 'a' ? c.toward : c.origin
-          if (liveBus.toward !== wantToward) {
-            const active = activeLegHalteShIds()
-            if (!active || !liveBus.new_shel_t || !active.has(liveBus.new_shel_t)) return
-          }
-        }
       }
       focusBus(key, b)
     })

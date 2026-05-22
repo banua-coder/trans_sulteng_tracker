@@ -144,6 +144,12 @@ export const useBrtStore = defineStore('brt', () => {
   async function loadRoutes(pref: string) {
     loading.value = true
     error.value = null
+    // Clear the previous city's routes *before* awaiting so any
+    // in-flight bus events from the old socket room get rejected by
+    // upsertBus's kor guard (Palu kors aren't in an empty list, so
+    // they won't sneak into the store while Donggala loads).
+    corridors.value = []
+    halte.value = []
     try {
       const [c, h] = await Promise.all([api.corridors(pref), api.halte(pref)])
       corridors.value = asArray(c)
@@ -168,6 +174,12 @@ export const useBrtStore = defineStore('brt', () => {
 
   function upsertBus(b: BrtBus) {
     if (b.lat == null || b.lng == null) return
+    // City-switch guard: when the user flips cities the socket room
+    // changes but in-flight bus events from the old room may still
+    // arrive over the same WebSocket. Reject anything whose corridor
+    // isn't part of the city we're currently rendering — otherwise
+    // Palu buses linger on the map after switching to Donggala.
+    if (b.kor && corridors.value.length > 0 && !corridorByKor.value.has(b.kor)) return
     const key = b.imei || b.id
     const prev = buses.get(key)
     const now = Date.now()
