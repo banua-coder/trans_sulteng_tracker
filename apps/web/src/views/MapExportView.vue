@@ -59,10 +59,10 @@ function printPage() {
 
 <template>
   <div class="export-page">
-    <div class="no-print sticky top-0 z-50 flex items-center gap-2 border-b border-bnc-stone-200 bg-white px-4 py-2 dark:border-bnc-stone-800 dark:bg-bnc-stone-900">
+    <div class="no-print sticky top-0 z-50 flex flex-wrap items-center gap-2 border-b border-bnc-stone-200 bg-white px-3 py-2 dark:border-bnc-stone-800 dark:bg-bnc-stone-900 sm:px-4">
       <button
         type="button"
-        class="grid h-8 w-8 place-items-center rounded-full text-bnc-stone-600 transition-colors hover:bg-bnc-stone-100 dark:text-bnc-stone-300 dark:hover:bg-bnc-stone-800"
+        class="grid h-8 w-8 shrink-0 place-items-center rounded-full text-bnc-stone-600 transition-colors hover:bg-bnc-stone-100 dark:text-bnc-stone-300 dark:hover:bg-bnc-stone-800"
         aria-label="Kembali"
         @click="back"
       >
@@ -70,14 +70,14 @@ function printPage() {
           <path d="M15 6l-6 6 6 6" />
         </svg>
       </button>
-      <p class="font-display text-sm font-semibold">
+      <p class="min-w-0 flex-1 truncate font-display text-sm font-semibold">
         Peta Koridor {{ cityName }}
         <span v-if="orderedCorridors.length" class="ml-1 font-mono text-[10px] uppercase tracking-wider text-bnc-stone-500">
           · {{ orderedCorridors.length }} koridor
         </span>
       </p>
-      <div class="ml-auto flex items-center gap-2">
-        <div class="inline-flex overflow-hidden rounded-md border border-bnc-stone-300 dark:border-bnc-stone-700">
+      <div class="ml-auto flex w-full shrink-0 items-center justify-end gap-2 sm:w-auto">
+        <div class="inline-flex shrink-0 overflow-hidden rounded-md border border-bnc-stone-300 dark:border-bnc-stone-700">
           <button
             type="button"
             class="px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-wider transition-colors"
@@ -101,13 +101,16 @@ function printPage() {
         </div>
       <button
         type="button"
-        class="inline-flex items-center gap-2 rounded-md bg-bnc-ink px-3 py-1.5 font-mono text-[11px] font-bold uppercase tracking-wider text-bnc-paper transition-colors hover:bg-bnc-stone-800 dark:bg-bnc-paper dark:text-bnc-ink dark:hover:bg-bnc-stone-200"
+        class="inline-flex shrink-0 items-center gap-2 rounded-md bg-bnc-ink px-3 py-1.5 font-mono text-[11px] font-bold uppercase tracking-wider text-bnc-paper transition-colors hover:bg-bnc-stone-800 dark:bg-bnc-paper dark:text-bnc-ink dark:hover:bg-bnc-stone-200"
+        :aria-label="'Cetak / Simpan PDF'"
+        :title="'Cetak / Simpan PDF'"
         @click="printPage"
       >
         <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden>
           <path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v8H6z" />
         </svg>
-        Cetak Semua / Simpan PDF
+        <span class="hidden sm:inline">Cetak / Simpan PDF</span>
+        <span class="sm:hidden">PDF</span>
       </button>
       </div>
     </div>
