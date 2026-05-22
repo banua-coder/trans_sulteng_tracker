@@ -7,7 +7,7 @@
  * browser print dialog ("Save as PDF") emits one PDF page per sheet
  * thanks to page-break-after: always in the child's print CSS.
  */
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useRouter } from 'vue-router'
 
@@ -32,34 +32,6 @@ const qrUrl = computed(() => `${window.location.origin}/${props.city}`)
 
 const tileMode = ref<'map' | 'satellite'>('map')
 
-// JS-driven mobile detection so the print handler can temporarily
-// force the desktop layout. CSS media queries can't be toggled at
-// runtime, but a reactive flag bound to a class can. While `printing`
-// is true (during the brief window between user tapping "Cetak" and
-// the browser print dialog opening), the layout reverts to desktop
-// regardless of viewport so the print preview renders the proper
-// A4 landscape sheet.
-const viewportIsMobile = ref(false)
-const printing = ref(false)
-const useMobileLayout = computed(() => viewportIsMobile.value && !printing.value)
-
-function updateViewport() {
-  viewportIsMobile.value = window.innerWidth < 768
-}
-
-function onAfterPrint() {
-  printing.value = false
-}
-
-onMounted(() => {
-  updateViewport()
-  window.addEventListener('resize', updateViewport)
-  window.addEventListener('afterprint', onAfterPrint)
-})
-onBeforeUnmount(() => {
-  window.removeEventListener('resize', updateViewport)
-  window.removeEventListener('afterprint', onAfterPrint)
-})
 
 const orderedCorridors = computed(() =>
   [...corridors.value].sort((a, b) => a.kor.localeCompare(b.kor, undefined, { numeric: true })),
@@ -78,25 +50,13 @@ function back() {
   router.push({ name: 'city', params: { city: props.city } })
 }
 
-async function printPage() {
-  // Flip to desktop layout so the print preview sees the A4 sheet
-  // sizing instead of the phone-stacked layout. Wait long enough for
-  // Vue to re-render AND for each Leaflet map to re-measure + reload
-  // tiles at the new container dimensions.
-  printing.value = true
-  await nextTick()
-  // Bump every Leaflet map so it re-projects at the new size.
-  for (const el of document.querySelectorAll<HTMLElement>('.leaflet-container')) {
-    el.dispatchEvent(new Event('cektrans:resize'))
-  }
-  // Let tiles fetch + paint before invoking print.
-  await new Promise((r) => setTimeout(r, 700))
+function printPage() {
   window.print()
 }
 </script>
 
 <template>
-  <div class="export-page" :class="{ 'is-mobile': useMobileLayout }">
+  <div class="export-page">
     <div class="no-print sticky top-0 z-50 flex flex-wrap items-center gap-2 border-b border-bnc-stone-200 bg-white px-3 py-2 dark:border-bnc-stone-800 dark:bg-bnc-stone-900 sm:px-4">
       <button
         type="button"
@@ -162,7 +122,6 @@ async function printPage() {
       :qr-url="qrUrl"
       :today-label="todayLabel"
       :tile-mode="tileMode"
-      :mobile-layout="useMobileLayout"
     />
   </div>
 </template>
@@ -172,6 +131,11 @@ async function printPage() {
   background: #f5f5f5;
   min-height: 100vh;
   padding-bottom: 24px;
+  /* Sheets are fixed-width (1123px = A4 landscape). On a phone the
+     viewport is narrower, so let the page scroll horizontally instead
+     of trying to reflow the sheet — which never plays well with a
+     pre-rendered Leaflet map inside. */
+  overflow-x: auto;
 }
 
 @media print {

@@ -20,7 +20,6 @@ const props = defineProps<{
   qrUrl: string
   todayLabel: string
   tileMode: 'map' | 'satellite'
-  mobileLayout: boolean
 }>()
 
 const brt = useBrtStore()
@@ -99,6 +98,5 @@ const pages = computed<PageSpec[]>(() => {
     :today-label="todayLabel"
     :show-legend-extras="p.isLastOverall"
     :tile-mode="tileMode"
-    :mobile-layout="mobileLayout"
   />
 </template>

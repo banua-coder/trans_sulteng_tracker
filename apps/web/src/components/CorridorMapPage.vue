@@ -41,10 +41,6 @@ const props = defineProps<{
   showLegendExtras: boolean
   /** Basemap style — 'map' (CARTO Voyager) or 'satellite' (ESRI). */
   tileMode: 'map' | 'satellite'
-  /** True when the viewport is phone-sized AND we're not in the
-   *  brief pre-print prep window. Driven from MapExportView so the
-   *  print handler can flip everyone back to desktop layout. */
-  mobileLayout: boolean
 }>()
 
 const brt = useBrtStore()
@@ -63,12 +59,12 @@ function legTransfersFor(h: BrtHalte): string[] {
   return otherCorridorsAt(h, props.corridor.kor)
 }
 
-// Canonical corridor title — always origin – toward regardless of
-// which leg this page is rendering. Direction is communicated by
-// the "Arah A/B" tag in the eyebrow so the title stays a stable
-// identifier across pages.
-const titleLabel = computed(
-  () => `${props.corridor.origin} – ${props.corridor.toward}`,
+// Directional title — leg A reads origin → toward, leg B reads the
+// reverse so the headline matches the page's halte order.
+const titleLabel = computed(() =>
+  props.leg === 'a'
+    ? `${props.corridor.origin} → ${props.corridor.toward}`
+    : `${props.corridor.toward} → ${props.corridor.origin}`,
 )
 
 function drawMap() {
@@ -172,16 +168,7 @@ onMounted(async () => {
   tileLayer = makeTileLayer().addTo(map)
   drawMap()
   await renderQR()
-  // Custom resize event fired by MapExportView during print prep so
-  // each map re-projects + refits at the new container size.
-  mapEl.value.addEventListener('cektrans:resize', handleResize)
 })
-
-function handleResize() {
-  if (!map) return
-  map.invalidateSize({ animate: false })
-  drawMap()
-}
 
 watch(() => props.tileMode, () => {
   if (!map) return
@@ -197,21 +184,7 @@ watch(() => props.legHalte, () => {
   drawMap()
 })
 
-// When mobileLayout flips (e.g. user taps Cetak which forces desktop
-// layout briefly), the .map element resizes. Leaflet caches the
-// container size at init and won't notice; invalidateSize forces a
-// re-measure + tile reload + refit.
-watch(() => props.mobileLayout, () => {
-  if (!map) return
-  // Give the DOM one frame to apply the new CSS dimensions before
-  // measuring.
-  requestAnimationFrame(() => handleResize())
-})
-
 onBeforeUnmount(() => {
-  if (mapEl.value) {
-    mapEl.value.removeEventListener('cektrans:resize', handleResize)
-  }
   drawnLayers = []
   if (map) {
     map.remove()
@@ -221,7 +194,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <article class="sheet" :class="{ 'is-mobile': mobileLayout }">
+  <article class="sheet">
     <header class="sheet-header">
       <img
         v-if="cityIconUrl"
@@ -314,7 +287,13 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .sheet {
-  width: min(1123px, 100%);
+  /* Fixed desktop dimensions on every viewport. Mobile users scroll
+     horizontally inside .export-page rather than getting a phone-
+     stacked layout. Anchoring the dimensions like this means the
+     Leaflet map inside each sheet renders at the size it will
+     print — the print engine never has to coerce a tiny mobile
+     container into A4 landscape mid-flight. */
+  width: 1123px;
   margin: 16px auto;
   aspect-ratio: 297 / 210;
   background: white;
@@ -324,16 +303,6 @@ onBeforeUnmount(() => {
   box-shadow: 0 4px 24px rgba(10, 14, 20, 0.18);
   padding: 14px 18px;
   font-family: ui-sans-serif, system-ui, sans-serif;
-}
-
-/* Mobile preview: drop the A4 aspect ratio (which would collapse the
-   sheet to ~280px tall on a phone and make the map unreadable) and
-   stack header/map/legend vertically. Driven by the .is-mobile class
-   from MapExportView (instead of a media query) so the parent can
-   temporarily restore desktop layout during print prep. */
-.sheet.is-mobile {
-  aspect-ratio: auto;
-  padding: 12px;
 }
 
 .sheet-header {
@@ -402,22 +371,6 @@ onBeforeUnmount(() => {
   border: 1px solid #cbd5e1;
   min-height: 0;
 }
-
-.sheet.is-mobile .sheet-body {
-  grid-template-columns: 1fr;
-  gap: 10px;
-}
-.sheet.is-mobile .map {
-  height: 60vh;
-}
-.sheet.is-mobile .legend {
-  border-left: none;
-  border-top: 1px solid #e2e8f0;
-  padding-left: 0;
-  padding-top: 10px;
-  overflow: visible;
-}
-.sheet.is-mobile .halte-list { max-height: none; overflow: visible; }
 
 .legend {
   display: flex;
