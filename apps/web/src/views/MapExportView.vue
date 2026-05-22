@@ -17,7 +17,6 @@ import { useRouter } from 'vue-router'
 
 import { useBrtStore } from '@/stores/brt'
 import { useCityStore } from '@/stores/city'
-import { halteMarker } from '@/lib/leaflet/markers'
 import { voyagerTiles } from '@/lib/leaflet/tiles'
 import type { CitySlug } from '@/types/brt'
 
@@ -72,6 +71,10 @@ const CITY_CENTER: Record<CitySlug, L.LatLngTuple> = {
 function drawAllCorridors() {
   if (!map) return
   const bounds = L.latLngBounds([])
+  // Corridor polylines first so halte dots draw on top. We don't
+  // render permanent name labels on the map — at city-overview scale
+  // ~60 halte names collide into an unreadable wall. The corridor
+  // shape is the value; for halte names users scan the QR.
   for (const c of corridors.value) {
     const color = c.color || '#0EA5E9'
     const dim = Number(c.is_ops) !== 1
@@ -81,31 +84,54 @@ function drawAllCorridors() {
       if (!coords.length) continue
       const line = L.polyline(coords, {
         color,
-        weight: dim ? 3 : 4,
-        opacity: dim ? 0.55 : 0.95,
+        weight: dim ? 4 : 5,
+        opacity: dim ? 0.6 : 0.95,
         smoothFactor: 1,
       })
       line.addTo(map)
       for (const ll of coords) bounds.extend(ll)
     }
   }
-  // Halte markers with permanent name tooltips so the print is readable
-  // without an interactive zoom. Tooltip positioning is approximate —
-  // collisions are accepted for v1 since the print is overview-scale.
+  // Halte dots only — no tooltips. Smaller than the live map so they
+  // don't dominate the polylines at print scale.
   for (const h of halte.value) {
     const lat = parseFloat(h.sh_lat)
     const lng = parseFloat(h.sh_lng)
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue
-    const m = halteMarker([lat, lng]).bindTooltip(h.sh_name, {
-      permanent: true,
-      direction: 'top',
-      offset: [0, -6],
-      className: 'export-halte-label',
-    })
-    m.addTo(map)
-    bounds.extend([lat, lng])
+    L.circleMarker([lat, lng], {
+      radius: 2.5,
+      color: '#0a0e14',
+      weight: 1,
+      fillColor: '#ffffff',
+      fillOpacity: 1,
+    }).addTo(map)
   }
-  if (bounds.isValid()) map.fitBounds(bounds.pad(0.05))
+  // Label only the terminus halte for each corridor (origin + toward).
+  // These act as landmarks so the user can orient the map; they're a
+  // small fixed set (≤ 2 × corridor count) so collisions stay rare.
+  const terminusNames = new Set<string>()
+  for (const c of corridors.value) {
+    if (c.origin) terminusNames.add(c.origin)
+    if (c.toward) terminusNames.add(c.toward)
+  }
+  const labelled = new Set<string>()
+  for (const h of halte.value) {
+    if (!terminusNames.has(h.sh_name) || labelled.has(h.sh_name)) continue
+    const lat = parseFloat(h.sh_lat)
+    const lng = parseFloat(h.sh_lng)
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue
+    labelled.add(h.sh_name)
+    L.marker([lat, lng], {
+      interactive: false,
+      icon: L.divIcon({
+        className: 'export-terminus-label',
+        html: `<span>${h.sh_name}</span>`,
+        iconSize: undefined as unknown as L.PointTuple,
+        iconAnchor: [0, 0],
+      }),
+    }).addTo(map)
+  }
+  if (bounds.isValid()) map.fitBounds(bounds.pad(0.08))
 }
 
 async function renderQR() {
@@ -399,20 +425,22 @@ function printPage() {
 </style>
 
 <style>
-/* Permanent halte name tooltips on the export map. Scoped: false so
-   the Leaflet tooltip DOM (rendered outside the component) picks up
-   the styling. */
-.export-halte-label {
-  background: rgba(255, 255, 255, 0.92);
-  border: 1px solid #cbd5e1;
-  border-radius: 3px;
-  padding: 1px 4px;
-  font-family: ui-monospace, monospace;
-  font-size: 8px;
-  font-weight: 600;
+/* Terminus labels (origin/toward halte) on the export map. Scoped:
+   false so the Leaflet divIcon DOM, rendered outside the SFC tree,
+   picks up the styling. */
+.export-terminus-label {
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 10px;
+  font-weight: 700;
   color: #0a0e14;
+  text-shadow:
+    -1px -1px 0 #ffffff,
+     1px -1px 0 #ffffff,
+    -1px  1px 0 #ffffff,
+     1px  1px 0 #ffffff;
   white-space: nowrap;
-  box-shadow: none;
+  pointer-events: none;
+  transform: translate(6px, -2px);
 }
-.export-halte-label::before { display: none; }
+.export-terminus-label span { display: inline-block; }
 </style>
