@@ -2,6 +2,18 @@
 
 All notable releases of cektrans are recorded here. Generated automatically by `release-finalize.yml`.
 
+## v0.7.3 — 2026-05-22
+
+### 🐛 Bug Fixes
+
+- fix(web): bus opacity tweaks + drop stale buses on city switch (5409ca2)
+
+### 🧹 Chore
+
+- chore: bump version to 0.7.3 (0dae06b)
+
+
+
 ## v0.7.2 — 2026-05-20
 
 ### 🐛 Bug Fixes
