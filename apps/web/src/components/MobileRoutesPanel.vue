@@ -202,11 +202,16 @@ function pickHalte(shId: string) {
     <template v-else-if="tab === 'halte'">
       <!-- corridor filter pills — tap to narrow to one corridor,
            tap again or "All" to clear. Halte serve multiple
-           corridors so the old single-kor dot was misleading. -->
-      <div class="mt-3 flex flex-wrap items-center gap-1.5">
+           corridors so the old single-kor dot was misleading.
+           Horizontal scroll instead of wrapping so the list stays
+           one row high and the city's full corridor strip stays
+           reachable with a swipe. -->
+      <div
+        class="-mx-4 mt-3 flex items-center gap-1.5 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&amp;::-webkit-scrollbar]:hidden"
+      >
         <button
           type="button"
-          class="inline-flex items-center rounded-md border px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider transition-colors"
+          class="inline-flex shrink-0 items-center rounded-md border px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider transition-colors"
           :class="
             halteListFilterKor === null
               ? 'border-bnc-ink bg-bnc-ink text-bnc-paper dark:border-bnc-paper dark:bg-bnc-paper dark:text-bnc-ink'
@@ -220,7 +225,7 @@ function pickHalte(shId: string) {
           v-for="p in corridorPills"
           :key="p.kor"
           type="button"
-          class="inline-flex items-center rounded-md px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-white transition-opacity"
+          class="inline-flex shrink-0 items-center rounded-md px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-white transition-opacity"
           :style="{
             background: p.color,
             opacity: halteListFilterKor === null || halteListFilterKor === p.kor ? 1 : 0.4,
