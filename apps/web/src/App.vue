@@ -5,12 +5,14 @@ import TopBar from '@/components/TopBar.vue'
 import OperatingBanner from '@/components/OperatingBanner.vue'
 import { useCityStore } from '@/stores/city'
 import { useBrtStore } from '@/stores/brt'
+import { useTour } from '@/composables/useTour'
 import type { CitySlug } from '@/types/brt'
 
 const route = useRoute()
 const router = useRouter()
 const city = useCityStore()
 const brt = useBrtStore()
+const tour = useTour()
 
 function syncFromRoute() {
   const slug = route.params.city as CitySlug | undefined
@@ -22,6 +24,10 @@ function syncFromRoute() {
 onMounted(() => {
   syncFromRoute()
   void brt.loadCities()
+  // Show the release tour once after a version bump. Skips silently
+  // when the user has already seen this version or when none of the
+  // tour targets exist on the current page (e.g. the home view).
+  void tour.maybeStartForVersion()
 })
 watch(() => route.params.city, syncFromRoute)
 

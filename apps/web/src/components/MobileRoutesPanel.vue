@@ -208,6 +208,7 @@ function pickHalte(shId: string) {
            reachable with a swipe. -->
       <div
         class="-mx-4 mt-3 flex items-center gap-1.5 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&amp;::-webkit-scrollbar]:hidden"
+        data-tour="halte-filter"
       >
         <button
           type="button"

@@ -21,9 +21,13 @@ const i18n = createI18n({
 })
 
 // Pre-paint dark mode before Vue mounts so we don't flash light → dark.
-// `useTheme` (VueUse useDark) handles ongoing toggling once the app is up.
-if (localStorage.getItem('cektrans:theme') === 'dark') {
-  document.documentElement.classList.add('dark')
+// `useTheme()` handles ongoing toggling once the app is up.
+{
+  const mode = localStorage.getItem('cektrans:themeMode')
+    ?? (localStorage.getItem('cektrans:theme') === 'dark' ? 'dark' : null)
+  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+  const dark = mode === 'dark' || (mode == null && prefersDark) || (mode === 'system' && prefersDark)
+  if (dark) document.documentElement.classList.add('dark')
 }
 
 const app = createApp(App)
