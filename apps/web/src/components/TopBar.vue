@@ -78,6 +78,7 @@ function pickCity(slug: CitySlug) {
         v-if="showCitySwitcher"
         class="-mx-1 flex min-w-0 items-center gap-1 overflow-x-auto px-1 [scrollbar-width:none] [&amp;::-webkit-scrollbar]:hidden"
         :aria-label="t('nav.home')"
+        data-tour="city-switcher"
       >
         <button
           type="button"
