@@ -63,8 +63,7 @@ export function useAnnouncer() {
       try {
         await playChime(volume)
       } catch {
-        // Autoplay refused or asset missing. Speech still attempts —
-        // if a user gesture is in play it might succeed.
+        // Autoplay refused or asset missing. Speech still attempts.
       }
     }
 

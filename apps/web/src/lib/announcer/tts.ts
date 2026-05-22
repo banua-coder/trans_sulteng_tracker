@@ -91,19 +91,47 @@ export async function speak(text: string, opts: SpeakOptions): Promise<void> {
   utter.pitch = 1
   return new Promise((resolve) => {
     let done = false
+    let keepAlive: ReturnType<typeof setInterval> | null = null
     const finish = () => {
       if (done) return
       done = true
+      if (keepAlive) clearInterval(keepAlive)
       resolve()
     }
     utter.onend = finish
     utter.onerror = finish
-    // Chrome quirk: speech can land in a "paused" state after an
-    // HTMLAudio chime finishes or after several speak/cancel cycles.
-    // Calling resume() before speak() is a no-op when not paused and
-    // a fix when stuck.
-    try { window.speechSynthesis.resume() } catch {}
-    window.speechSynthesis.speak(utter)
+
+    // Chrome's speechSynthesis wedges into a state where
+    //   `speaking: true, pending: true, paused: false`
+    // but no audio plays and onstart never fires. This happens after
+    // an HTMLAudio element plays right before speak(), and persists
+    // across subsequent speak() calls in the same session.
+    //
+    // The recovery is: cancel() the wedged queue, yield one tick so
+    // Chrome actually processes the cancel, then speak() with a
+    // clean queue. cancel() + speak() in the same tick is a separate
+    // Chrome bug (silently drops the speak), so the setTimeout(0) is
+    // load-bearing.
+    try { window.speechSynthesis.cancel() } catch {}
+    setTimeout(() => {
+      if (done) return
+      try { window.speechSynthesis.speak(utter) } catch {
+        finish()
+        return
+      }
+      // Chrome also wedges utterances longer than ~15s. The classic
+      // workaround is a pause/resume heartbeat while speaking.
+      keepAlive = setInterval(() => {
+        if (!window.speechSynthesis.speaking) {
+          if (keepAlive) clearInterval(keepAlive)
+          return
+        }
+        try {
+          window.speechSynthesis.pause()
+          window.speechSynthesis.resume()
+        } catch {}
+      }, 10000)
+    }, 0)
   })
 }
 
