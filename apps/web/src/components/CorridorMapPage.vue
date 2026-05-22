@@ -78,10 +78,15 @@ function drawMap() {
   if (!map) return
   const m = map
   const color = props.corridor.color || '#0EA5E9'
+  // Bound to halte coords only. The polyline can carry detour
+  // vertices that extend far beyond any actual stop (depot links,
+  // bad data points) — including those vertices in the fit was
+  // pushing the centered bounds offshore into Palu Bay and leaving
+  // the corridor stuck on one edge of the frame.
   const bounds = L.latLngBounds([])
 
-  // Draw ONLY this leg's polyline so the fit hugs one direction's
-  // geometry instead of the union of both legs.
+  // Draw ONLY this leg's polyline so the route line hugs one
+  // direction's geometry instead of overlaying both legs.
   const encoded = props.leg === 'a' ? props.corridor.points_a : props.corridor.points_b
   if (encoded) {
     const coords = polyline.decode(encoded) as L.LatLngTuple[]
@@ -92,7 +97,6 @@ function drawMap() {
         opacity: 0.95,
         smoothFactor: 1,
       }).addTo(m)
-      for (const ll of coords) bounds.extend(ll)
     }
   }
 
