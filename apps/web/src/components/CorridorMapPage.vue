@@ -14,6 +14,7 @@ import QRCode from 'qrcode'
 import { computed, onBeforeUnmount, onMounted, shallowRef, watch } from 'vue'
 import { useBrtStore } from '@/stores/brt'
 import { satelliteTiles, voyagerTiles } from '@/lib/leaflet/tiles'
+import { buildHalteIndex, isTransfer, otherCorridorsAt } from '@/lib/exportMap'
 import BanuacoderLogo from '@/components/BanuacoderLogo.vue'
 import type { BrtCorridor, BrtHalte } from '@/types/brt'
 
@@ -40,6 +41,10 @@ const props = defineProps<{
   showLegendExtras: boolean
   /** Basemap style — 'map' (CARTO Voyager) or 'satellite' (ESRI). */
   tileMode: 'map' | 'satellite'
+  /** True when the viewport is phone-sized AND we're not in the
+   *  brief pre-print prep window. Driven from MapExportView so the
+   *  print handler can flip everyone back to desktop layout. */
+  mobileLayout: boolean
 }>()
 
 const brt = useBrtStore()
@@ -48,22 +53,14 @@ const mapEl = shallowRef<HTMLElement | null>(null)
 const qrEl = shallowRef<HTMLCanvasElement | null>(null)
 let map: L.Map | null = null
 
-function isTransfer(h: BrtHalte): boolean {
-  return h.in_koridor ? h.in_koridor.split('|').filter(Boolean).length > 1 : false
-}
-function otherCorridorsAt(h: BrtHalte): string[] {
-  return h.in_koridor ? h.in_koridor.split('|').filter((k) => k && k !== props.corridor.kor) : []
-}
-
 // Index of a halte in this LEG's sequence — drives the number on
 // the map dot and the side legend so they always match.
-const indexByName = computed(() => {
-  const m = new Map<string, number>()
-  props.legHalte.forEach((h, i) => m.set(h.sh_name, i))
-  return m
-})
+const indexByName = computed(() => buildHalteIndex(props.legHalte))
 function indexOf(h: BrtHalte): number {
   return indexByName.value.get(h.sh_name) ?? 0
+}
+function legTransfersFor(h: BrtHalte): string[] {
+  return otherCorridorsAt(h, props.corridor.kor)
 }
 
 // Canonical corridor title — always origin – toward regardless of
@@ -77,6 +74,10 @@ const titleLabel = computed(
 function drawMap() {
   if (!map) return
   const m = map
+  // Wipe any layers from a prior draw so we don't pile duplicate
+  // polylines / markers on top of each other on resize.
+  for (const l of drawnLayers) l.remove()
+  drawnLayers = []
   const color = props.corridor.color || '#0EA5E9'
   // Bound to halte coords only. The polyline can carry detour
   // vertices that extend far beyond any actual stop (depot links,
@@ -91,12 +92,13 @@ function drawMap() {
   if (encoded) {
     const coords = polyline.decode(encoded) as L.LatLngTuple[]
     if (coords.length) {
-      L.polyline(coords, {
+      const line = L.polyline(coords, {
         color,
         weight: 5,
         opacity: 0.95,
         smoothFactor: 1,
       }).addTo(m)
+      drawnLayers.push(line)
     }
   }
 
@@ -107,7 +109,7 @@ function drawMap() {
     const transfer = isTransfer(h)
     const size = transfer ? 18 : 15
     const idx = indexOf(h)
-    L.marker([lat, lng], {
+    const marker = L.marker([lat, lng], {
       interactive: false,
       icon: L.divIcon({
         className: 'sheet-halte-dot' + (transfer ? ' transfer' : ''),
@@ -116,6 +118,7 @@ function drawMap() {
         iconAnchor: [size / 2, size / 2],
       }),
     }).addTo(m)
+    drawnLayers.push(marker)
     bounds.extend([lat, lng])
   }
 
@@ -142,6 +145,11 @@ async function renderQR() {
   })
 }
 
+// Layers added by drawMap. Tracked so successive redraws (mobile/
+// desktop layout switch, halte updates) can remove the old set
+// before adding the new — without this, every redraw stacks fresh
+// polyline + N markers onto the layer container and leaks DOM nodes.
+let drawnLayers: L.Layer[] = []
 let tileLayer: L.TileLayer | null = null
 
 function makeTileLayer(): L.TileLayer {
@@ -164,7 +172,16 @@ onMounted(async () => {
   tileLayer = makeTileLayer().addTo(map)
   drawMap()
   await renderQR()
+  // Custom resize event fired by MapExportView during print prep so
+  // each map re-projects + refits at the new container size.
+  mapEl.value.addEventListener('cektrans:resize', handleResize)
 })
+
+function handleResize() {
+  if (!map) return
+  map.invalidateSize({ animate: false })
+  drawMap()
+}
 
 watch(() => props.tileMode, () => {
   if (!map) return
@@ -180,7 +197,22 @@ watch(() => props.legHalte, () => {
   drawMap()
 })
 
+// When mobileLayout flips (e.g. user taps Cetak which forces desktop
+// layout briefly), the .map element resizes. Leaflet caches the
+// container size at init and won't notice; invalidateSize forces a
+// re-measure + tile reload + refit.
+watch(() => props.mobileLayout, () => {
+  if (!map) return
+  // Give the DOM one frame to apply the new CSS dimensions before
+  // measuring.
+  requestAnimationFrame(() => handleResize())
+})
+
 onBeforeUnmount(() => {
+  if (mapEl.value) {
+    mapEl.value.removeEventListener('cektrans:resize', handleResize)
+  }
+  drawnLayers = []
   if (map) {
     map.remove()
     map = null
@@ -189,7 +221,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <article class="sheet">
+  <article class="sheet" :class="{ 'is-mobile': mobileLayout }">
     <header class="sheet-header">
       <img
         v-if="cityIconUrl"
@@ -241,7 +273,7 @@ onBeforeUnmount(() => {
               <span class="halte-name">{{ h.sh_name }}</span>
               <span v-if="isTransfer(h)" class="transfer-list">
                 <span
-                  v-for="k in otherCorridorsAt(h)"
+                  v-for="k in legTransfersFor(h)"
                   :key="k"
                   class="transfer-chip"
                   :style="{ background: brt.colorForKor(k) || '#0EA5E9' }"
@@ -296,13 +328,12 @@ onBeforeUnmount(() => {
 
 /* Mobile preview: drop the A4 aspect ratio (which would collapse the
    sheet to ~280px tall on a phone and make the map unreadable) and
-   stack header/map/legend vertically so each part gets reasonable
-   room. Print rules below still force landscape A4. */
-@media screen and (max-width: 767px) {
-  .sheet {
-    aspect-ratio: auto;
-    padding: 12px;
-  }
+   stack header/map/legend vertically. Driven by the .is-mobile class
+   from MapExportView (instead of a media query) so the parent can
+   temporarily restore desktop layout during print prep. */
+.sheet.is-mobile {
+  aspect-ratio: auto;
+  padding: 12px;
 }
 
 .sheet-header {
@@ -372,23 +403,21 @@ onBeforeUnmount(() => {
   min-height: 0;
 }
 
-@media screen and (max-width: 767px) {
-  .sheet-body {
-    grid-template-columns: 1fr;
-    gap: 10px;
-  }
-  .map {
-    height: 60vh;
-  }
-  .legend {
-    border-left: none;
-    border-top: 1px solid #e2e8f0;
-    padding-left: 0;
-    padding-top: 10px;
-    overflow: visible;
-  }
-  .halte-list { max-height: none; overflow: visible; }
+.sheet.is-mobile .sheet-body {
+  grid-template-columns: 1fr;
+  gap: 10px;
 }
+.sheet.is-mobile .map {
+  height: 60vh;
+}
+.sheet.is-mobile .legend {
+  border-left: none;
+  border-top: 1px solid #e2e8f0;
+  padding-left: 0;
+  padding-top: 10px;
+  overflow: visible;
+}
+.sheet.is-mobile .halte-list { max-height: none; overflow: visible; }
 
 .legend {
   display: flex;
