@@ -11,6 +11,7 @@ import type { ComputedRef, Ref } from 'vue'
 import type { BrtHalte } from '@/types/brt'
 import type { IncomingBus } from '@/stores/brt'
 import { useAnnouncer } from '@/composables/useAnnouncer'
+import { formatPlateForSpeech } from '@/lib/format'
 
 type State = 'far' | 'approaching' | 'at-stop'
 const APPROACH_MIN = 2
@@ -26,8 +27,8 @@ export function useHalteAnnouncements(
 
   function busLabel(a: IncomingBus): string {
     const kor = a.bus.kor || ''
-    const plate = a.bus.plate_number ? `, ${a.bus.plate_number}` : ''
-    return `${kor}${plate}`.trim()
+    const plate = formatPlateForSpeech(a.bus.plate_number)
+    return plate ? `${kor}, ${plate}`.trim() : kor.trim()
   }
 
   function announceApproach(a: IncomingBus, halte: BrtHalte) {
