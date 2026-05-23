@@ -16,6 +16,7 @@ import type { ComputedRef, Ref } from 'vue'
 import type { BrtBus } from '@/types/brt'
 import type { UpcomingStop } from '@/stores/brt'
 import { useAnnouncer } from '@/composables/useAnnouncer'
+import { formatPlateForSpeech } from '@/lib/format'
 
 const APPROACH_MIN = 2
 
@@ -36,8 +37,8 @@ export function useBusAnnouncements(
 
   function busLabel(b: BrtBus): string {
     const kor = b.kor || ''
-    const plate = b.plate_number ? `, ${b.plate_number}` : ''
-    return `${kor}${plate}`.trim()
+    const plate = formatPlateForSpeech(b.plate_number)
+    return plate ? `${kor}, ${plate}`.trim() : kor.trim()
   }
 
   function announceApproach(b: BrtBus, stop: UpcomingStop) {
