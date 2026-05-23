@@ -11,6 +11,7 @@ import MapView from '@/components/MapView.vue'
 import MapLegend from '@/components/MapLegend.vue'
 import BusDataBadge from '@/components/BusDataBadge.vue'
 import MyLocationButton from '@/components/MyLocationButton.vue'
+import BasemapToggle from '@/components/BasemapToggle.vue'
 import NearbyHaltePanel from '@/components/NearbyHaltePanel.vue'
 import CorridorPanel from '@/components/CorridorPanel.vue'
 import BusListPanel from '@/components/BusListPanel.vue'
@@ -20,6 +21,7 @@ import BusDetailCard from '@/components/BusDetailCard.vue'
 import HalteDetailCard from '@/components/HalteDetailCard.vue'
 import MobileRoutesPanel from '@/components/MobileRoutesPanel.vue'
 import { useTripStore } from '@/stores/trip'
+import { useRideStore } from '@/stores/ride'
 
 // Lazy-loaded panels — only fetched when the user actually opens the
 // trip planner / focuses a corridor / picks a plan. Keeps the trip
@@ -29,6 +31,8 @@ const TripPlannerPanel = defineAsyncComponent(() => import('@/components/TripPla
 const TripDetailPanel = defineAsyncComponent(() => import('@/components/TripDetailPanel.vue'))
 const CorridorFocusPanel = defineAsyncComponent(() => import('@/components/CorridorFocusPanel.vue'))
 const MobileRouteDetailPanel = defineAsyncComponent(() => import('@/components/MobileRouteDetailPanel.vue'))
+const RideHud = defineAsyncComponent(() => import('@/components/RideHud.vue'))
+const RideResumeBanner = defineAsyncComponent(() => import('@/components/RideResumeBanner.vue'))
 
 const city = useCityStore()
 const brt = useBrtStore()
@@ -36,16 +40,18 @@ const socket = useSocketStore()
 const selection = useSelectionStore()
 const focus = useFocusStore()
 const trip = useTripStore()
+const ride = useRideStore()
 const { kind: selectionKind } = storeToRefs(selection)
 const { isFocused } = storeToRefs(focus)
 const { selectedPlan: tripSelectedPlan } = storeToRefs(trip)
+const { isActive: rideActive } = storeToRefs(ride)
 
 useUrlSync()
 
 // Auto-expand the mobile bottom sheet to mid the moment a detail/route
 // becomes active; null lets the user control the snap freely.
 const sheetForceSnap = computed<'mid' | null>(() =>
-  selectionKind.value || isFocused.value || tripSelectedPlan.value ? 'mid' : null,
+  selectionKind.value || isFocused.value || tripSelectedPlan.value || rideActive.value ? 'mid' : null,
 )
 
 watch(
@@ -80,6 +86,15 @@ onBeforeUnmount(() => {
         <NearbyHaltePanel />
         <CorridorPanel />
         <BusListPanel />
+        <router-link
+          :to="{ name: 'map-export', params: { city: city.slug } }"
+          class="inline-flex items-center gap-2 self-start rounded-md border border-bnc-stone-200 bg-white px-3 py-1.5 font-mono text-[11px] font-bold uppercase tracking-wider text-bnc-ink transition-colors hover:bg-bnc-stone-100 dark:border-bnc-stone-700 dark:bg-bnc-stone-900 dark:text-bnc-paper dark:hover:bg-bnc-stone-800"
+        >
+          <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden>
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" />
+          </svg>
+          Unduh Peta Koridor
+        </router-link>
       </div>
     </aside>
 
@@ -101,6 +116,7 @@ onBeforeUnmount(() => {
       <MapLegend />
       <div class="pointer-events-none absolute right-3 top-3 z-[800] flex flex-col gap-2">
         <MyLocationButton class="pointer-events-auto" />
+        <BasemapToggle class="pointer-events-auto" />
       </div>
     </section>
 
@@ -112,7 +128,8 @@ onBeforeUnmount(() => {
            nothing        → MobileRoutesPanel (RUTE / HALTE tabs)
          Desktop keeps the sidebar's old layout untouched. -->
     <BottomSheet :force-snap="sheetForceSnap">
-      <BusDetailCard v-if="selectionKind === 'bus'" />
+      <RideHud v-if="rideActive" />
+      <BusDetailCard v-else-if="selectionKind === 'bus'" />
       <HalteDetailCard v-else-if="selectionKind === 'halte'" />
       <MobileRouteDetailPanel v-else-if="isFocused" />
       <TripDetailPanel v-else-if="tripSelectedPlan" />
@@ -127,10 +144,13 @@ onBeforeUnmount(() => {
     <div
       class="pointer-events-none fixed bottom-4 right-4 z-[1000] hidden lg:block lg:max-w-md"
     >
-      <BusDetailCard v-if="selectionKind === 'bus'" />
+      <RideHud v-if="rideActive" />
+      <BusDetailCard v-else-if="selectionKind === 'bus'" />
       <HalteDetailCard v-else-if="selectionKind === 'halte'" />
       <CorridorFocusPanel v-else-if="isFocused" />
       <TripDetailPanel v-else-if="tripSelectedPlan" />
     </div>
+
+    <RideResumeBanner />
   </div>
 </template>

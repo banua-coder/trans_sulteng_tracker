@@ -1,17 +1,17 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 import { useSocketStore } from '@/stores/socket'
 import { useCityStore } from '@/stores/city'
 import { useBrtStore } from '@/stores/brt'
-import { useTheme } from '@/lib/theme'
 import BanuacoderLogo from '@/components/BanuacoderLogo.vue'
 import CekTransLogo from '@/components/CekTransLogo.vue'
 import DonateButton from '@/components/DonateButton.vue'
+import SettingsModal from '@/components/SettingsModal.vue'
 import { CITY_PREF, type CitySlug } from '@/types/brt'
 
-const { t, locale } = useI18n()
+const { t } = useI18n()
 const route = useRoute()
 const socket = useSocketStore()
 const city = useCityStore()
@@ -36,13 +36,7 @@ const statusKey = computed(() => {
   }
 })
 
-const { isDark, toggleTheme } = useTheme()
-
-function toggleLang() {
-  const next = locale.value === 'id' ? 'en' : 'id'
-  locale.value = next
-  localStorage.setItem('cektrans:locale', next)
-}
+const settingsOpen = ref(false)
 
 function pickCity(slug: CitySlug) {
   city.setCity(slug)
@@ -84,6 +78,7 @@ function pickCity(slug: CitySlug) {
         v-if="showCitySwitcher"
         class="-mx-1 flex min-w-0 items-center gap-1 overflow-x-auto px-1 [scrollbar-width:none] [&amp;::-webkit-scrollbar]:hidden"
         :aria-label="t('nav.home')"
+        data-tour="city-switcher"
       >
         <button
           type="button"
@@ -164,54 +159,34 @@ function pickCity(slug: CitySlug) {
 
       <DonateButton />
 
+      <router-link
+        v-if="showCitySwitcher"
+        :to="{ name: 'map-export', params: { city: city.slug } }"
+        class="grid h-8 w-8 place-items-center rounded-full text-bnc-stone-600 transition-colors hover:bg-bnc-stone-100 dark:text-bnc-stone-300 dark:hover:bg-bnc-stone-800"
+        :aria-label="t('a11y.downloadMap')"
+        :title="t('a11y.downloadMap')"
+        data-tour="export-map"
+      >
+        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden>
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" />
+        </svg>
+      </router-link>
+
       <button
         type="button"
         class="grid h-8 w-8 place-items-center rounded-full text-bnc-stone-600 transition-colors hover:bg-bnc-stone-100 dark:text-bnc-stone-300 dark:hover:bg-bnc-stone-800"
-        :aria-label="t('a11y.toggleLang')"
-        @click="toggleLang"
+        :aria-label="t('a11y.settings')"
+        :title="t('a11y.settings')"
+        data-tour="settings-button"
+        @click="settingsOpen = true"
       >
-        <span class="font-mono text-[11px] uppercase">{{ locale }}</span>
-      </button>
-      <button
-        type="button"
-        class="relative grid h-8 w-8 place-items-center overflow-hidden rounded-full text-bnc-stone-600 transition-colors hover:bg-bnc-stone-100 dark:text-bnc-stone-300 dark:hover:bg-bnc-stone-800"
-        :aria-label="t('a11y.toggleTheme')"
-        :aria-pressed="isDark"
-        @click="toggleTheme()"
-      >
-        <transition name="theme-icon" mode="out-in">
-          <svg
-            v-if="isDark"
-            key="sun"
-            class="h-4 w-4"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.6"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            aria-hidden
-          >
-            <circle cx="12" cy="12" r="4" />
-            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
-          </svg>
-          <svg
-            v-else
-            key="moon"
-            class="h-4 w-4"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.6"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            aria-hidden
-          >
-            <path d="M21 12.79A9 9 0 1 1 11.21 3a7 7 0 0 0 9.79 9.79z" />
-          </svg>
-        </transition>
+        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden>
+          <circle cx="12" cy="12" r="3" />
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33 1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+        </svg>
       </button>
     </div>
+    <SettingsModal :open="settingsOpen" @close="settingsOpen = false" />
   </header>
 </template>
 
@@ -226,22 +201,4 @@ function pickCity(slug: CitySlug) {
   transform: translateX(-8px);
 }
 
-.theme-icon-enter-active,
-.theme-icon-leave-active {
-  transition: opacity 200ms ease, transform 250ms ease;
-}
-.theme-icon-enter-from {
-  opacity: 0;
-  transform: rotate(-60deg) scale(0.7);
-}
-.theme-icon-leave-to {
-  opacity: 0;
-  transform: rotate(60deg) scale(0.7);
-}
-@media (prefers-reduced-motion: reduce) {
-  .theme-icon-enter-active,
-  .theme-icon-leave-active {
-    transition: none;
-  }
-}
 </style>
