@@ -2,6 +2,48 @@
 
 All notable releases of cektrans are recorded here. Generated automatically by `release-finalize.yml`.
 
+## v0.8.0 — 2026-05-23
+
+### ✨ Features
+
+- feat(web): printable offline corridor map + halte list corridor filter (#75) (6dbfcf1)
+- feat(web): TTS announcer + Settings modal + release-aware product tour (d0b1f93)
+- feat(web): wire bus + halte voice announcements (Phase 2) (228518c)
+- feat(web): full feature tour for first-time users (619ebaa)
+- feat(web): Phase 1 — ride store + state machine + unit tests (787114b)
+- feat(web): Phase 2 — RideHud + start button + voice cues (1701447)
+- feat(web): Phase 3 — persistence + resume banner + battery warning (8383ba8)
+- feat(web): Phase 4 — Strava-style share card + Web Share (1fa4b98)
+
+### 🐛 Bug Fixes
+
+- fix(web): TTS silently dropped after chime (bb9cc54)
+- fix(web): serialize announces + handle backgrounded tab (96c7d1f)
+- fix(web): unwedge Chrome speechSynthesis before each speak (ce62b68)
+- fix(web): bundle operator logos for share card (fcbdda3)
+- fix(web): share card uses real corridor polyline, not straight chord (7f85237)
+
+### 📝 Docs
+
+- docs(plans): TTS announcer phase 1 design (d84a04e)
+
+### 🧹 Chore
+
+- chore: align version to 0.8.0 for back-merge (develop was ahead) (21098ee)
+- chore: align version to 0.8.0 for back-merge (develop was ahead) (789e77c)
+- chore: align version to 0.8.0 for back-merge (develop was ahead) (797fe33)
+
+### 📌 Other
+
+- Merge pull request #70 from banua-coder/backmerge/main-to-develop-v0.7.1 (11b2966)
+- Merge pull request #72 from banua-coder/backmerge/main-to-develop-v0.7.2 (bcee1dd)
+- Merge pull request #74 from banua-coder/backmerge/main-to-develop-v0.7.3 (cddffb2)
+- Merge pull request #76 from banua-coder/feat/tts-announcer-phase1 (fef8d37)
+- Merge pull request #77 from banua-coder/feat/onboarding-full-tour (0ed7307)
+- Merge pull request #78 from banua-coder/feat/companion-mode (f6a1fb7)
+
+
+
 ## v0.7.3 — 2026-05-22
 
 ### 🐛 Bug Fixes
