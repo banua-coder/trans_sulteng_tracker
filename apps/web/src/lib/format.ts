@@ -289,3 +289,27 @@ export function parseProgress(p?: string | number | null): number | null {
   if (!Number.isFinite(n) || n < 0 || n > 100) return null
   return n
 }
+
+/** Format an Indonesian plate ("DN 7576 AU") for the TTS announcer.
+ *  Without this helper speech-synth reads "DN" as "den", "7576" as
+ *  "tujuh ribu lima ratus tujuh puluh enam", and "AU" as "satuan
+ *  astronomi". Spacing the characters makes every voice we tested
+ *  spell letters individually and pronounce digits one-by-one, and
+ *  the commas between chunks give a tiny pause that matches how a
+ *  conductor reads a plate out loud.
+ *
+ *  Examples:
+ *    "DN 7576 AU"  → "D N, 7 5 7 6, A U"
+ *    "B 1234 ABC"  → "B, 1 2 3 4, A B C"
+ *    null / ""     → ""
+ */
+export function formatPlateForSpeech(plate?: string | null): string {
+  if (!plate) return ''
+  return plate
+    .toUpperCase()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((chunk) => chunk.replace(/[^A-Z0-9]/g, '').split('').join(' '))
+    .filter(Boolean)
+    .join(', ')
+}

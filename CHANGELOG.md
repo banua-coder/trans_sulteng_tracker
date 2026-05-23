@@ -2,6 +2,18 @@
 
 All notable releases of cektrans are recorded here. Generated automatically by `release-finalize.yml`.
 
+## v0.8.1 — 2026-05-23
+
+### 🐛 Bug Fixes
+
+- fix(web): spell plate numbers for TTS instead of reading as full numbers (7145538)
+
+### 🧹 Chore
+
+- chore: bump version to 0.8.1 (7729366)
+
+
+
 ## v0.8.0 — 2026-05-23
 
 ### ✨ Features
