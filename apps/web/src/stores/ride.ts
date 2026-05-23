@@ -23,7 +23,23 @@ import type { PlanResult, PlanStep } from '@/lib/tripPlanner'
 import { haversineM, speedKmh as computeSpeedKmh, type LatLng, type PositionFix } from '@/lib/geo'
 import { initialState, isStaleFix, reduce, type RideState } from '@/lib/ride/reducer'
 import { useBrtStore } from './brt'
+import { useCityStore } from './city'
 import { useTripStore } from './trip'
+
+export interface RideSummary {
+  city: 'palu' | 'donggala'
+  origin: string
+  destination: string
+  durationMin: number
+  walkM: number
+  rideM: number
+  corridors: { kor: string; color: string }[]
+  trace: Array<[number, number]>
+  cityLogo: string
+  operator: string
+  startedAt: number
+  endedAt: number
+}
 
 const FIX_BUFFER_SIZE = 5
 const FEATURE_FLAG_KEY = 'cektrans:rideEnabled'
@@ -50,6 +66,7 @@ function emptySnapshot(): RideSnapshot {
 export const useRideStore = defineStore('ride', () => {
   const brt = useBrtStore()
   const trip = useTripStore()
+  const cityStore = useCityStore()
 
   // Feature flag — Phases 1-4 ship gated, Phase 5 removes the gate.
   const enabled = useStorage<boolean>(FEATURE_FLAG_KEY, false, localStorage)
@@ -252,6 +269,40 @@ export const useRideStore = defineStore('ride', () => {
   const isStale = computed(() => isStaleFix(state.value, Date.now()))
   const isActive = computed(() => state.value.status !== 'idle')
 
+  // Post-ride summary — only meaningful when status === 'arrived' or
+  // a snapshot is being inspected post-stop. Computed eagerly so the
+  // share card can render any time the data is present.
+  const summary = computed<RideSummary | null>(() => {
+    const plan = state.value.plan
+    if (!plan || !state.value.startedAt) return null
+    const endedAt = state.value.endedAt ?? Date.now()
+    const seenKor = new Set<string>()
+    const corridors: { kor: string; color: string }[] = []
+    for (const step of plan.steps) {
+      if (step.kind !== 'ride' || !step.kor) continue
+      if (seenKor.has(step.kor)) continue
+      seenKor.add(step.kor)
+      corridors.push({ kor: step.kor, color: brt.colorForKor(step.kor) || '#0EA5E9' })
+    }
+    const meta = brt.cities.find((c) => c.pref === cityStore.pref)
+    const origin = trip.origin?.label ?? plan.steps[0]?.fromName ?? '—'
+    const destination = trip.destination?.label ?? plan.steps.at(-1)?.toName ?? '—'
+    return {
+      city: cityStore.slug,
+      origin,
+      destination,
+      durationMin: Math.max(1, Math.round((endedAt - state.value.startedAt) / 60_000)),
+      walkM: plan.totalWalkM,
+      rideM: plan.totalRideM,
+      corridors,
+      trace: trace.value.slice(),
+      cityLogo: meta?.icon ?? '',
+      operator: cityStore.slug === 'palu' ? 'Trans Palu' : 'Trans Donggala',
+      startedAt: state.value.startedAt,
+      endedAt,
+    }
+  })
+
   // Persist on every state-machine transition. We don't write per
   // GPS fix — only on status / stepIdx changes — to keep localStorage
   // writes proportional to user-meaningful progress, not GPS cadence.
@@ -281,6 +332,7 @@ export const useRideStore = defineStore('ride', () => {
     distanceToTargetM,
     isStale,
     isActive,
+    summary,
     online,
     geoError,
     wakeSupported: wake.isSupported,

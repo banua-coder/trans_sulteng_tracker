@@ -12,14 +12,21 @@ import { storeToRefs } from 'pinia'
 import { useRideStore } from '@/stores/ride'
 import { useBrtStore } from '@/stores/brt'
 import { useRideAnnouncements } from '@/composables/useRideAnnouncements'
+import { useTripShare } from '@/composables/useTripShare'
 import SheetStickyHeader from '@/components/SheetStickyHeader.vue'
 
 const { t } = useI18n()
 const ride = useRideStore()
 const brt = useBrtStore()
-const { status, currentStep, distanceToTargetM, isStale, online, state } = storeToRefs(ride)
+const { status, currentStep, distanceToTargetM, isStale, online, state, summary } = storeToRefs(ride)
 
 useRideAnnouncements()
+const tripShare = useTripShare()
+
+async function shareTrip() {
+  if (!summary.value) return
+  await tripShare.share(summary.value)
+}
 
 const stepNum = computed(() => state.value.stepIdx + 1)
 const stepTotal = computed(() => state.value.plan?.steps.length ?? 0)
@@ -200,13 +207,22 @@ const durationMin = computed(() => {
     >
       {{ t('ride.hud.alighted') }}
     </button>
-    <button
-      v-else-if="status === 'arrived'"
-      type="button"
-      class="w-full rounded-md border border-bnc-stone-300 px-4 py-3 font-mono text-xs font-bold uppercase tracking-wider text-bnc-stone-700 transition-colors hover:bg-bnc-stone-100 dark:border-bnc-stone-700 dark:text-bnc-stone-200 dark:hover:bg-bnc-stone-800"
-      @click="ride.stop()"
-    >
-      {{ t('ride.hud.done') }}
-    </button>
+    <div v-else-if="status === 'arrived'" class="flex gap-2">
+      <button
+        type="button"
+        :disabled="tripShare.busy.value"
+        class="flex-1 rounded-md bg-bnc-accent px-4 py-3 font-mono text-xs font-bold uppercase tracking-wider text-white transition-opacity hover:opacity-90 disabled:opacity-60"
+        @click="shareTrip"
+      >
+        {{ tripShare.busy.value ? '…' : t('ride.hud.share') }}
+      </button>
+      <button
+        type="button"
+        class="flex-1 rounded-md border border-bnc-stone-300 px-4 py-3 font-mono text-xs font-bold uppercase tracking-wider text-bnc-stone-700 transition-colors hover:bg-bnc-stone-100 dark:border-bnc-stone-700 dark:text-bnc-stone-200 dark:hover:bg-bnc-stone-800"
+        @click="ride.stop()"
+      >
+        {{ t('ride.hud.done') }}
+      </button>
+    </div>
   </article>
 </template>
