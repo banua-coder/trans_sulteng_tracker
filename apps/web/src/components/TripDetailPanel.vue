@@ -14,6 +14,7 @@ import { storeToRefs } from 'pinia'
 import { useTripStore } from '@/stores/trip'
 import { useBrtStore, type IncomingBus } from '@/stores/brt'
 import { useSelectionStore } from '@/stores/selection'
+import { useRideStore } from '@/stores/ride'
 import CopyLinkButton from '@/components/CopyLinkButton.vue'
 import PlateBadge from '@/components/PlateBadge.vue'
 import SheetStickyHeader from '@/components/SheetStickyHeader.vue'
@@ -23,7 +24,14 @@ const { t } = useI18n()
 const trip = useTripStore()
 const brt = useBrtStore()
 const selection = useSelectionStore()
+const ride = useRideStore()
 const { selectedPlan, origin, destination, stepNumbers } = storeToRefs(trip)
+const { enabled: rideEnabled } = storeToRefs(ride)
+
+async function startRide() {
+  if (!selectedPlan.value) return
+  await ride.start(selectedPlan.value)
+}
 
 // Expansion state for the "Buses to {halte}" disclosures under each
 // ride step. Key = step index. Collapsed by default; the user opts
@@ -349,5 +357,16 @@ function focusStep(step: PlanStep) {
         </div>
       </li>
     </ol>
+
+    <!-- Trip companion start action (beta) — flag-gated behind
+         cektrans:rideEnabled until Phase 5 of the rollout. -->
+    <button
+      v-if="rideEnabled"
+      type="button"
+      class="w-full rounded-md bg-bnc-accent px-4 py-3 font-mono text-xs font-bold uppercase tracking-wider text-white transition-opacity hover:opacity-90"
+      @click="startRide"
+    >
+      {{ t('ride.start') }}
+    </button>
   </article>
 </template>

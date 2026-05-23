@@ -21,6 +21,7 @@ import BusDetailCard from '@/components/BusDetailCard.vue'
 import HalteDetailCard from '@/components/HalteDetailCard.vue'
 import MobileRoutesPanel from '@/components/MobileRoutesPanel.vue'
 import { useTripStore } from '@/stores/trip'
+import { useRideStore } from '@/stores/ride'
 
 // Lazy-loaded panels — only fetched when the user actually opens the
 // trip planner / focuses a corridor / picks a plan. Keeps the trip
@@ -30,6 +31,7 @@ const TripPlannerPanel = defineAsyncComponent(() => import('@/components/TripPla
 const TripDetailPanel = defineAsyncComponent(() => import('@/components/TripDetailPanel.vue'))
 const CorridorFocusPanel = defineAsyncComponent(() => import('@/components/CorridorFocusPanel.vue'))
 const MobileRouteDetailPanel = defineAsyncComponent(() => import('@/components/MobileRouteDetailPanel.vue'))
+const RideHud = defineAsyncComponent(() => import('@/components/RideHud.vue'))
 
 const city = useCityStore()
 const brt = useBrtStore()
@@ -37,16 +39,18 @@ const socket = useSocketStore()
 const selection = useSelectionStore()
 const focus = useFocusStore()
 const trip = useTripStore()
+const ride = useRideStore()
 const { kind: selectionKind } = storeToRefs(selection)
 const { isFocused } = storeToRefs(focus)
 const { selectedPlan: tripSelectedPlan } = storeToRefs(trip)
+const { isActive: rideActive } = storeToRefs(ride)
 
 useUrlSync()
 
 // Auto-expand the mobile bottom sheet to mid the moment a detail/route
 // becomes active; null lets the user control the snap freely.
 const sheetForceSnap = computed<'mid' | null>(() =>
-  selectionKind.value || isFocused.value || tripSelectedPlan.value ? 'mid' : null,
+  selectionKind.value || isFocused.value || tripSelectedPlan.value || rideActive.value ? 'mid' : null,
 )
 
 watch(
@@ -123,7 +127,8 @@ onBeforeUnmount(() => {
            nothing        → MobileRoutesPanel (RUTE / HALTE tabs)
          Desktop keeps the sidebar's old layout untouched. -->
     <BottomSheet :force-snap="sheetForceSnap">
-      <BusDetailCard v-if="selectionKind === 'bus'" />
+      <RideHud v-if="rideActive" />
+      <BusDetailCard v-else-if="selectionKind === 'bus'" />
       <HalteDetailCard v-else-if="selectionKind === 'halte'" />
       <MobileRouteDetailPanel v-else-if="isFocused" />
       <TripDetailPanel v-else-if="tripSelectedPlan" />
@@ -138,7 +143,8 @@ onBeforeUnmount(() => {
     <div
       class="pointer-events-none fixed bottom-4 right-4 z-[1000] hidden lg:block lg:max-w-md"
     >
-      <BusDetailCard v-if="selectionKind === 'bus'" />
+      <RideHud v-if="rideActive" />
+      <BusDetailCard v-else-if="selectionKind === 'bus'" />
       <HalteDetailCard v-else-if="selectionKind === 'halte'" />
       <CorridorFocusPanel v-else-if="isFocused" />
       <TripDetailPanel v-else-if="tripSelectedPlan" />
