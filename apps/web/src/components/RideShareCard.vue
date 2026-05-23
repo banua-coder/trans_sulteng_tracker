@@ -27,26 +27,52 @@ onMounted(() => {
     maxZoom: 19,
   }).addTo(map)
 
+  const bounds = L.latLngBounds([])
+
+  // 1) Planned path — corridor polyline slices + walk chords. Same
+  // geometry the live trip preview draws, so the share image
+  // tracks the actual route, not a chord between halte.
+  for (const seg of props.summary.paths) {
+    const line = L.polyline(seg.coords as L.LatLngTuple[], {
+      color: seg.color,
+      weight: seg.kind === 'ride' ? 7 : 4,
+      opacity: seg.kind === 'ride' ? 0.95 : 0.7,
+      dashArray: seg.kind === 'walk' ? '6 6' : undefined,
+      lineCap: 'round',
+      lineJoin: 'round',
+    }).addTo(map)
+    line.getLatLngs().forEach((ll) => bounds.extend(ll as L.LatLng))
+  }
+
+  // 2) Optional GPS trace overlay — thinner, on top of the planned
+  // path. Skipped when too sparse (< 2 points).
   const trace = props.summary.trace
   if (trace.length >= 2) {
-    const line = L.polyline(trace as L.LatLngTuple[], {
-      color: props.summary.corridors[0]?.color ?? '#0EA5E9',
-      weight: 5,
-      opacity: 0.95,
+    L.polyline(trace as L.LatLngTuple[], {
+      color: '#0F172A', weight: 3, opacity: 0.7, lineCap: 'round',
     }).addTo(map)
-    const bounds = line.getBounds()
-    if (bounds.isValid()) map.fitBounds(bounds, { padding: [40, 40] })
-    // Start + end markers — simple dots, no popup.
-    L.circleMarker(trace[0] as L.LatLngTuple, {
-      radius: 8, color: '#10B981', fillColor: '#10B981', fillOpacity: 1, weight: 2,
+  }
+
+  // 3) Start + end markers.
+  const startPt = props.summary.paths[0]?.coords[0]
+  const endSeg = props.summary.paths.at(-1)
+  const endPt = endSeg?.coords[endSeg.coords.length - 1]
+  if (startPt) {
+    L.circleMarker(startPt as L.LatLngTuple, {
+      radius: 9, color: '#fff', fillColor: '#10B981', fillOpacity: 1, weight: 3,
     }).addTo(map)
-    L.circleMarker(trace[trace.length - 1] as L.LatLngTuple, {
-      radius: 8, color: '#EF4444', fillColor: '#EF4444', fillOpacity: 1, weight: 2,
+    bounds.extend(startPt as L.LatLngTuple)
+  }
+  if (endPt) {
+    L.circleMarker(endPt as L.LatLngTuple, {
+      radius: 9, color: '#fff', fillColor: '#EF4444', fillOpacity: 1, weight: 3,
     }).addTo(map)
-  } else if (trace.length === 1) {
-    map.setView(trace[0] as L.LatLngTuple, 15)
+    bounds.extend(endPt as L.LatLngTuple)
+  }
+
+  if (bounds.isValid()) {
+    map.fitBounds(bounds, { padding: [40, 40] })
   } else {
-    // No trace — fall back to a default Palu/Donggala view.
     map.setView([-0.9, 119.85], 12)
   }
   // Give Leaflet a tick to settle tile sizes inside the fixed

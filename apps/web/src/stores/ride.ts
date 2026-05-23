@@ -25,6 +25,7 @@ import { initialState, isStaleFix, reduce, type RideState } from '@/lib/ride/red
 import { useBrtStore } from './brt'
 import { useCityStore } from './city'
 import { useTripStore } from './trip'
+import { buildTripPaths, type TripPathSegment } from '@/lib/tripPath'
 
 export interface RideSummary {
   city: 'palu' | 'donggala'
@@ -35,6 +36,10 @@ export interface RideSummary {
   rideM: number
   corridors: { kor: string; color: string }[]
   trace: Array<[number, number]>
+  /** Pre-resolved drawable segments — ride corridor slices + walk
+   *  chords. Shares the same geometry as the trip preview on the
+   *  live map. */
+  paths: TripPathSegment[]
   cityLogo: string
   operator: string
   startedAt: number
@@ -290,6 +295,18 @@ export const useRideStore = defineStore('ride', () => {
     // share card's html-to-image pass would otherwise taint the
     // canvas reading from the CORS-less upstream BRT host.
     const cityLogo = cityStore.slug === 'palu' ? '/operators/trans-palu.png' : '/operators/trans-donggala.png'
+    const originPt: [number, number] | null = trip.origin
+      ? [trip.origin.point.lat, trip.origin.point.lng]
+      : null
+    const destPt: [number, number] | null = trip.destination
+      ? [trip.destination.point.lat, trip.destination.point.lng]
+      : null
+    const paths = buildTripPaths(
+      plan,
+      { corridorByKor: brt.corridorByKor, halte: brt.halte, colorForKor: brt.colorForKor },
+      originPt,
+      destPt,
+    )
     return {
       city: cityStore.slug,
       origin,
@@ -299,6 +316,7 @@ export const useRideStore = defineStore('ride', () => {
       rideM: plan.totalRideM,
       corridors,
       trace: trace.value.slice(),
+      paths,
       cityLogo,
       operator: cityStore.slug === 'palu' ? 'Trans Palu' : 'Trans Donggala',
       startedAt: state.value.startedAt,
