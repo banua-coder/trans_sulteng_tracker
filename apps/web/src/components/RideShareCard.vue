@@ -71,16 +71,23 @@ function fmt(m: number): string {
     role="img"
     :aria-label="`${summary.origin} ke ${summary.destination}`"
   >
-    <!-- Header. Operator logo is omitted by design — the upstream
-         BRT host doesn't serve CORS headers so the logo would
-         taint the canvas and html-to-image would refuse to capture.
-         Operator text + corridor badges convey the same identity. -->
+    <!-- Header. Operator logo is bundled in /public so it stays
+         same-origin — the upstream BRT host doesn't serve CORS so
+         html-to-image would taint the canvas reading from it. -->
     <header class="flex items-center justify-between px-8 py-6">
-      <div>
-        <p class="font-mono text-[12px] uppercase tracking-widest text-bnc-stone-400">
-          {{ summary.operator }}
-        </p>
-        <p class="font-display text-3xl font-extrabold text-white">cektrans</p>
+      <div class="flex items-center gap-4">
+        <img
+          v-if="summary.cityLogo"
+          :src="summary.cityLogo"
+          :alt="summary.operator"
+          class="h-14 w-14 rounded-full bg-white object-contain p-1"
+        />
+        <div>
+          <p class="font-mono text-[12px] uppercase tracking-widest text-bnc-stone-400">
+            {{ summary.operator }}
+          </p>
+          <p class="font-display text-3xl font-extrabold text-white">cektrans</p>
+        </div>
       </div>
       <div class="flex flex-wrap items-center gap-1.5">
         <span

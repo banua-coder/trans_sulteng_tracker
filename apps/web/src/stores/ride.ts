@@ -284,9 +284,12 @@ export const useRideStore = defineStore('ride', () => {
       seenKor.add(step.kor)
       corridors.push({ kor: step.kor, color: brt.colorForKor(step.kor) || '#0EA5E9' })
     }
-    const meta = brt.cities.find((c) => c.pref === cityStore.pref)
     const origin = trip.origin?.label ?? plan.steps[0]?.fromName ?? '—'
     const destination = trip.destination?.label ?? plan.steps.at(-1)?.toName ?? '—'
+    // Operator logos live in /public so they're same-origin — the
+    // share card's html-to-image pass would otherwise taint the
+    // canvas reading from the CORS-less upstream BRT host.
+    const cityLogo = cityStore.slug === 'palu' ? '/operators/trans-palu.png' : '/operators/trans-donggala.png'
     return {
       city: cityStore.slug,
       origin,
@@ -296,7 +299,7 @@ export const useRideStore = defineStore('ride', () => {
       rideM: plan.totalRideM,
       corridors,
       trace: trace.value.slice(),
-      cityLogo: meta?.icon ?? '',
+      cityLogo,
       operator: cityStore.slug === 'palu' ? 'Trans Palu' : 'Trans Donggala',
       startedAt: state.value.startedAt,
       endedAt,
