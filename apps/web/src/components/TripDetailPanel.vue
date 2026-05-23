@@ -8,13 +8,14 @@
  * see authoritative data, and a local reactive map drives the
  * collapse/expand state per disclosure.
  */
-import { computed, reactive, watch } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
 import { useTripStore } from '@/stores/trip'
 import { useBrtStore, type IncomingBus } from '@/stores/brt'
 import { useSelectionStore } from '@/stores/selection'
 import { useRideStore } from '@/stores/ride'
+import RideBatteryWarning from '@/components/RideBatteryWarning.vue'
 import CopyLinkButton from '@/components/CopyLinkButton.vue'
 import PlateBadge from '@/components/PlateBadge.vue'
 import SheetStickyHeader from '@/components/SheetStickyHeader.vue'
@@ -26,11 +27,26 @@ const brt = useBrtStore()
 const selection = useSelectionStore()
 const ride = useRideStore()
 const { selectedPlan, origin, destination, stepNumbers } = storeToRefs(trip)
-const { enabled: rideEnabled } = storeToRefs(ride)
+const { enabled: rideEnabled, batteryWarned } = storeToRefs(ride)
 
-async function startRide() {
+// Battery warning gate — surfaces the modal once before the first
+// ride per browser. Once dismissed it never reappears (or it can
+// reappear if the user unchecked "don't show again").
+const showBatteryWarning = ref(false)
+
+function startRide() {
   if (!selectedPlan.value) return
-  await ride.start(selectedPlan.value)
+  if (!batteryWarned.value) {
+    showBatteryWarning.value = true
+    return
+  }
+  void ride.start(selectedPlan.value)
+}
+
+async function onBatteryConfirm(dontShowAgain: boolean) {
+  showBatteryWarning.value = false
+  if (dontShowAgain) ride.markBatteryWarned()
+  if (selectedPlan.value) await ride.start(selectedPlan.value)
 }
 
 // Expansion state for the "Buses to {halte}" disclosures under each
@@ -368,5 +384,7 @@ function focusStep(step: PlanStep) {
     >
       {{ t('ride.start') }}
     </button>
+
+    <RideBatteryWarning :open="showBatteryWarning" @confirm="onBatteryConfirm" />
   </article>
 </template>

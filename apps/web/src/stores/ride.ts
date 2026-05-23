@@ -27,6 +27,25 @@ import { useTripStore } from './trip'
 
 const FIX_BUFFER_SIZE = 5
 const FEATURE_FLAG_KEY = 'cektrans:rideEnabled'
+const SNAPSHOT_KEY = 'cektrans:ride'
+const BATTERY_WARNED_KEY = 'cektrans:rideBatteryWarned'
+const SNAPSHOT_SCHEMA_VERSION = 1
+const RESUME_STALE_MS = 6 * 60 * 60_000     // 6 hours
+const TRACE_SAMPLE_MIN_M = 10                // sample to trace when moved ≥10m
+const TRACE_MAX_POINTS = 500                 // ~70 min @ 8s cadence
+
+interface RideSnapshot {
+  v: number
+  status: RideState['status']
+  plan: PlanResult | null
+  stepIdx: number
+  startedAt: number | null
+  trace: Array<[number, number]>             // [lat, lng]
+}
+
+function emptySnapshot(): RideSnapshot {
+  return { v: SNAPSHOT_SCHEMA_VERSION, status: 'idle', plan: null, stepIdx: 0, startedAt: null, trace: [] }
+}
 
 export const useRideStore = defineStore('ride', () => {
   const brt = useBrtStore()
@@ -35,9 +54,22 @@ export const useRideStore = defineStore('ride', () => {
   // Feature flag — Phases 1-4 ship gated, Phase 5 removes the gate.
   const enabled = useStorage<boolean>(FEATURE_FLAG_KEY, false, localStorage)
 
+  // Battery-warning dismissal — sticky across reloads.
+  const batteryWarned = useStorage<boolean>(BATTERY_WARNED_KEY, false, localStorage)
+
+  // Persisted snapshot. mergeDefaults: true keeps old snapshots
+  // compatible when we add fields, and the SCHEMA_VERSION gate in
+  // resumeFromSnapshot() handles breaking shape changes.
+  const snapshot = useStorage<RideSnapshot>(
+    SNAPSHOT_KEY, emptySnapshot(), localStorage, { mergeDefaults: true },
+  )
+
   // Reducer-owned state. shallowRef because reduce() returns a new
   // object every call — deep reactivity would be wasted work.
   const state = shallowRef<RideState>(initialState())
+
+  // GPS trace recorded during the ride for the share-card map.
+  const trace = ref<Array<[number, number]>>([])
 
   // Position ring buffer drives the iOS-safe speed derivation.
   const fixBuffer = ref<PositionFix[]>([])
@@ -57,6 +89,7 @@ export const useRideStore = defineStore('ride', () => {
     if (!Number.isFinite(c.latitude) || !Number.isFinite(c.longitude)) return
     const fix: PositionFix = { lat: c.latitude, lng: c.longitude, ts }
     pushFix(fix)
+    pushTrace(fix)
     const speedKmh = computeSpeedKmh(fixBuffer.value)
     state.value = reduce(state.value, {
       type: 'gpsTick',
@@ -65,6 +98,21 @@ export const useRideStore = defineStore('ride', () => {
       target: resolveTickTarget(state.value),
     })
   })
+
+  // GPS trace ring buffer — sampled when the user moved at least
+  // TRACE_SAMPLE_MIN_M from the last recorded point. Persisted via
+  // the snapshot watch below so a reload survives mid-trip.
+  function pushTrace(fix: PositionFix) {
+    if (state.value.status === 'idle') return
+    const buf = trace.value
+    if (buf.length) {
+      const last = buf[buf.length - 1]
+      const d = haversineM({ lat: last[0], lng: last[1] }, fix)
+      if (d < TRACE_SAMPLE_MIN_M) return
+    }
+    buf.push([fix.lat, fix.lng])
+    if (buf.length > TRACE_MAX_POINTS) buf.shift()
+  }
 
   function pushFix(fix: PositionFix) {
     const buf = fixBuffer.value
@@ -121,6 +169,7 @@ export const useRideStore = defineStore('ride', () => {
   async function start(plan: PlanResult): Promise<void> {
     if (!enabled.value) return
     fixBuffer.value = []
+    trace.value = []
     state.value = reduce(state.value, { type: 'start', plan, at: Date.now() })
     geoResume()
     if (wake.isSupported.value) {
@@ -135,6 +184,46 @@ export const useRideStore = defineStore('ride', () => {
       try { await wake.release() } catch { /* ignore */ }
     }
     fixBuffer.value = []
+    trace.value = []
+    snapshot.value = emptySnapshot()
+  }
+
+  /** Restore a previously persisted ride. Caller must ensure the
+   *  snapshot has passed `resumeIsAvailable()` checks. */
+  async function resumeFromSnapshot(): Promise<void> {
+    const snap = snapshot.value
+    if (!snap || !snap.plan) return
+    state.value = {
+      ...initialState(),
+      status: snap.status,
+      plan: snap.plan,
+      stepIdx: snap.stepIdx,
+      startedAt: snap.startedAt,
+    }
+    trace.value = [...(snap.trace ?? [])]
+    geoResume()
+    if (wake.isSupported.value) {
+      try { await wake.request('screen') } catch { /* ignore */ }
+    }
+  }
+
+  /** Returns true when there's a usable persisted ride to offer
+   *  resuming. Used by RideResumeBanner on app boot. */
+  function resumeIsAvailable(): boolean {
+    const snap = snapshot.value
+    if (!snap) return false
+    if (snap.v !== SNAPSHOT_SCHEMA_VERSION) return false
+    if (!snap.plan || snap.status === 'idle' || snap.status === 'arrived') return false
+    if (!snap.startedAt || Date.now() - snap.startedAt > RESUME_STALE_MS) return false
+    return true
+  }
+
+  function discardSnapshot() {
+    snapshot.value = emptySnapshot()
+  }
+
+  function markBatteryWarned() {
+    batteryWarned.value = true
   }
 
   function confirmBoarded() {
@@ -163,10 +252,29 @@ export const useRideStore = defineStore('ride', () => {
   const isStale = computed(() => isStaleFix(state.value, Date.now()))
   const isActive = computed(() => state.value.status !== 'idle')
 
+  // Persist on every state-machine transition. We don't write per
+  // GPS fix — only on status / stepIdx changes — to keep localStorage
+  // writes proportional to user-meaningful progress, not GPS cadence.
+  watch(
+    () => [state.value.status, state.value.stepIdx] as const,
+    ([status, stepIdx]) => {
+      if (status === 'idle') return
+      snapshot.value = {
+        v: SNAPSHOT_SCHEMA_VERSION,
+        status,
+        plan: state.value.plan,
+        stepIdx,
+        startedAt: state.value.startedAt,
+        trace: trace.value.slice(),
+      }
+    },
+  )
+
   return {
     // state
     enabled,
     state,
+    trace,
     status,
     currentStep,
     target,
@@ -177,11 +285,16 @@ export const useRideStore = defineStore('ride', () => {
     geoError,
     wakeSupported: wake.isSupported,
     wakeActive: wake.isActive,
+    batteryWarned,
     // actions
     start,
     stop,
     confirmBoarded,
     confirmAlighted,
     setEnabled,
+    resumeFromSnapshot,
+    resumeIsAvailable,
+    discardSnapshot,
+    markBatteryWarned,
   }
 })

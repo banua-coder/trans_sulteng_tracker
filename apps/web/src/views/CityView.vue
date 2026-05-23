@@ -32,6 +32,7 @@ const TripDetailPanel = defineAsyncComponent(() => import('@/components/TripDeta
 const CorridorFocusPanel = defineAsyncComponent(() => import('@/components/CorridorFocusPanel.vue'))
 const MobileRouteDetailPanel = defineAsyncComponent(() => import('@/components/MobileRouteDetailPanel.vue'))
 const RideHud = defineAsyncComponent(() => import('@/components/RideHud.vue'))
+const RideResumeBanner = defineAsyncComponent(() => import('@/components/RideResumeBanner.vue'))
 
 const city = useCityStore()
 const brt = useBrtStore()
@@ -149,5 +150,7 @@ onBeforeUnmount(() => {
       <CorridorFocusPanel v-else-if="isFocused" />
       <TripDetailPanel v-else-if="tripSelectedPlan" />
     </div>
+
+    <RideResumeBanner />
   </div>
 </template>

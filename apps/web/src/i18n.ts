@@ -202,6 +202,18 @@ export const messages = {
         destinationNear: 'Halte berikutnya tujuan akhir. Siap turun.',
         arrived: 'Anda tiba di {destination}. Total perjalanan {min} menit.',
       },
+      resume: {
+        title: 'Lanjutkan perjalanan?',
+        body: 'Perjalanan ke {destination} masih aktif.',
+        action: 'Lanjutkan',
+        discard: 'Hapus',
+      },
+      battery: {
+        title: 'Sebelum mulai',
+        body: 'Trip companion menggunakan GPS dan layar tetap menyala. Sambungkan ke charger untuk perjalanan panjang.',
+        confirm: 'Mengerti',
+        dontShow: 'Jangan tampilkan lagi',
+      },
     },
     route: {
       indexTitle: 'Rute & Halte',
@@ -466,6 +478,18 @@ export const messages = {
         transferNear: 'Prepare to alight at {halte}. Transfer to corridor {next}.',
         destinationNear: 'Next stop is your destination. Prepare to alight.',
         arrived: 'You have arrived at {destination}. Total trip {min} minutes.',
+      },
+      resume: {
+        title: 'Resume your trip?',
+        body: 'Companion to {destination} is still active.',
+        action: 'Resume',
+        discard: 'Discard',
+      },
+      battery: {
+        title: 'Before you start',
+        body: 'Trip companion uses GPS and keeps the screen on. Plug into a charger for longer trips.',
+        confirm: 'Got it',
+        dontShow: "Don't show again",
       },
     },
     route: {
