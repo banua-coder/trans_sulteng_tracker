@@ -26,7 +26,7 @@ const city = useCityStore()
 const focus = useFocusStore()
 const selection = useSelectionStore()
 const ui = useUiStore()
-const { corridors, halte } = storeToRefs(brt)
+const { corridors, halte, corridorPills } = storeToRefs(brt)
 const { busSearch, mobileTab: tab, mobileScrollY, halteListFilterKor } = storeToRefs(ui)
 
 const scrollEl = ref<HTMLElement | null>(null)
@@ -79,11 +79,11 @@ const filteredRoutes = computed(() => {
   )
 })
 
-// Pure renderer: the halte list, corridor pills, and per-halte
-// badges all live in the brt store. The component just wires the
-// filter ref through and renders.
+// Pure renderer: the halte list and per-halte badges live in the
+// brt store. The component just wires the filter ref through and
+// renders. `corridorPills` is exposed via storeToRefs above so it
+// stays reactive on city switch.
 const filteredHalte = brt.halteListFor(busSearch, halteListFilterKor)
-const corridorPills = brt.corridorPills
 
 function pickRoute(kor: string) {
   focus.focus(kor)
@@ -201,13 +201,13 @@ function pickHalte(shId: string) {
 
     <template v-else-if="tab === 'halte'">
       <!-- corridor filter pills — tap to narrow to one corridor,
-           tap again or "All" to clear. Halte serve multiple
-           corridors so the old single-kor dot was misleading.
-           Horizontal scroll instead of wrapping so the list stays
-           one row high and the city's full corridor strip stays
-           reachable with a swipe. -->
+           tap again or "All" to clear. The "Semua" chip stays pinned
+           on the left while the corridor chips scroll horizontally
+           in their own track. Two nested flex rows are cleaner here
+           than position:sticky — sticky would leave a visible gap
+           where corridor chips peek through behind the pinned chip. -->
       <div
-        class="-mx-4 mt-3 flex items-center gap-1.5 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&amp;::-webkit-scrollbar]:hidden"
+        class="-mx-4 mt-3 flex items-center gap-1.5 px-4 pb-1"
         data-tour="halte-filter"
       >
         <button
@@ -222,20 +222,24 @@ function pickHalte(shId: string) {
         >
           {{ t('halte.showAll') }}
         </button>
-        <button
-          v-for="p in corridorPills"
-          :key="p.kor"
-          type="button"
-          class="inline-flex shrink-0 items-center rounded-md px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-white transition-opacity"
-          :style="{
-            background: p.color,
-            opacity: halteListFilterKor === null || halteListFilterKor === p.kor ? 1 : 0.4,
-          }"
-          :aria-pressed="halteListFilterKor === p.kor"
-          @click="ui.toggleHalteListFilter(p.kor)"
+        <div
+          class="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto [scrollbar-width:none] [&amp;::-webkit-scrollbar]:hidden"
         >
-          {{ p.kor }}
-        </button>
+          <button
+            v-for="p in corridorPills"
+            :key="p.kor"
+            type="button"
+            class="inline-flex shrink-0 items-center rounded-md px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-white transition-opacity"
+            :style="{
+              background: p.color,
+              opacity: halteListFilterKor === null || halteListFilterKor === p.kor ? 1 : 0.4,
+            }"
+            :aria-pressed="halteListFilterKor === p.kor"
+            @click="ui.toggleHalteListFilter(p.kor)"
+          >
+            {{ p.kor }}
+          </button>
+        </div>
       </div>
 
       <ul class="mt-3 flex flex-col gap-2">
