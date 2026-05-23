@@ -2,6 +2,18 @@
 
 All notable releases of cektrans are recorded here. Generated automatically by `release-finalize.yml`.
 
+## v0.8.2 — 2026-05-23
+
+### 🐛 Bug Fixes
+
+- fix(web): halte filter chips refresh on city switch + pin Semua (560ed40)
+
+### 🧹 Chore
+
+- chore: bump version to 0.8.2 (dc5bde8)
+
+
+
 ## v0.8.1 — 2026-05-23
 
 ### 🐛 Bug Fixes

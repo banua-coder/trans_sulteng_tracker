@@ -22,6 +22,7 @@ import HalteDetailCard from '@/components/HalteDetailCard.vue'
 import MobileRoutesPanel from '@/components/MobileRoutesPanel.vue'
 import { useTripStore } from '@/stores/trip'
 import { useRideStore } from '@/stores/ride'
+import { useUiStore } from '@/stores/ui'
 
 // Lazy-loaded panels — only fetched when the user actually opens the
 // trip planner / focuses a corridor / picks a plan. Keeps the trip
@@ -41,6 +42,7 @@ const selection = useSelectionStore()
 const focus = useFocusStore()
 const trip = useTripStore()
 const ride = useRideStore()
+const ui = useUiStore()
 const { kind: selectionKind } = storeToRefs(selection)
 const { isFocused } = storeToRefs(focus)
 const { selectedPlan: tripSelectedPlan } = storeToRefs(trip)
@@ -60,6 +62,9 @@ watch(
     selection.clear()
     focus.clear()
     brt.clearBuses()
+    // Halte-list corridor filter is per-city — a kor like 'K1' from
+    // Palu won't exist in Donggala and would silently empty the list.
+    ui.setHalteListFilter(null)
     await brt.loadRoutes(pref)
     socket.connect(pref)
   },
