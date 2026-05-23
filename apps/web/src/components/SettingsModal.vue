@@ -8,6 +8,7 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
 import { useUiStore } from '@/stores/ui'
+import { useRideStore } from '@/stores/ride'
 import { useTheme, type ThemeMode } from '@/lib/theme'
 import { useAnnouncer } from '@/composables/useAnnouncer'
 
@@ -16,7 +17,9 @@ const emit = defineEmits<{ close: [] }>()
 
 const { t, locale } = useI18n()
 const ui = useUiStore()
+const ride = useRideStore()
 const { audioEnabled, audioVolume, vibrationEnabled } = storeToRefs(ui)
+const { enabled: rideEnabled } = storeToRefs(ride)
 const { mode, setMode } = useTheme()
 const announcer = useAnnouncer()
 
@@ -193,6 +196,18 @@ async function test() {
                 </svg>
                 {{ t('settings.test') }}
               </button>
+
+              <!-- Trip-companion beta toggle. Flag-gated rollout per
+                   the phased plan; Phase 5 removes this row. -->
+              <label class="flex cursor-pointer items-start gap-2 pt-2 text-xs">
+                <input
+                  type="checkbox"
+                  class="mt-1 h-4 w-4 shrink-0 accent-bnc-primary"
+                  :checked="rideEnabled"
+                  @change="ride.setEnabled(($event.target as HTMLInputElement).checked)"
+                />
+                <span>{{ t('ride.enableFlag') }}</span>
+              </label>
             </div>
           </section>
         </div>
