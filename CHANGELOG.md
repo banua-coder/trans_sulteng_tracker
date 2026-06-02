@@ -2,6 +2,18 @@
 
 All notable releases of cektrans are recorded here. Generated automatically by `release-finalize.yml`.
 
+## v0.8.3 — 2026-06-02
+
+### 🐛 Bug Fixes
+
+- fix(web): trip planner GPS second-try + tap-on-map invisible success (a7407b9)
+
+### 🧹 Chore
+
+- chore: bump version to 0.8.3 (16ef4c6)
+
+
+
 ## v0.8.2 — 2026-05-23
 
 ### 🐛 Bug Fixes
