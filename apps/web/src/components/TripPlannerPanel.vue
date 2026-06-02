@@ -93,6 +93,9 @@ function pickOriginHalte(h: (typeof brt.halte)[number]) {
 function clearOrigin() {
   trip.setOrigin(null)
   originQuery.value = ''
+  // A stale error from a previous failed GPS attempt would otherwise
+  // keep covering the chip slot once the user picks a new origin.
+  gpsError.value = false
 }
 
 function useGps() {
@@ -132,7 +135,14 @@ function useGps() {
       gpsLoading.value = false
       gpsError.value = true
     },
-    { timeout: 10_000 },
+    // enableHighAccuracy + a 60s cache match the geo store
+    // (MyLocationButton) options. Without `maximumAge` the spec
+    // defaults to 0, forcing the browser to spin the GPS hardware
+    // fresh every call — on iOS Safari and Android Chrome the
+    // second tap in close succession fails because the chip is
+    // still warm from the previous request. A 60s cache window
+    // lets the second tap reuse a recent fix.
+    { enableHighAccuracy: true, maximumAge: 60_000, timeout: 10_000 },
   )
 }
 
@@ -265,8 +275,12 @@ const showNoResults = computed(
         </svg>
       </button>
 
-      <!-- GPS error inline -->
-      <p v-if="gpsError" class="flex-1 text-xs text-red-500">{{ t('trip.gpsFailed') }}</p>
+      <!-- GPS error inline. Gated on !origin so any subsequent
+           successful pick (tap-on-map, search, GPS retry) displaces
+           the error and shows the new origin chip — otherwise the
+           error keeps occupying the slot and looks like tap-on-map
+           failed silently. -->
+      <p v-if="gpsError && !origin" class="flex-1 text-xs text-red-500">{{ t('trip.gpsFailed') }}</p>
 
       <!-- Chip when origin set -->
       <template v-else-if="origin">
