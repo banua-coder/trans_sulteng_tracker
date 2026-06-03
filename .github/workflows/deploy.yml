@@ -42,7 +42,7 @@ jobs:
       contents: read
       packages: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: docker/login-action@v3
         with:
@@ -94,7 +94,7 @@ jobs:
       contents: read
       packages: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: docker/login-action@v3
         with:
@@ -125,6 +125,14 @@ jobs:
   deploy:
     needs: [resolve-version, build-web, build-proxy]
     runs-on: ubuntu-latest
+    # `packages: read` lets us pass GITHUB_TOKEN to the VPS so the
+    # daemon can pull the freshly-built images without relying on
+    # a long-lived PAT cached in ~/.docker/config.json (that's how
+    # v0.8.3 broke — the previously cached PAT expired between
+    # v0.8.2 and v0.8.3 deploys).
+    permissions:
+      contents: read
+      packages: read
     steps:
       # Mirror the pico-api-go pattern: org-level DEPLOY_* secrets +
       # webfactory/ssh-agent + raw ssh on a custom port.
@@ -141,7 +149,7 @@ jobs:
           mkdir -p ~/.ssh
           ssh-keyscan -H -p "$DEPLOY_PORT" "$DEPLOY_HOST" >> ~/.ssh/known_hosts
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       # Sync the latest deploy/rollback/cleanup scripts + compose file
       # from the repo to the VPS before invoking deploy.sh. Without
@@ -173,11 +181,18 @@ jobs:
           DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
           ENV_B64: ${{ secrets.ENV_B64 }}
           DEPLOY_VERSION: ${{ needs.resolve-version.outputs.version }}
+          # Per-run token issued by GitHub for this workflow; expires
+          # when the job ends. The VPS uses it to docker-login to GHCR
+          # so we never depend on a cached long-lived PAT.
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GHCR_USER: ${{ github.actor }}
         run: |
           ssh -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" \
             VERSION="$DEPLOY_VERSION" \
             ENV_B64="$ENV_B64" \
             DEPLOY_PATH="$DEPLOY_PATH" \
+            GHCR_TOKEN="$GHCR_TOKEN" \
+            GHCR_USER="$GHCR_USER" \
             'bash -s' <<'ENDSSH'
             set -euo pipefail
             cd "$DEPLOY_PATH"
@@ -185,6 +200,11 @@ jobs:
             # so any rotated key takes effect on this deploy.
             printf '%s' "$ENV_B64" | base64 -d > .env
             chmod 600 .env
+            # Refresh GHCR auth on every deploy. Without this we'd rely
+            # on whatever PAT was last cached in ~/.docker/config.json,
+            # which silently breaks the day that PAT expires.
+            printf '%s' "$GHCR_TOKEN" | docker login ghcr.io \
+              --username "$GHCR_USER" --password-stdin
             ./deploy.sh "$VERSION"
           ENDSSH
 
@@ -192,7 +212,7 @@ jobs:
     needs: deploy
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       # SSH setup happens before the smoke so the rollback step below
       # has an agent + known_hosts entry ready if it fires. Doing it

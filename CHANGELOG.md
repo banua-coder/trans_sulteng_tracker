@@ -2,6 +2,18 @@
 
 All notable releases of cektrans are recorded here. Generated automatically by `release-finalize.yml`.
 
+## v0.8.4 — 2026-06-02
+
+### 👷 CI
+
+- ci: migrate actions to node 24 runtime (db24128)
+
+### 🧹 Chore
+
+- chore: bump version to 0.8.4 (2865880)
+
+
+
 ## v0.8.3 — 2026-06-02
 
 ### 🐛 Bug Fixes
