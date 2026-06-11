@@ -3,6 +3,11 @@ name: CI
 on:
   push:
     branches: [main, develop]
+    paths:
+      - 'apps/**'
+      - 'pnpm-lock.yaml'
+      - 'package.json'
+      - '.github/workflows/ci.yml'
   pull_request:
     branches: [main, develop]
 
