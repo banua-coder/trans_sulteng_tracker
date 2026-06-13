@@ -2,7 +2,6 @@
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
-import { useSocketStore } from '@/stores/socket'
 import { useCityStore } from '@/stores/city'
 import { useBrtStore } from '@/stores/brt'
 import BanuacoderLogo from '@/components/BanuacoderLogo.vue'
@@ -13,7 +12,6 @@ import { CITY_PREF, type CitySlug } from '@/types/brt'
 
 const { t } = useI18n()
 const route = useRoute()
-const socket = useSocketStore()
 const city = useCityStore()
 const brt = useBrtStore()
 
@@ -22,19 +20,6 @@ const donggalaMeta = computed(() => brt.cityByPref.get(CITY_PREF.donggala) ?? nu
 
 // Switcher only matters when the user is actually on a city map.
 const showCitySwitcher = computed(() => route.name === 'city')
-
-const statusKey = computed(() => {
-  switch (socket.state) {
-    case 'live':
-      return 'status.live'
-    case 'connecting':
-      return 'status.connecting'
-    case 'offline':
-      return 'status.offline'
-    default:
-      return 'status.connecting'
-  }
-})
 
 const settingsOpen = ref(false)
 
@@ -138,25 +123,6 @@ function pickCity(slug: CitySlug) {
     </transition>
 
     <div class="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-3">
-      <span
-        class="flex items-center gap-2 rounded-full bg-bnc-stone-100 px-2 py-1 font-mono text-[11px] uppercase tracking-wider text-bnc-stone-600 sm:px-3 dark:bg-bnc-stone-800 dark:text-bnc-stone-300"
-        :title="t(statusKey)"
-      >
-        <span
-          class="live-dot"
-          :style="
-            socket.state === 'live'
-              ? undefined
-              : { background: 'var(--color-stale)', animation: 'none' }
-          "
-        />
-        <span class="hidden sm:inline">{{ t(statusKey) }}</span>
-        <template v-if="socket.viewers > 0">
-          <span class="hidden sm:inline">·</span>
-          <span class="font-mono">{{ socket.viewers }}</span>
-        </template>
-      </span>
-
       <DonateButton />
 
       <router-link
