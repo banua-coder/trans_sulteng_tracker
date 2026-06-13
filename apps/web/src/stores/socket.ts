@@ -6,16 +6,24 @@ import { useBrtStore } from './brt'
 
 export type ConnectionState = 'idle' | 'connecting' | 'live' | 'offline'
 
-/** Seconds we wait after `subscribe` before re-emitting once if no
- *  bus event has arrived. Covers the case where the original
- *  `subscribe` reached the proxy but the join was lost (server
- *  restart mid-handshake, room rotation race) without spinning a
- *  retry loop when the upstream simply has no buses to broadcast. */
+/** Seconds we wait after `subscribe` before:
+ *   1) re-emitting `subscribe` once (covers a lost room join), and
+ *   2) flipping `inSubscribeGrace` to false so the loading badge can
+ *      transition out of its "connecting" pulse into the steady
+ *      "waiting" state.
+ *  Same number for both because they share the same intuition:
+ *  if no bus has arrived in 8 s we've exhausted the "still
+ *  spinning up" excuse. */
 const RESUBSCRIBE_DELAY_MS = 8_000
 
 export const useSocketStore = defineStore('socket', () => {
   const state = ref<ConnectionState>('idle')
   const viewers = ref<number>(0)
+  /** True while we're within the 8 s grace window after `subscribe`.
+   *  The BusDataBadge keeps showing "Memuat data bus…" while this is
+   *  true so the badge doesn't briefly flash a wrong "no buses yet"
+   *  message before the first bus event lands. */
+  const inSubscribeGrace = ref(false)
   let sock: Socket | null = null
   let currentPref: string | null = null
   let resubscribeTimer: ReturnType<typeof setTimeout> | null = null
@@ -35,8 +43,10 @@ export const useSocketStore = defineStore('socket', () => {
   function scheduleResubscribe(pref: string) {
     clearResubscribe()
     firstBusReceived = false
+    inSubscribeGrace.value = true
     resubscribeTimer = setTimeout(() => {
       resubscribeTimer = null
+      inSubscribeGrace.value = false
       if (firstBusReceived) return
       if (!sock?.connected) return
       if (currentPref !== pref) return
@@ -70,6 +80,7 @@ export const useSocketStore = defineStore('socket', () => {
       })
       sock.on('disconnect', () => {
         state.value = 'offline'
+        inSubscribeGrace.value = false
         clearResubscribe()
       })
       sock.on('viewers', (count: number) => {
@@ -77,6 +88,7 @@ export const useSocketStore = defineStore('socket', () => {
       })
       sock.on('bus', (payload: BrtBus) => {
         firstBusReceived = true
+        inSubscribeGrace.value = false
         clearResubscribe()
         brt.upsertBus(payload)
       })
@@ -91,6 +103,7 @@ export const useSocketStore = defineStore('socket', () => {
 
   function disconnect() {
     clearResubscribe()
+    inSubscribeGrace.value = false
     if (sock) {
       sock.disconnect()
       sock = null
@@ -100,5 +113,5 @@ export const useSocketStore = defineStore('socket', () => {
     firstBusReceived = false
   }
 
-  return { state, viewers, connect, disconnect }
+  return { state, viewers, inSubscribeGrace, connect, disconnect }
 })

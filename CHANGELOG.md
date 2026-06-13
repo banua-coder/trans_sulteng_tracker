@@ -2,6 +2,18 @@
 
 All notable releases of cektrans are recorded here. Generated automatically by `release-finalize.yml`.
 
+## v0.8.6 — 2026-06-13
+
+### 🐛 Bug Fixes
+
+- fix(web): subscribe grace period + drop false operating-hours claims (0db1b0f)
+
+### 🧹 Chore
+
+- chore: bump version to 0.8.6 (52f60e7)
+
+
+
 ## v0.8.5 — 2026-06-13
 
 ### 🐛 Bug Fixes
