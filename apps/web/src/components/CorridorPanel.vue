@@ -6,7 +6,6 @@ import { useBrtStore } from '@/stores/brt'
 import { useCityStore } from '@/stores/city'
 import { useFocusStore } from '@/stores/focus'
 import { useSocketStore } from '@/stores/socket'
-import { operatingState } from '@/lib/operating'
 import { isStale } from '@/lib/format'
 import CollapsibleSection from '@/components/CollapsibleSection.vue'
 
@@ -49,12 +48,16 @@ function busCountByKor(kor: string): number {
   return n
 }
 
-const busStatusKey = computed<'connecting' | 'waiting' | 'sleeping' | null>(() => {
+// Intentionally no operating-hours branch. The previous version
+// flipped to "Tidak ada bus aktif" (sleeping) based on a hardcoded
+// 06–18 WITA window that doesn't match reality — buses sometimes
+// run past 18:00. Honest steady state when connected with no
+// buses is "still waiting", same string as in BusDataBadge.
+const busStatusKey = computed<'connecting' | 'waiting' | null>(() => {
   if (stats.value.buses > 0) return null
   if (socket.state === 'connecting' || socket.state === 'idle') return 'connecting'
   if (socket.state === 'offline') return null
-  // socket is 'live' but the bus map is empty.
-  return operatingState().active ? 'waiting' : 'sleeping'
+  return 'waiting'
 })
 
 const busStatusLabel = computed(() => {
@@ -63,8 +66,6 @@ const busStatusLabel = computed(() => {
       return t('status.connecting')
     case 'waiting':
       return t('operating.waiting')
-    case 'sleeping':
-      return t('operating.none')
     default:
       return ''
   }
@@ -125,14 +126,7 @@ const busStatusLabel = computed(() => {
       v-if="busStatusKey"
       class="flex items-center gap-2 rounded-md border border-bnc-stone-200 bg-white px-3 py-2 text-xs text-bnc-stone-600 dark:border-bnc-stone-800 dark:bg-bnc-stone-900 dark:text-bnc-stone-300"
     >
-      <span
-        class="live-dot"
-        :style="
-          busStatusKey === 'sleeping'
-            ? { background: 'var(--color-stale)', animation: 'none' }
-            : undefined
-        "
-      />
+      <span class="live-dot" />
       {{ busStatusLabel }}
     </p>
 
