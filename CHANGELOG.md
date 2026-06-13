@@ -2,6 +2,18 @@
 
 All notable releases of cektrans are recorded here. Generated automatically by `release-finalize.yml`.
 
+## v0.8.5 — 2026-06-13
+
+### 🐛 Bug Fixes
+
+- fix(web): state-aware bus-loading badge + retry subscribe + drop live pill (81e1b04)
+
+### 🧹 Chore
+
+- chore: bump version to 0.8.5 (4f664bc)
+
+
+
 ## v0.8.4 — 2026-06-02
 
 ### 👷 CI
