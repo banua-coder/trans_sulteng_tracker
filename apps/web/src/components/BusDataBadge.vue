@@ -4,32 +4,39 @@
  * "where are the buses?" status while the bus map is empty. Hides
  * the moment any bus arrives in the store.
  *
- * Earlier this badge only said "Memuat data bus…" and never timed
- * out, so an empty Donggala stream (legitimate during quiet hours
- * or outside the 06–18 WITA window) looked like a broken loader.
- * Now it mirrors CorridorPanel's busStatusKey state machine:
+ * Status model (intentionally no operating-hours branch):
  *
- *   socket idle / connecting        → "Memuat data bus…"
- *   socket live + operating hours   → "Menunggu data bus…"
- *   socket live + outside hours     → "Bus belum beroperasi"
- *   socket offline                  → "Koneksi terputus"
+ *   socket idle / connecting               → "Memuat data bus…"
+ *   socket live + subscribe grace window   → "Memuat data bus…"
+ *   socket live + grace expired, no buses  → "Menunggu data bus…"
+ *   socket offline                         → "Koneksi terputus"
  *
- * The OperatingBanner still handles the long-form operating-window
- * messaging; this badge is the at-a-glance map version.
+ * We don't claim "Bus belum beroperasi" any more. The previous
+ * version derived that from a hardcoded 06–18 WITA window seeded
+ * from BrtRouteDto.jam_operasional, but reality is buses
+ * sometimes run until ~21:00 WITA so the badge made a false claim
+ * outside the upstream's nominal schedule. The honest steady-state
+ * when we're connected and the upstream is quiet is "still
+ * waiting".
+ *
+ * The 8 s subscribe grace window (owned by the socket store) keeps
+ * the badge in its initial loading state long enough for the first
+ * bus event to arrive — otherwise the badge would flash "waiting"
+ * for a second before the first bus dropped in.
  */
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
 import { useBrtStore } from '@/stores/brt'
 import { useSocketStore } from '@/stores/socket'
-import { operatingState } from '@/lib/operating'
 
 const { t } = useI18n()
 const brt = useBrtStore()
 const socket = useSocketStore()
 const { buses } = storeToRefs(brt)
+const { inSubscribeGrace } = storeToRefs(socket)
 
-type Status = null | 'loading' | 'waiting' | 'sleeping' | 'offline'
+type Status = null | 'loading' | 'waiting' | 'offline'
 
 const status = computed<Status>(() => {
   if (buses.value.size > 0) return null
@@ -40,7 +47,7 @@ const status = computed<Status>(() => {
     case 'offline':
       return 'offline'
     case 'live':
-      return operatingState().active ? 'waiting' : 'sleeping'
+      return inSubscribeGrace.value ? 'loading' : 'waiting'
   }
   return null
 })
@@ -51,8 +58,6 @@ const label = computed(() => {
       return t('operating.loading')
     case 'waiting':
       return t('operating.waiting')
-    case 'sleeping':
-      return t('operating.sleeping')
     case 'offline':
       return t('status.offline')
     default:
@@ -60,10 +65,10 @@ const label = computed(() => {
   }
 })
 
-// The dot only pulses when we're actively trying to fetch data.
-// 'waiting' and 'sleeping' are stable states (connected, nothing to
-// show right now) — the pulse there would falsely imply progress.
-const isLoading = computed(() => status.value === 'loading')
+// Dot pulses while we're actively trying / still waiting for data.
+// Goes static when the connection itself is the problem (offline)
+// because the dot can't promise progress that isn't happening.
+const isAnimated = computed(() => status.value === 'loading' || status.value === 'waiting')
 </script>
 
 <template>
@@ -76,7 +81,7 @@ const isLoading = computed(() => status.value === 'loading')
     >
       <span
         class="live-dot"
-        :style="isLoading ? undefined : { background: 'var(--color-stale)', animation: 'none' }"
+        :style="isAnimated ? undefined : { background: 'var(--color-stale)', animation: 'none' }"
         aria-hidden
       />
       <span class="font-mono text-[11px] uppercase tracking-wider text-bnc-stone-700 dark:text-bnc-stone-200">
