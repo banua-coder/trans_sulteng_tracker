@@ -191,6 +191,8 @@ export const messages = {
         done: 'Selesai',
         staleGps: 'Sinyal GPS lemah — instruksi otomatis ditunda',
         offline: 'Offline — perkiraan ETA bus tidak tersedia',
+        permissionDenied: 'Izin lokasi dimatikan. Aktifkan di pengaturan browser lalu mulai ulang perjalanan.',
+        gpsUnavailable: 'GPS belum tersedia — masih menunggu sinyal.',
       },
       cues: {
         start: 'Mulai perjalanan. Jalan kaki ke halte {halte}, sekitar {m} meter.',
@@ -468,6 +470,8 @@ export const messages = {
         done: 'Done',
         staleGps: 'Weak GPS — auto cues paused',
         offline: 'Offline — live bus ETAs unavailable',
+        permissionDenied: 'Location permission denied. Enable it in browser settings, then restart the trip.',
+        gpsUnavailable: 'GPS not available yet — still waiting for a fix.',
       },
       cues: {
         start: 'Trip started. Walk to {halte}, about {m} metres.',
