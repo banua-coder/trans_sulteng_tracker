@@ -18,7 +18,13 @@ import SheetStickyHeader from '@/components/SheetStickyHeader.vue'
 const { t } = useI18n()
 const ride = useRideStore()
 const brt = useBrtStore()
-const { status, currentStep, distanceToTargetM, isStale, online, state, summary } = storeToRefs(ride)
+const { status, currentStep, distanceToTargetM, isStale, online, state, summary, geoError } = storeToRefs(ride)
+
+// Permission-denied vs generic unavailable — we surface them
+// differently so the user knows whether to open browser settings
+// or to just wait for a fresh fix.
+const geoPermissionDenied = computed(() => geoError.value?.code === 1)
+const geoUnavailable = computed(() => !geoPermissionDenied.value && geoError.value != null)
 
 useRideAnnouncements()
 const tripShare = useTripShare()
@@ -144,7 +150,21 @@ const durationMin = computed(() => {
 
     <!-- Status banners -->
     <p
-      v-if="isStale"
+      v-if="geoPermissionDenied"
+      class="rounded-md bg-red-50 px-2 py-1.5 text-[11px] text-red-700 dark:bg-red-900/30 dark:text-red-300"
+      role="alert"
+    >
+      {{ t('ride.hud.permissionDenied') }}
+    </p>
+    <p
+      v-else-if="geoUnavailable"
+      class="rounded-md bg-amber-50 px-2 py-1.5 text-[11px] text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
+      aria-live="polite"
+    >
+      {{ t('ride.hud.gpsUnavailable') }}
+    </p>
+    <p
+      v-else-if="isStale"
       class="rounded-md bg-amber-50 px-2 py-1.5 text-[11px] text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
       aria-live="polite"
     >

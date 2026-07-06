@@ -100,16 +100,26 @@ export const useRideStore = defineStore('ride', () => {
   const wake = useWakeLock()
   const visibility = useDocumentVisibility()
   const online = useOnline()
+  //   `maximumAge: 0` — never accept a cached fix. `watchPosition`
+  //   was returning a stale first read on PWA / fake-GPS scenarios
+  //   and the reactive `locatedAt.value = position.timestamp` chain
+  //   would then dedupe subsequent updates that came in with the
+  //   same timestamp. Fresh reads only.
   const { coords, locatedAt, error: geoError, resume: geoResume, pause: geoPause }
-    = useGeolocation({ enableHighAccuracy: true, maximumAge: 5_000, immediate: false })
+    = useGeolocation({ enableHighAccuracy: true, maximumAge: 0, immediate: false })
 
-  // Drive the reducer off coords updates. `locatedAt` ticks once per
-  // resolved fix, so we use it as the single trigger.
-  watch(locatedAt, (ts) => {
-    if (!ts) return
-    const c = coords.value
-    if (!Number.isFinite(c.latitude) || !Number.isFinite(c.longitude)) return
-    const fix: PositionFix = { lat: c.latitude, lng: c.longitude, ts }
+  /** Consume a raw geolocation fix and dispatch it into the reducer.
+   *  Both `watchPosition` (via VueUse) and the periodic
+   *  `getCurrentPosition` poll feed this single entry point so the
+   *  ring buffer, trace, and reducer stay consistent. */
+  function ingestFix(lat: number, lng: number, ts: number) {
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return
+    // Drop duplicates. Fake-GPS and paused-then-resumed watchers can
+    // re-fire with the same timestamp; without this guard we'd log
+    // the same point twice into the trace and waste a reduce().
+    const prevTs = state.value.lastFix?.ts ?? 0
+    if (ts <= prevTs) return
+    const fix: PositionFix = { lat, lng, ts }
     pushFix(fix)
     pushTrace(fix)
     const speedKmh = computeSpeedKmh(fixBuffer.value)
@@ -119,7 +129,43 @@ export const useRideStore = defineStore('ride', () => {
       speedKmh,
       target: resolveTickTarget(state.value),
     })
+  }
+
+  // Drive the reducer off VueUse coords updates. `locatedAt` ticks
+  // once per resolved fix, so we use it as the single trigger.
+  watch(locatedAt, (ts) => {
+    if (!ts) return
+    const c = coords.value
+    ingestFix(c.latitude, c.longitude, ts)
   })
+
+  // Belt-and-braces: some browsers (notably iOS PWAs and Android
+  // fake-GPS providers) starve `watchPosition` after the first fix.
+  // A periodic `getCurrentPosition` guarantees the reducer keeps
+  // seeing fresh reads even if the watcher silently stops firing.
+  const POLL_INTERVAL_MS = 3_000
+  let pollTimer: ReturnType<typeof setInterval> | null = null
+
+  function startPolling() {
+    stopPolling()
+    if (typeof navigator === 'undefined' || !('geolocation' in navigator)) return
+    pollTimer = setInterval(() => {
+      if (state.value.status === 'idle') return
+      if (visibility.value !== 'visible') return
+      navigator.geolocation.getCurrentPosition(
+        (pos) => ingestFix(pos.coords.latitude, pos.coords.longitude, pos.timestamp),
+        () => { /* transient poll failures are already surfaced via geoError */ },
+        { enableHighAccuracy: true, maximumAge: 0, timeout: 5_000 },
+      )
+    }, POLL_INTERVAL_MS)
+  }
+
+  function stopPolling() {
+    if (pollTimer != null) {
+      clearInterval(pollTimer)
+      pollTimer = null
+    }
+  }
 
   // GPS trace ring buffer — sampled when the user moved at least
   // TRACE_SAMPLE_MIN_M from the last recorded point. Persisted via
@@ -180,20 +226,38 @@ export const useRideStore = defineStore('ride', () => {
     if (state.value.status === 'idle') return
     if (v === 'visible') {
       geoResume()
+      startPolling()
       if (wake.isSupported.value && !wake.isActive.value) {
         try { await wake.request('screen') } catch { /* user denied or unsupported */ }
       }
     } else {
       geoPause()
+      stopPolling()
     }
   })
+
+  /** Fire a one-shot getCurrentPosition to force the permission
+   *  prompt on install/first-run. Some PWAs never show a permission
+   *  entry until getCurrentPosition (not watchPosition) is called
+   *  in response to a user gesture. Result is fed into the reducer
+   *  same as a poll tick. */
+  function primePermission() {
+    if (typeof navigator === 'undefined' || !('geolocation' in navigator)) return
+    navigator.geolocation.getCurrentPosition(
+      (pos) => ingestFix(pos.coords.latitude, pos.coords.longitude, pos.timestamp),
+      () => { /* geoError already tracks the reason */ },
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 8_000 },
+    )
+  }
 
   async function start(plan: PlanResult): Promise<void> {
     if (!enabled.value) return
     fixBuffer.value = []
     trace.value = []
     state.value = reduce(state.value, { type: 'start', plan, at: Date.now() })
+    primePermission()
     geoResume()
+    startPolling()
     if (wake.isSupported.value) {
       try { await wake.request('screen') } catch { /* ignore */ }
     }
@@ -202,6 +266,7 @@ export const useRideStore = defineStore('ride', () => {
   async function stop(): Promise<void> {
     state.value = reduce(state.value, { type: 'stop', at: Date.now() })
     geoPause()
+    stopPolling()
     if (wake.isActive.value) {
       try { await wake.release() } catch { /* ignore */ }
     }
@@ -223,7 +288,9 @@ export const useRideStore = defineStore('ride', () => {
       startedAt: snap.startedAt,
     }
     trace.value = [...(snap.trace ?? [])]
+    primePermission()
     geoResume()
+    startPolling()
     if (wake.isSupported.value) {
       try { await wake.request('screen') } catch { /* ignore */ }
     }
