@@ -2,6 +2,18 @@
 
 All notable releases of cektrans are recorded here. Generated automatically by `release-finalize.yml`.
 
+## v0.8.7 — 2026-07-06
+
+### 🐛 Bug Fixes
+
+- fix(web): ride HUD stays fresh under fake-GPS + PWA install (ac65564)
+
+### 🧹 Chore
+
+- chore: bump version to 0.8.7 (7dab3ac)
+
+
+
 ## v0.8.6 — 2026-06-13
 
 ### 🐛 Bug Fixes
