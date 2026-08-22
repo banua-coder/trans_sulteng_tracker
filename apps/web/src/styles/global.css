@@ -20,7 +20,7 @@
   --color-bnc-stone-200: #E7E5E4;
   --color-bnc-stone-300: #D6D3D1;
   --color-bnc-stone-400: #A8A29E;
-  --color-bnc-stone-500: #78716C;
+  --color-bnc-stone-500: #6E6863;
   --color-bnc-stone-600: #57534E;
   --color-bnc-stone-700: #44403C;
   --color-bnc-stone-800: #292524;
@@ -28,7 +28,7 @@
 
   /* ── Transit-data semantic tokens ────────────────────────────── */
   --color-live: #1D9CD4;       /* live / connected */
-  --color-stale: #78716C;      /* >5 min since last fix */
+  --color-stale: #6E6863;      /* >5 min since last fix */
   --color-offline: #44403C;
   --color-good: #2F855A;
   --color-warn: #D97706;

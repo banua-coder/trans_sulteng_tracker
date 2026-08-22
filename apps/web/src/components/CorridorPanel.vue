@@ -113,7 +113,7 @@ const busStatusLabel = computed(() => {
       <div>
         <dt class="text-bnc-stone-500">{{ t('stats.avg') }}</dt>
         <dd class="text-base font-bold tabular-nums text-bnc-ink dark:text-bnc-paper">
-          {{ stats.avgSpeed }}<span class="text-[9px] font-normal text-bnc-stone-500"> {{ t('units.kmh') }}</span>
+          {{ stats.avgSpeed }}<span class="text-[11px] font-normal text-bnc-stone-500"> {{ t('units.kmh') }}</span>
         </dd>
       </div>
       <div>

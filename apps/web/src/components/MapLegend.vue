@@ -45,7 +45,7 @@ const open = computed<boolean>({
         class="w-[180px] rounded-md border border-bnc-stone-200 bg-white/95 p-3 shadow-[var(--shadow-elevated)] backdrop-blur dark:border-bnc-stone-800 dark:bg-bnc-stone-900/95"
         role="dialog"
       >
-        <p class="font-mono text-[10px] uppercase tracking-wider text-bnc-stone-500">
+        <p class="font-mono text-[11px] uppercase tracking-wider text-bnc-stone-500">
           {{ t('legend.title') }}
         </p>
         <ul class="mt-2 flex flex-col gap-2 text-xs">
@@ -73,7 +73,7 @@ const open = computed<boolean>({
           </li>
         </ul>
         <p
-          class="mt-3 select-text border-t border-bnc-stone-200 pt-2 font-mono text-[10px] tabular-nums text-bnc-stone-500 dark:border-bnc-stone-800"
+          class="mt-3 select-text border-t border-bnc-stone-200 pt-2 font-mono text-[11px] tabular-nums text-bnc-stone-500 dark:border-bnc-stone-800"
           :title="VERSION_LABEL"
         >
           {{ VERSION_LABEL }}
@@ -93,8 +93,8 @@ const open = computed<boolean>({
 .legend-bus-disc {
   display: grid;
   place-items: center;
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
   border-radius: 9999px;
   background: var(--color-bnc-accent);
   border: 2px solid #fff;
@@ -102,7 +102,7 @@ const open = computed<boolean>({
   color: #fff;
   font-family: var(--font-mono);
   font-weight: 700;
-  font-size: 8px;
+  font-size: 11px;
   letter-spacing: 0.02em;
   line-height: 1;
 }
