@@ -100,7 +100,7 @@ function initials(name: string): string {
             class="h-full w-full rounded-full object-contain"
             @error="(e) => ((e.target as HTMLImageElement).style.display = 'none')"
           />
-          <span v-else class="font-mono text-[10px] font-bold uppercase tracking-wider">
+          <span v-else class="font-mono text-[11px] font-bold uppercase tracking-wider">
             {{ initials(paluMeta?.name ?? t('nav.palu')) }}
           </span>
         </button>
@@ -127,7 +127,7 @@ function initials(name: string): string {
             class="h-full w-full rounded-full object-contain"
             @error="(e) => ((e.target as HTMLImageElement).style.display = 'none')"
           />
-          <span v-else class="font-mono text-[10px] font-bold uppercase tracking-wider">
+          <span v-else class="font-mono text-[11px] font-bold uppercase tracking-wider">
             {{ initials(donggalaMeta?.name ?? t('nav.donggala')) }}
           </span>
         </button>
