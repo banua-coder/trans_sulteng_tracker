@@ -170,7 +170,7 @@ const year = computed(() => new Date().getFullYear())
     <footer class="mt-16 flex flex-col gap-3 border-t border-bnc-stone-200 pt-6 text-xs text-bnc-stone-500 sm:flex-row sm:items-center sm:justify-between dark:border-bnc-stone-800">
       <div class="flex flex-col gap-1">
         <p>{{ t('footer.data') }}</p>
-        <p class="select-text font-mono text-[10px] tabular-nums text-bnc-stone-400">
+        <p class="select-text font-mono text-[10px] tabular-nums text-bnc-stone-600">
           {{ VERSION_LABEL }}
         </p>
       </div>
