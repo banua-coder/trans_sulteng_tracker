@@ -26,7 +26,7 @@ const city = useCityStore()
 const focus = useFocusStore()
 const selection = useSelectionStore()
 const ui = useUiStore()
-const { corridors, halte, corridorPills } = storeToRefs(brt)
+const { corridors, halte, corridorPills, error } = storeToRefs(brt)
 const { busSearch, mobileTab: tab, mobileScrollY, halteListFilterKor } = storeToRefs(ui)
 
 const scrollEl = ref<HTMLElement | null>(null)
@@ -84,6 +84,15 @@ const filteredRoutes = computed(() => {
 // renders. `corridorPills` is exposed via storeToRefs above so it
 // stays reactive on city switch.
 const filteredHalte = brt.halteListFor(busSearch, halteListFilterKor)
+
+// A failed backend load and a genuinely-empty filtered list both
+// render the same "empty" list slot — but they aren't the same
+// thing. Without this, a 500 reads to the user as "there are no
+// routes/halte" instead of "we couldn't reach the server". Mirrors
+// CorridorPanel's desktop wording so both surfaces agree.
+const emptyMessage = computed(() =>
+  error.value ? `${t('errors.loadFailed')} · ${error.value}` : t('route.empty'),
+)
 
 function pickRoute(kor: string) {
   focus.focus(kor)
@@ -195,7 +204,7 @@ function pickHalte(shId: string) {
         v-if="!filteredRoutes.length"
         class="rounded-md bg-bnc-stone-100 px-3 py-3 font-mono text-[11px] uppercase tracking-wider text-bnc-stone-500 dark:bg-bnc-stone-800"
       >
-        {{ t('route.empty') }}
+        {{ emptyMessage }}
       </li>
     </ul>
 
@@ -282,7 +291,7 @@ function pickHalte(shId: string) {
           v-if="!filteredHalte.length"
           class="rounded-md bg-bnc-stone-100 px-3 py-3 font-mono text-[11px] uppercase tracking-wider text-bnc-stone-500 dark:bg-bnc-stone-800"
         >
-          {{ t('route.empty') }}
+          {{ emptyMessage }}
         </li>
       </ul>
     </template>
