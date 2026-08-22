@@ -2,6 +2,66 @@
 
 All notable releases of cektrans are recorded here. Generated automatically by `release-finalize.yml`.
 
+## v0.9.0 — 2026-08-22
+
+### 🐛 Bug Fixes
+
+- fix(web): reach a terminal offline state when the initial socket handshake never connects (fbef725)
+- fix(web): gate onboarding tour launch to the city route (17d8b13)
+- fix(web): raise Home footer version-label contrast from 2.35:1 to ~7:1 (5ba3a29)
+- fix(web): darken stone-500/stale token to clear 4.5:1 in light mode (a5dc8c6)
+- fix(web): show the real backend error on mobile, not a generic empty state (bccf8c5)
+- fix(web): clip TopBar city-switcher fallback to a two-letter monogram (eaabbbd)
+- fix(web): raise undersized text on the map view to an 11px floor (d221268)
+- fix(web): soften corridor spotlight-dim from 0.1 to 0.35 (507c5d6)
+- fix(web): add a minimum-step backstop so tours never degrade to one orphaned popover (8597d4f)
+
+### 👷 CI
+
+- ci: add path filters, concurrency, and job timeouts (5a50e50)
+- ci: add scheduled CVE audit workflow (5719dfb)
+
+### 🧹 Chore
+
+- chore: bump dev version to 0.9.0 after v0.8.0 release (a9cbb6a)
+- chore: align version to 0.9.0 for back-merge (develop was ahead) (ae83a43)
+- chore: align version to 0.9.0 for back-merge (develop was ahead) (b60ce00)
+- chore: align version to 0.9.0 for back-merge (develop was ahead) (a6e42f7)
+- chore: align version to 0.9.0 for back-merge (develop was ahead) (45afb6a)
+- chore(deps): bump shell-quote to >=1.8.4 — CVE-2026-9277 (f4dfe16)
+- chore: align version to 0.9.0 for back-merge (develop was ahead) (2fa3d8d)
+- chore: align version to 0.9.0 for back-merge (develop was ahead) (5248b19)
+- chore: align version to 0.9.0 for back-merge (develop was ahead) (f71acaf)
+- chore(deps): fix CVE audit findings across JS/TS and Rust deps (c040d93)
+- chore(deps): bump openssl to 0.10.81 — GHSA-phqj-4mhp-q6mq (91391a6)
+- chore: sync cektrans-proxy self-version in Cargo.lock to 0.9.0 (225af4b)
+- chore: reconcile lockfile after merging develop (8eb7a9e)
+
+### 📌 Other
+
+- Merge pull request #80 from banua-coder/chore/bump-dev-version-v0.9.0 (d177cc0)
+- Merge pull request #81 from banua-coder/backmerge/main-to-develop-v0.8.0 (dce5bb5)
+- Merge pull request #83 from banua-coder/backmerge/main-to-develop-v0.8.1 (e70201d)
+- Merge pull request #85 from banua-coder/backmerge/main-to-develop-v0.8.2 (1e41787)
+- Merge pull request #87 from banua-coder/backmerge/main-to-develop-v0.8.3 (a68962b)
+- Merge pull request #90 from banua-coder/backmerge/main-to-develop-v0.8.4 (88a5e31)
+- Merge pull request #91 from banua-coder/feature/optimize-actions-minutes (84c70da)
+- Merge pull request #92 from banua-coder/chore/bump-shell-quote-cve-2026-9277 (812b0df)
+- Merge pull request #95 from banua-coder/backmerge/main-to-develop-v0.8.5 (e85ca24)
+- Merge pull request #97 from banua-coder/backmerge/main-to-develop-v0.8.6 (0a984a7)
+- Merge pull request #101 from banua-coder/backmerge/main-to-develop-v0.8.7 (d73005a)
+- Merge remote-tracking branch 'origin/main' into backmerge/main-to-develop-v0.8.7 (f9be188)
+- Merge pull request #103 from banua-coder/backmerge/main-to-develop-v0.8.7 (cd70d0d)
+- Merge remote-tracking branch 'origin/develop' into chore/cve-audit-fixes-2026-08 (eceb254)
+- Merge pull request #102 from banua-coder/chore/cve-audit-fixes-2026-08 (95b2f8f)
+- Merge pull request #104 from banua-coder/fix/ux-critique-p0-p1-findings (252617e)
+- Merge pull request #105 from banua-coder/fix/corridor-spotlight-dim (c55a4e0)
+- Merge pull request #106 from banua-coder/fix/tour-min-step-threshold (a31a6ad)
+- polish(web): rework the landing page hero — remove eyebrow, add entrance motion + richer card interactions (c476790)
+- Merge pull request #107 from banua-coder/feat/landing-page-polish (ac391fd)
+
+
+
 ## v0.8.7 — 2026-07-06
 
 ### 🐛 Bug Fixes
