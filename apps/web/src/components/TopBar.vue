@@ -26,6 +26,18 @@ const settingsOpen = ref(false)
 function pickCity(slug: CitySlug) {
   city.setCity(slug)
 }
+
+/** Two-letter monogram for the icon-less fallback state. City names
+ *  are proper nouns (same in every locale) but can be a single
+ *  camelCase-ish word ("TransPalu") or space-separated ("Trans
+ *  Donggala") — matching capitalized word-starts handles both. Used
+ *  when city icon metadata is missing/slow to load: the full name
+ *  used to render unclamped inside the 36px circular button and
+ *  spill out of it. */
+function initials(name: string): string {
+  const words = name.match(/[A-Z][a-z]*/g) ?? [name]
+  return words.map((w) => w[0]).join('').slice(0, 2).toUpperCase()
+}
 </script>
 
 <template>
@@ -88,8 +100,8 @@ function pickCity(slug: CitySlug) {
             class="h-full w-full rounded-full object-contain"
             @error="(e) => ((e.target as HTMLImageElement).style.display = 'none')"
           />
-          <span v-else class="font-mono text-[10px] uppercase tracking-wider">
-            {{ t('nav.palu') }}
+          <span v-else class="font-mono text-[10px] font-bold uppercase tracking-wider">
+            {{ initials(paluMeta?.name ?? t('nav.palu')) }}
           </span>
         </button>
         <button
@@ -115,8 +127,8 @@ function pickCity(slug: CitySlug) {
             class="h-full w-full rounded-full object-contain"
             @error="(e) => ((e.target as HTMLImageElement).style.display = 'none')"
           />
-          <span v-else class="font-mono text-[10px] uppercase tracking-wider">
-            {{ t('nav.donggala') }}
+          <span v-else class="font-mono text-[10px] font-bold uppercase tracking-wider">
+            {{ initials(donggalaMeta?.name ?? t('nav.donggala')) }}
           </span>
         </button>
       </nav>
