@@ -9,7 +9,12 @@
  *   socket idle / connecting               → "Memuat data bus…"
  *   socket live + subscribe grace window   → "Memuat data bus…"
  *   socket live + grace expired, no buses  → "Menunggu data bus…"
- *   socket offline                         → "Koneksi terputus"
+ *   socket offline                         → "Koneksi terputus" (tap to retry)
+ *
+ * "offline" now covers both a connection that dropped after
+ * connecting and one whose initial handshake never succeeded (see
+ * stores/socket.ts CONNECT_TIMEOUT_MS) — either way the badge
+ * becomes a button so the user isn't left staring at a dead end.
  *
  * We don't claim "Bus belum beroperasi" any more. The previous
  * version derived that from a hardcoded 06–18 WITA window seeded
@@ -75,18 +80,35 @@ const isAnimated = computed(() => status.value === 'loading' || status.value ===
   <transition name="badge-fade">
     <div
       v-if="status"
-      class="pointer-events-auto absolute left-3 top-3 z-[800] flex items-center gap-2 rounded-full border border-bnc-stone-200 bg-white/95 px-3 py-1.5 text-xs shadow-[var(--shadow-elevated)] backdrop-blur dark:border-bnc-stone-800 dark:bg-bnc-stone-900/95"
+      class="pointer-events-auto absolute left-3 top-3 z-[800] rounded-full border border-bnc-stone-200 bg-white/95 shadow-[var(--shadow-elevated)] backdrop-blur dark:border-bnc-stone-800 dark:bg-bnc-stone-900/95"
       role="status"
       aria-live="polite"
     >
-      <span
-        class="live-dot"
-        :style="isAnimated ? undefined : { background: 'var(--color-stale)', animation: 'none' }"
-        aria-hidden
-      />
-      <span class="font-mono text-[11px] uppercase tracking-wider text-bnc-stone-700 dark:text-bnc-stone-200">
-        {{ label }}
-      </span>
+      <button
+        v-if="status === 'offline'"
+        type="button"
+        class="flex cursor-pointer items-center gap-2 px-3 py-1.5 text-xs"
+        @click="socket.retry()"
+      >
+        <span
+          class="live-dot"
+          :style="{ background: 'var(--color-stale)', animation: 'none' }"
+          aria-hidden
+        />
+        <span class="font-mono text-[11px] uppercase tracking-wider text-bnc-stone-700 dark:text-bnc-stone-200">
+          {{ label }} · {{ t('errors.retry') }}
+        </span>
+      </button>
+      <div v-else class="flex items-center gap-2 px-3 py-1.5 text-xs">
+        <span
+          class="live-dot"
+          :style="isAnimated ? undefined : { background: 'var(--color-stale)', animation: 'none' }"
+          aria-hidden
+        />
+        <span class="font-mono text-[11px] uppercase tracking-wider text-bnc-stone-700 dark:text-bnc-stone-200">
+          {{ label }}
+        </span>
+      </div>
     </div>
   </transition>
 </template>
