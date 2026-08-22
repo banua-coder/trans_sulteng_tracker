@@ -87,28 +87,31 @@ const year = computed(() => new Date().getFullYear())
 
 <template>
   <section class="container mx-auto max-w-[var(--container-max)] px-6 py-12 sm:py-16">
-    <p class="font-mono text-[11px] uppercase tracking-[0.2em] text-bnc-stone-500">
-      cektrans · realtime
-    </p>
-    <h1
-      class="mt-3 max-w-3xl font-display text-[clamp(2rem,1.4rem+2.5vw,3.4rem)] font-semibold leading-[1.05] tracking-tight"
-    >
-      {{ t('brand.tagline') }}
-    </h1>
-    <p class="mt-4 max-w-prose text-bnc-stone-600 dark:text-bnc-stone-300">
-      Tahu kapan bus tiba — sebelum kamu jalan ke halte. Posisi langsung
-      dari sistem resmi Mitra Darat, diperbarui setiap detik.
-    </p>
+    <transition name="hero-rise" appear>
+      <h1
+        style="--reveal-i: 0"
+        class="max-w-3xl font-display text-[clamp(2rem,1.4rem+2.5vw,3.4rem)] font-semibold leading-[1.05] tracking-tight"
+      >
+        {{ t('brand.tagline') }}
+      </h1>
+    </transition>
+    <transition name="hero-rise" appear>
+      <p style="--reveal-i: 1" class="mt-4 max-w-prose text-bnc-stone-600 dark:text-bnc-stone-300">
+        Tahu kapan bus tiba — sebelum kamu jalan ke halte. Posisi langsung
+        dari sistem resmi Mitra Darat, diperbarui setiap detik.
+      </p>
+    </transition>
 
-    <div class="mt-10 grid gap-4 sm:grid-cols-2">
+    <transition-group tag="div" name="hero-rise" appear class="mt-10 grid gap-4 sm:grid-cols-2">
       <RouterLink
-        v-for="c in cards"
+        v-for="(c, i) in cards"
         :key="c.slug"
+        :style="{ '--reveal-i': i + 2 }"
         :to="{ name: 'city', params: { city: c.slug } }"
-        class="group relative flex flex-col justify-between gap-6 overflow-hidden rounded-[var(--radius-lg)] border border-bnc-stone-200 bg-white p-6 shadow-[var(--shadow-subtle)] transition-shadow hover:shadow-[var(--shadow-elevated)] dark:border-bnc-stone-800 dark:bg-bnc-stone-900"
+        class="group relative flex flex-col justify-between gap-6 overflow-hidden rounded-[var(--radius-lg)] border border-bnc-stone-200 bg-white p-6 shadow-[var(--shadow-subtle)] transition-[box-shadow,transform] duration-200 ease-out hover:-translate-y-0.5 hover:shadow-[var(--shadow-elevated)] active:translate-y-0 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bnc-accent focus-visible:ring-offset-2 dark:border-bnc-stone-800 dark:bg-bnc-stone-900 dark:focus-visible:ring-offset-bnc-stone-900"
       >
         <span
-          class="absolute inset-x-0 top-0 h-1"
+          class="absolute inset-x-0 top-0 h-1 origin-left scale-x-75 transition-transform duration-300 ease-out group-hover:scale-x-100"
           :style="{ background: c.accent }"
           aria-hidden
         />
@@ -130,8 +133,9 @@ const year = computed(() => new Date().getFullYear())
           <div class="min-w-0 flex-1">
             <p
               v-if="c.city"
-              class="font-mono text-[11px] uppercase tracking-wider text-bnc-stone-500"
+              class="flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-wider text-bnc-stone-500"
             >
+              <span class="live-dot" aria-hidden />
               {{ c.city }}
             </p>
             <h2 class="mt-1 font-display text-2xl font-semibold tracking-tight">
@@ -143,7 +147,7 @@ const year = computed(() => new Date().getFullYear())
           </div>
         </div>
         <span
-          class="inline-flex items-center gap-2 font-mono text-xs uppercase tracking-wider text-bnc-stone-600 transition-transform group-hover:translate-x-1 dark:text-bnc-stone-300"
+          class="inline-flex items-center gap-2 font-mono text-xs uppercase tracking-wider text-bnc-stone-600 transition-transform duration-200 ease-out group-hover:translate-x-1 dark:text-bnc-stone-300"
         >
           Lacak sekarang
           <svg
@@ -158,7 +162,7 @@ const year = computed(() => new Date().getFullYear())
           </svg>
         </span>
       </RouterLink>
-    </div>
+    </transition-group>
 
     <p
       v-if="error"
@@ -170,7 +174,7 @@ const year = computed(() => new Date().getFullYear())
     <footer class="mt-16 flex flex-col gap-3 border-t border-bnc-stone-200 pt-6 text-xs text-bnc-stone-500 sm:flex-row sm:items-center sm:justify-between dark:border-bnc-stone-800">
       <div class="flex flex-col gap-1">
         <p>{{ t('footer.data') }}</p>
-        <p class="select-text font-mono text-[10px] tabular-nums text-bnc-stone-400">
+        <p class="select-text font-mono text-[10px] tabular-nums text-bnc-stone-600">
           {{ VERSION_LABEL }}
         </p>
       </div>
@@ -189,3 +193,24 @@ const year = computed(() => new Date().getFullYear())
     </footer>
   </section>
 </template>
+
+<style scoped>
+/* One authored entrance: headline, subhead, then the two city cards
+ * rise in with a short stagger (--reveal-i set per element above).
+ * cubic-bezier(0.16, 1, 0.3, 1) is a standard expo-out curve — quick
+ * start, soft settle, no bounce — matching this app's otherwise
+ * restrained motion elsewhere (BusDataBadge, panel slide-ups). */
+.hero-rise-enter-active {
+  transition: opacity 450ms cubic-bezier(0.16, 1, 0.3, 1), transform 450ms cubic-bezier(0.16, 1, 0.3, 1);
+  transition-delay: calc(var(--reveal-i, 0) * 90ms);
+}
+.hero-rise-enter-from {
+  opacity: 0;
+  transform: translateY(16px);
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero-rise-enter-active {
+    transition: none;
+  }
+}
+</style>

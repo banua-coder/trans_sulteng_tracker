@@ -21,15 +21,26 @@ function syncFromRoute() {
   }
 }
 
+// Most tour steps target city-view-only controls (map toggles,
+// filters, export); only the settings button lives in the global
+// TopBar. Gating to the city route (rather than firing on whatever
+// route happens to be mounted first) avoids a first-time visitor
+// landing on Home and getting a single orphaned coach-mark for a
+// secondary feature before they've even picked a city.
+let tourAttempted = false
+function maybeStartTour() {
+  if (tourAttempted || route.name !== 'city') return
+  tourAttempted = true
+  void tour.maybeStartForVersion()
+}
+
 onMounted(() => {
   syncFromRoute()
   void brt.loadCities()
-  // Show the release tour once after a version bump. Skips silently
-  // when the user has already seen this version or when none of the
-  // tour targets exist on the current page (e.g. the home view).
-  void tour.maybeStartForVersion()
+  maybeStartTour()
 })
 watch(() => route.params.city, syncFromRoute)
+watch(() => route.name, maybeStartTour)
 
 watch(
   () => city.slug,

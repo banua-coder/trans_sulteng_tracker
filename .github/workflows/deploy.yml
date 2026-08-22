@@ -21,6 +21,7 @@ env:
 jobs:
   resolve-version:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     outputs:
       version: ${{ steps.v.outputs.version }}
     steps:
@@ -38,6 +39,7 @@ jobs:
   build-web:
     needs: resolve-version
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: read
       packages: write
@@ -90,6 +92,7 @@ jobs:
   build-proxy:
     needs: resolve-version
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: read
       packages: write
@@ -125,6 +128,7 @@ jobs:
   deploy:
     needs: [resolve-version, build-web, build-proxy]
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     # `packages: read` lets us pass GITHUB_TOKEN to the VPS so the
     # daemon can pull the freshly-built images without relying on
     # a long-lived PAT cached in ~/.docker/config.json (that's how
@@ -211,6 +215,7 @@ jobs:
   smoke:
     needs: deploy
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v6
 

@@ -601,7 +601,13 @@ function applyFocus(force = false) {
         for (const ln of all) ln.setStyle({ color: baseColor, opacity: 0.95, weight: 6 })
       }
     } else {
-      for (const ln of all) ln.setStyle({ color: baseColor, opacity: 0.1, weight: 2 })
+      // Dimmed, not hidden: a first-time rider who hasn't picked a
+      // corridor yet should still register that other routes exist.
+      // 0.35 matches the existing "de-emphasized but visible" level
+      // used above for off-hours corridors (baseDim) — same visual
+      // language, not a new one. Previously 0.1, which read as
+      // near-invisible to anyone who wasn't already a TJ power user.
+      for (const ln of all) ln.setStyle({ color: baseColor, opacity: 0.35, weight: 2 })
     }
   }
 
@@ -625,7 +631,10 @@ function applyFocus(force = false) {
       }
       continue
     }
-    const opacity = fk === null || kor === fk ? 1 : 0.2
+    // Same softened dim as the corridor lines above (see comment
+    // there) — kept in sync so lines and their halte read as one
+    // de-emphasized group rather than two different intensities.
+    const opacity = fk === null || kor === fk ? 1 : 0.35
     for (const m of all) m.setStyle({ opacity, fillOpacity: opacity })
   }
 

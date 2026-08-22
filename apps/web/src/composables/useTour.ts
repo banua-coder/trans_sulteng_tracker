@@ -93,6 +93,21 @@ function majorMinor(v: string): string {
   return `${a}.${b}`
 }
 
+/** Below this many surviving steps, a tour reads as one orphaned
+ *  popover rather than a guided walkthrough — this is what happened
+ *  when the tour used to auto-fire on Home and only its
+ *  settings-button step had a matching target there. App.vue now
+ *  gates tour launch to the city route, which is the real fix; this
+ *  is a backstop for any future tour/route mismatch we haven't
+ *  anticipated, so a badly-timed launch degrades to "no tour" instead
+ *  of a single stray coach-mark. Exported so the threshold itself is
+ *  unit-testable without mocking driver.js. */
+export const MIN_TOUR_STEPS = 2
+
+export function isTourWorthShowing(stepCount: number): boolean {
+  return stepCount >= MIN_TOUR_STEPS
+}
+
 export function useTour() {
   const { t } = useI18n()
 
@@ -111,7 +126,7 @@ export function useTour() {
   }
 
   function run(steps: DriveStep[]) {
-    if (!steps.length) return
+    if (!isTourWorthShowing(steps.length)) return
     const d = driver({
       steps,
       showProgress: true,

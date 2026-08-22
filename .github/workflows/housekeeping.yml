@@ -6,6 +6,10 @@ on:
   push:
     branches: [main, develop]
 
+concurrency:
+  group: housekeeping-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   housekeeping:
     name: Housekeeping
