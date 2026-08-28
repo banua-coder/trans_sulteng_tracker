@@ -1,30 +1,33 @@
 import L from 'leaflet'
 
-const ATTR =
-  '&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+/** OpenFreeMap — genuinely free, no API key/signup/request limits,
+ *  MIT-licensed, self-hostable. Replaces CARTO's raster basemaps,
+ *  which now require an API key and watermark keyless requests.
+ *  `positron`/`dark` are forked from the same OpenMapTiles style
+ *  family CARTO's own Voyager/Dark Matter derive from, so the look
+ *  stays close to what this app shipped with before. */
+const OPENFREEMAP_ATTR =
+  'OpenFreeMap &copy; <a href="https://www.openmaptiles.org/">OpenMapTiles</a> Data from <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
 
-/** CARTO Voyager — light, road-forward basemap. */
-export function voyagerTiles(): L.TileLayer {
-  return L.tileLayer(
-    'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
-    {
-      subdomains: 'abcd',
-      maxZoom: 20,
-      attribution: ATTR,
-    },
-  )
+function openFreeMapTiles(style: 'positron' | 'dark'): L.MaplibreGL {
+  return L.maplibreGL({
+    style: `https://tiles.openfreemap.org/styles/${style}`,
+    // The plugin always disables MapLibre's own built-in attribution
+    // widget internally (regardless of this option) and instead reads
+    // attributionControl.customAttribution to feed Leaflet's control
+    // — this does not add a second, duplicate attribution UI.
+    attributionControl: { customAttribution: OPENFREEMAP_ATTR },
+  })
 }
 
-/** CARTO Dark Matter — clean dark basemap, used for dark mode. */
-export function darkMatterTiles(): L.TileLayer {
-  return L.tileLayer(
-    'https://{s}.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}{r}.png',
-    {
-      subdomains: 'abcd',
-      maxZoom: 20,
-      attribution: ATTR,
-    },
-  )
+/** OpenFreeMap Positron — light, road-forward basemap. */
+export function lightTiles(): L.MaplibreGL {
+  return openFreeMapTiles('positron')
+}
+
+/** OpenFreeMap Dark — clean dark basemap, used for dark mode. */
+export function darkTiles(): L.MaplibreGL {
+  return openFreeMapTiles('dark')
 }
 
 /** ESRI World Imagery — free satellite/aerial tiles, no API key.

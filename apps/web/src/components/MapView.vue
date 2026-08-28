@@ -15,7 +15,7 @@ import { useTripStore } from '@/stores/trip'
 import { useUiStore } from '@/stores/ui'
 import type { PlanResult } from '@/lib/tripPlanner'
 import { busIcon, halteHaloMarker, halteMarker } from '@/lib/leaflet/markers'
-import { darkMatterTiles, satelliteTiles, voyagerTiles } from '@/lib/leaflet/tiles'
+import { darkTiles, lightTiles, satelliteTiles } from '@/lib/leaflet/tiles'
 import { useTheme } from '@/lib/theme'
 import { haversineMeters, isStale } from '@/lib/format'
 import { trackEvent } from '@/lib/analytics'
@@ -45,7 +45,7 @@ const {
 
 const containerEl = shallowRef<HTMLElement | null>(null)
 let map: L.Map | null = null
-let tileLayer: L.TileLayer | null = null
+let tileLayer: L.Layer | null = null
 const corridorLayer = L.layerGroup()
 const halteLayer = L.layerGroup()
 const busLayer = L.layerGroup()
@@ -952,10 +952,11 @@ watch(
 // Swap the basemap when the theme toggles.
 /** Pick the tile layer that matches the current basemap mode and
  *  theme. Satellite mode ignores dark mode (ESRI doesn't offer a
- *  dark variant); CARTO swaps between Voyager + Dark Matter. */
-function currentTiles(): L.TileLayer {
+ *  dark variant); the OpenFreeMap vector basemap swaps between its
+ *  light and dark styles. */
+function currentTiles(): L.Layer {
   if (tileMode.value === 'satellite') return satelliteTiles()
-  return isDark.value ? darkMatterTiles() : voyagerTiles()
+  return isDark.value ? darkTiles() : lightTiles()
 }
 
 watch([isDark, tileMode], () => {

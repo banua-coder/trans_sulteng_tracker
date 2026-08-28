@@ -9,6 +9,7 @@ import { initAnalytics, trackPageView } from './lib/analytics'
 
 import './styles/global.css'
 import 'leaflet/dist/leaflet.css'
+import 'maplibre-gl/dist/maplibre-gl.css'
 
 const stored = localStorage.getItem('cektrans:locale') as Locale | null
 const initialLocale: Locale = stored ?? 'id'

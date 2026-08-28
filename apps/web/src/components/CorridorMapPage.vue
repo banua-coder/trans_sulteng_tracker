@@ -13,7 +13,7 @@ import polyline from '@mapbox/polyline'
 import QRCode from 'qrcode'
 import { computed, onBeforeUnmount, onMounted, shallowRef, watch } from 'vue'
 import { useBrtStore } from '@/stores/brt'
-import { satelliteTiles, voyagerTiles } from '@/lib/leaflet/tiles'
+import { lightTiles, satelliteTiles } from '@/lib/leaflet/tiles'
 import { buildHalteIndex, isTransfer, otherCorridorsAt } from '@/lib/exportMap'
 import BanuacoderLogo from '@/components/BanuacoderLogo.vue'
 import type { BrtCorridor, BrtHalte } from '@/types/brt'
@@ -146,10 +146,10 @@ async function renderQR() {
 // before adding the new — without this, every redraw stacks fresh
 // polyline + N markers onto the layer container and leaks DOM nodes.
 let drawnLayers: L.Layer[] = []
-let tileLayer: L.TileLayer | null = null
+let tileLayer: L.Layer | null = null
 
-function makeTileLayer(): L.TileLayer {
-  return props.tileMode === 'satellite' ? satelliteTiles() : voyagerTiles()
+function makeTileLayer(): L.Layer {
+  return props.tileMode === 'satellite' ? satelliteTiles() : lightTiles()
 }
 
 onMounted(async () => {
