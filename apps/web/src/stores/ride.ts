@@ -374,7 +374,7 @@ export const useRideStore = defineStore('ride', () => {
       : null
     const paths = buildTripPaths(
       plan,
-      { corridorByKor: brt.corridorByKor, halte: brt.halte, colorForKor: brt.colorForKor },
+      { corridorByKor: brt.planCorridorByKor, halte: brt.planHalte, colorForKor: brt.colorForKor },
       originPt,
       destPt,
     )

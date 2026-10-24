@@ -100,16 +100,22 @@ export const useTripStore = defineStore('trip', () => {
    *  parallel before building so the worker gets the full picture. */
   async function buildGraph() {
     graphReady.value = false
+    // The other city joins the graph so a trip can cross the border
+    // (Wisma Donggala ↔ Halte Unisa is a 96 m walk).
+    if (!brt.foreignCorridors.length) {
+      await brt.loadForeign(city.pref === '12' ? '11' : '12')
+    }
+    const corridors = [...brt.corridors, ...brt.foreignCorridors]
     // Prefetch per-leg in parallel — covers bulk feed gaps.
     const prefetches: Promise<unknown>[] = []
-    for (const c of brt.corridors) {
+    for (const c of corridors) {
       prefetches.push(brt.ensureHalteForLeg(c.kor, c.toward, c.origin).catch(() => {}))
       prefetches.push(brt.ensureHalteForLeg(c.kor, c.origin, c.toward).catch(() => {}))
     }
     await Promise.all(prefetches)
 
     const halteByLeg: import('@/types/brt').BrtHalte[][] = []
-    for (const c of brt.corridors) {
+    for (const c of corridors) {
       const a = brt.getHalteForLeg(c.kor, c.toward, c.origin)
       const b = brt.getHalteForLeg(c.kor, c.origin, c.toward)
       if (a.length) halteByLeg.push(a)
@@ -120,9 +126,9 @@ export const useTripStore = defineStore('trip', () => {
       // postMessage uses structured clone, which can't clone Proxies.
       await call<{ type: 'graphReady'; nodeCount: number }>({
         type: 'buildGraph',
-        corridors: JSON.parse(JSON.stringify(brt.corridors)),
+        corridors: JSON.parse(JSON.stringify(corridors)),
         halteByLeg: JSON.parse(JSON.stringify(halteByLeg)),
-        allHalte: JSON.parse(JSON.stringify(brt.halte)),
+        allHalte: JSON.parse(JSON.stringify(brt.planHalte)),
       })
       graphReady.value = true
     } catch (e) {
@@ -171,10 +177,10 @@ export const useTripStore = defineStore('trip', () => {
       // allows K4A to end the trip.
       let destKors: string[] | null = null
       if (destination.value.sh_id) {
-        const h = brt.halte.find((x) => x.sh_id === destination.value!.sh_id)
+        const h = brt.planHalte.find((x) => x.sh_id === destination.value!.sh_id)
         if (h) {
           const kors = new Set<string>()
-          for (const row of brt.halte) {
+          for (const row of brt.planHalte) {
             if (row.sh_name !== h.sh_name) continue
             kors.add(row.kor)
             for (const k of (row.in_koridor ?? '').split('|').filter(Boolean)) kors.add(k)
@@ -247,7 +253,7 @@ export const useTripStore = defineStore('trip', () => {
   const MATCH_RADIUS_M = 200
 
   function coordForName(name: string): { lat: number; lng: number } | null {
-    for (const h of brt.halte) {
+    for (const h of brt.planHalte) {
       if (h.sh_name !== name) continue
       const lat = parseFloat(h.sh_lat)
       const lng = parseFloat(h.sh_lng)
@@ -276,7 +282,7 @@ export const useTripStore = defineStore('trip', () => {
     const names = new Set<string>()
     for (const step of plan.steps) {
       if (step.kind !== 'ride' || !step.kor) continue
-      const c = brt.corridorByKor.get(step.kor)
+      const c = brt.planCorridorByKor.get(step.kor)
       if (!c) continue
       const legA = brt.getHalteForLeg(step.kor, c.toward, c.origin)
       const legB = brt.getHalteForLeg(step.kor, c.origin, c.toward)

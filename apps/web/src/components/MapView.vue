@@ -315,7 +315,7 @@ function corridorSlice(
   fromCoord: L.LatLngTuple,
   toCoord: L.LatLngTuple,
 ): L.LatLngTuple[] | null {
-  const c = brt.corridorByKor.get(kor)
+  const c = brt.planCorridorByKor.get(kor)
   if (!c) return null
 
   function trySlice(enc: string | undefined | null): { slice: L.LatLngTuple[]; snap: number } | null {
@@ -378,8 +378,8 @@ function drawTripPreview(plan: PlanResult | null) {
   }
 
   function halteCoordByName(name: string, kor: string | undefined): L.LatLngTuple | null {
-    const h = (kor && brt.halte.find((x) => x.sh_name === name && x.kor === kor))
-      ?? brt.halte.find((x) => x.sh_name === name)
+    const h = (kor && brt.planHalte.find((x) => x.sh_name === name && x.kor === kor))
+      ?? brt.planHalte.find((x) => x.sh_name === name)
     if (!h) return null
     const lat = parseFloat(h.sh_lat)
     const lng = parseFloat(h.sh_lng)

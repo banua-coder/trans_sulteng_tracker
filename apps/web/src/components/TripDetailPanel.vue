@@ -20,6 +20,7 @@ import CopyLinkButton from '@/components/CopyLinkButton.vue'
 import PlateBadge from '@/components/PlateBadge.vue'
 import SheetStickyHeader from '@/components/SheetStickyHeader.vue'
 import type { PlanStep } from '@/lib/tripPlanner'
+import { korLabel } from '@/lib/crossCity'
 
 const { t } = useI18n()
 const trip = useTripStore()
@@ -75,7 +76,7 @@ watch(
       if (step.kind !== 'ride' || !step.kor) continue
       if (seen.has(step.kor)) continue
       seen.add(step.kor)
-      const c = brt.corridorByKor.get(step.kor)
+      const c = brt.planCorridorByKor.get(step.kor)
       if (!c) continue
       brt.ensureHalteForLeg(step.kor, c.toward, c.origin).catch(() => {})
       brt.ensureHalteForLeg(step.kor, c.origin, c.toward).catch(() => {})
@@ -110,8 +111,8 @@ const totalKm = computed(() => {
 })
 
 function coordForName(name: string, kor: string | undefined): { lat: number; lng: number } | null {
-  const h = (kor && brt.halte.find((x) => x.sh_name === name && x.kor === kor))
-    ?? brt.halte.find((x) => x.sh_name === name)
+  const h = (kor && brt.planHalte.find((x) => x.sh_name === name && x.kor === kor))
+    ?? brt.planHalte.find((x) => x.sh_name === name)
   if (!h) return null
   const lat = parseFloat(h.sh_lat)
   const lng = parseFloat(h.sh_lng)
@@ -230,7 +231,7 @@ function focusStep(step: PlanStep) {
                 class="inline-flex items-center rounded-md px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-white"
                 :style="{ background: colorForStep(step) }"
               >
-                {{ step.kor }}
+                {{ korLabel(step.kor ?? '') }}
               </span>
               <span class="[overflow-wrap:anywhere]">{{ step.fromName }} → {{ step.toName }}</span>
             </p>
