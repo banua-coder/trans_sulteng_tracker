@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { badgeBg, onColor } from '@/lib/color'
+import { korLabel } from '@/lib/crossCity'
 /**
  * Live trip companion HUD. Replaces TripDetailPanel content while
  * a ride is active. Status-driven content: one big metric + at most
@@ -45,7 +46,7 @@ const title = computed(() => {
     case 'walking':
       return t('ride.hud.walking', { target: step?.toName ?? '—' })
     case 'waiting':
-      return t('ride.hud.waiting', { kor: step?.kor ?? '—' })
+      return t('ride.hud.waiting', { kor: korLabel(step?.kor ?? '—') })
     case 'on-bus':
       return t('ride.hud.onBus', { target: step?.toName ?? '—' })
     case 'transferring':
@@ -108,7 +109,7 @@ const durationMin = computed(() => {
         :style="{ background: badgeBg(korColor), color: onColor(badgeBg(korColor)) }"
         aria-hidden
       >
-        {{ currentStep?.kor || '·' }}
+        {{ korLabel(currentStep?.kor ?? '') || '·' }}
       </span>
       <div class="min-w-0 flex-1">
         <p class="font-mono text-[10px] uppercase tracking-wider text-bnc-stone-500">

@@ -140,8 +140,8 @@ onBeforeUnmount(() => {
     ref="sheetEl"
     class="pointer-events-auto fixed inset-x-0 bottom-0 z-[900] flex flex-col rounded-t-[var(--radius-lg)] border-t border-bnc-stone-200 bg-bnc-paper shadow-[var(--shadow-elevated)] dark:border-bnc-stone-800 dark:bg-bnc-stone-900 lg:hidden"
     :style="sheetStyle"
-    role="dialog"
-    aria-label="Panel koridor"
+    role="region"
+    :aria-label="t('sheet.label')"
   >
     <!-- Drag zone: the whole top row, not just the pill, and
          touch-action none so a finger drag moves the sheet instead of
@@ -167,7 +167,7 @@ onBeforeUnmount(() => {
       </button>
     </div>
 
-    <div class="min-h-0 overflow-y-auto px-4 pb-4" data-sheet-scroll>
+    <div class="min-h-0 overflow-y-auto px-4 pb-4" data-sheet-scroll :inert="snap === 'peek' || undefined">
       <div ref="contentEl"><slot /></div>
     </div>
   </aside>

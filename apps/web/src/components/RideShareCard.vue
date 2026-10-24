@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { badgeBg, onColor } from '@/lib/color'
+import { korLabel } from '@/lib/crossCity'
 /**
  * Strava-style end-of-trip share card. Rendered offscreen at a
  * fixed 1080×1350 (IG story 9:16, reads cleanly on WA + Twitter).
@@ -123,7 +124,7 @@ function fmt(m: number): string {
           class="inline-flex items-center rounded-md px-2 py-1 font-mono text-sm font-bold uppercase tracking-wider text-white"
           :style="{ background: badgeBg(c.color), color: onColor(badgeBg(c.color)) }"
         >
-          {{ c.kor }}
+          {{ korLabel(c.kor) }}
         </span>
       </div>
     </header>

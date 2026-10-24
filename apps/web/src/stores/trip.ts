@@ -521,7 +521,11 @@ export const useTripStore = defineStore('trip', () => {
   }
 
   // Rebuild graph when the city changes (different corridors / halte).
+  // The other city arriving (or failing and retrying) changes the graph.
+  watch(() => brt.foreignCorridors.length, () => { graphReady.value = false })
+
   watch(() => city.pref, () => {
+    foreignLoading = null
     graphReady.value = false
     clear()
   })

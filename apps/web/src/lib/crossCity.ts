@@ -17,6 +17,8 @@ export function korCity(kor: string): string | null {
   return p === '11' ? 'Donggala' : p === '12' ? 'Palu' : null
 }
 
+export const isNsKor = (kor: string): boolean => kor.includes(':')
+
 /** Code shown to riders: always the plain one. */
 export const korLabel = (kor: string): string => splitKor(kor).kor
 

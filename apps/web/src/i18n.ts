@@ -91,7 +91,7 @@ export const messages = {
       loadFailed: 'Gagal memuat data',
       retry: 'Coba lagi',
     },
-    sheet: { showMap: 'Lihat peta', showPanel: 'Buka panel' },
+    sheet: { showMap: 'Lihat peta', showPanel: 'Buka panel', label: 'Panel informasi' },
     sidebar: {
       whereTo: 'Mau ke mana?',
       routes: 'Rute',
@@ -408,7 +408,7 @@ export const messages = {
       loadFailed: 'Failed to load data',
       retry: 'Retry',
     },
-    sheet: { showMap: 'Show map', showPanel: 'Open panel' },
+    sheet: { showMap: 'Show map', showPanel: 'Open panel', label: 'Information panel' },
     sidebar: {
       whereTo: 'Where to?',
       routes: 'Routes',
