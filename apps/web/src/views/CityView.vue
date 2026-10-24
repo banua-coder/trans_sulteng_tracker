@@ -96,10 +96,7 @@ onBeforeUnmount(() => {
          the map's h-full computes against, so size changes propagate
          and the ResizeObserver in MapView fires invalidateSize. -->
     <section class="relative min-h-0 lg:[--sheet-h:0px]">
-      <div
-        class="absolute inset-x-0 top-0"
-        :style="{ bottom: 'var(--sheet-h, 88px)', transition: 'bottom 280ms ease' }"
-      >
+      <div class="absolute inset-0">
         <MapView class="h-full w-full" />
       </div>
       <!-- Phone: a floating "where to?" pill, the planner's front door. -->

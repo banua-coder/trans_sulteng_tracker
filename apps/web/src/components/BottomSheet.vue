@@ -10,8 +10,10 @@
  */
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useUiStore } from '@/stores/ui'
 
 const { t } = useI18n()
+const ui = useUiStore()
 
 // Two snaps only — peek (handle + first row) and mid (50 dvh, the
 // user-requested cap). No 'full' snap, so the sheet never covers
@@ -36,14 +38,25 @@ const dragging = ref(false)
 
 let startY = 0
 
-// Peek is a fixed strip. Mid fits its content up to half the viewport,
-// so a short detail card does not leave an empty panel under it.
+// Peek is a fixed strip. Mid fits its content up to 45% of the screen,
+// so a short detail card leaves no empty panel under it. Height is an
+// explicit px value (never 'auto') so every change, including content
+// swaps, animates instead of jumping.
+const MAX_FRACTION = 0.45
+const HANDLE_PX = 44
+const BOTTOM_PAD_PX = 16
+const contentEl = ref<HTMLElement | null>(null)
+const contentH = ref(0)
+const viewportH = ref(typeof window === 'undefined' ? 800 : window.innerHeight)
+const midPx = computed(() =>
+  Math.round(Math.min(HANDLE_PX + contentH.value + BOTTOM_PAD_PX, viewportH.value * MAX_FRACTION)),
+)
 const sheetStyle = computed(() => ({
   bottom: 'var(--nav-h, 0px)',
-  height: snap.value === 'peek' ? `${PEEK_PX}px` : 'auto',
-  maxHeight: '50dvh',
-  transition: 'height 280ms ease',
+  height: `${snap.value === 'peek' ? PEEK_PX : midPx.value}px`,
+  transition: 'height 200ms cubic-bezier(0.2, 0.8, 0.2, 1)',
 }))
+function onResize() { viewportH.value = window.innerHeight }
 
 // Swipe up opens, swipe down collapses; a plain tap toggles. The sheet
 // height itself animates (see sheetStyle), so no per-pixel tracking.
@@ -75,12 +88,15 @@ function cycle() {
 // amount of bottom inset (and re-flow when the user drags). The map
 // frame will end at the sheet's top edge at every snap.
 let sizeObserver: ResizeObserver | null = null
+let contentObserver: ResizeObserver | null = null
 
 function syncCssVar() {
   if (typeof document === 'undefined' || !sheetEl.value) return
   // The sheet rides above the bottom nav, so the map must clear both.
   const nav = document.getElementById('mobile-nav')?.offsetHeight ?? 0
-  document.documentElement.style.setProperty('--sheet-h', `${sheetEl.value.offsetHeight + nav}px`)
+  const total = sheetEl.value.offsetHeight + nav
+  document.documentElement.style.setProperty('--sheet-h', `${total}px`)
+  ui.sheetH = total
 }
 
 onMounted(() => {
@@ -89,6 +105,11 @@ onMounted(() => {
   if (sheetEl.value && typeof ResizeObserver !== 'undefined') {
     sizeObserver = new ResizeObserver(syncCssVar)
     sizeObserver.observe(sheetEl.value)
+    if (contentEl.value) {
+      contentObserver = new ResizeObserver(() => { contentH.value = contentEl.value?.offsetHeight ?? 0 })
+      contentObserver.observe(contentEl.value)
+    }
+    window.addEventListener('resize', onResize)
     const nav = document.getElementById('mobile-nav')
     if (nav) sizeObserver.observe(nav)
   }
@@ -98,8 +119,11 @@ watch(snap, () => nextTick(syncCssVar))
 
 onBeforeUnmount(() => {
   sizeObserver?.disconnect()
+  contentObserver?.disconnect()
+  window.removeEventListener('resize', onResize)
   if (typeof document !== 'undefined') {
     document.documentElement.style.removeProperty('--sheet-h')
+    ui.sheetH = 0
   }
 })
 </script>
@@ -137,7 +161,7 @@ onBeforeUnmount(() => {
     </div>
 
     <div class="min-h-0 overflow-y-auto px-4 pb-4" data-sheet-scroll>
-      <slot />
+      <div ref="contentEl"><slot /></div>
     </div>
   </aside>
 </template>
