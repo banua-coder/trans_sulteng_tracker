@@ -70,6 +70,11 @@ watch(detail, (d) => {
   else if (d === 'trip') tab.value = 'plan'
 })
 
+// Planning from a stop card fills the planner; show it.
+watch(() => [trip.origin, trip.destination], () => {
+  if (!detail.value && (trip.origin || trip.destination)) tab.value = 'plan'
+})
+
 /** Picking a tab while a detail is open leaves that detail. */
 function pick(id: Tab) {
   if (detail.value) {

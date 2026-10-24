@@ -5,7 +5,8 @@ import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
 import { useSelectionStore } from '@/stores/selection'
 import { useBrtStore } from '@/stores/brt'
-import { formatDistance, formatSpeed, parsePassenger } from '@/lib/format'
+import { formatDistance, formatSpeed, haversineMeters, parsePassenger } from '@/lib/format'
+import { useTripStore, type Endpoint } from '@/stores/trip'
 import CopyLinkButton from '@/components/CopyLinkButton.vue'
 import PlateBadge from '@/components/PlateBadge.vue'
 import EtaQualityGuide from '@/components/EtaQualityGuide.vue'
@@ -15,6 +16,7 @@ import { useHalteAnnouncements } from '@/composables/useHalteAnnouncements'
 const { t } = useI18n()
 const selection = useSelectionStore()
 const brt = useBrtStore()
+const trip = useTripStore()
 const { selectedHalte, halteFilterKor } = storeToRefs(selection)
 
 // Once a halte is selected, eagerly pull both legs of every corridor
@@ -60,6 +62,37 @@ const corridorsAtHalte = computed(() =>
     ? brt.corridorBadgesForHalte(selectedHalte.value, null)
     : [],
 )
+
+/** Closest other stops, one row per name, so a short detail panel still
+ *  gives the rider somewhere to go next. */
+const nearbyStops = computed(() => {
+  const here = selectedHalte.value
+  if (!here) return []
+  const p = { lat: parseFloat(here.sh_lat), lng: parseFloat(here.sh_lng) }
+  const byName = new Map<string, { h: (typeof brt.halte)[number]; d: number }>()
+  for (const h of brt.halte) {
+    if (h.sh_name === here.sh_name) continue
+    const d = haversineMeters(p, { lat: parseFloat(h.sh_lat), lng: parseFloat(h.sh_lng) })
+    if (!Number.isFinite(d)) continue
+    const prev = byName.get(h.sh_name)
+    if (!prev || d < prev.d) byName.set(h.sh_name, { h, d })
+  }
+  return [...byName.values()].sort((a, b) => a.d - b.d).slice(0, 4)
+})
+
+function planFromHere(as: 'origin' | 'dest') {
+  const h = selectedHalte.value
+  if (!h) return
+  const e: Endpoint = {
+    kind: 'halte',
+    label: h.sh_name,
+    point: { lat: parseFloat(h.sh_lat), lng: parseFloat(h.sh_lng) },
+    sh_id: h.sh_id,
+  }
+  if (as === 'origin') trip.setOrigin(e)
+  else trip.setDestination(e)
+  selection.clear()
+}
 
 function pickBus(imei: string) {
   selection.selectBus(imei)
@@ -239,6 +272,23 @@ function openDirections() {
         <p v-else class="mt-2 text-xs text-bnc-stone-500">
           {{ t('halte.noBuses') }}
         </p>
+      </section>
+
+      <section class="flex gap-2 border-t border-bnc-stone-200 pt-3 dark:border-bnc-stone-800">
+        <button type="button" class="min-h-11 flex-1 rounded-lg border border-bnc-stone-300 px-3 text-sm font-medium hover:bg-bnc-stone-100 dark:border-bnc-stone-700 dark:hover:bg-bnc-stone-800" @click="planFromHere('origin')">{{ t('halte.planFrom') }}</button>
+        <button type="button" class="min-h-11 flex-1 rounded-lg bg-bnc-ink px-3 text-sm font-medium text-bnc-paper hover:opacity-90 dark:bg-bnc-paper dark:text-bnc-ink" @click="planFromHere('dest')">{{ t('halte.planTo') }}</button>
+      </section>
+
+      <section v-if="nearbyStops.length" class="border-t border-bnc-stone-200 pt-3 dark:border-bnc-stone-800">
+        <h4 class="font-mono text-[11px] uppercase tracking-wider text-bnc-stone-500">{{ t('halte.nearby') }}</h4>
+        <ul class="mt-1 flex flex-col">
+          <li v-for="n in nearbyStops" :key="n.h.sh_id">
+            <button type="button" class="flex min-h-11 w-full items-center gap-3 rounded-md px-1 text-left text-sm hover:bg-bnc-stone-100 dark:hover:bg-bnc-stone-800" @click="selection.selectHalte(n.h.sh_id)">
+              <span class="min-w-0 flex-1 [overflow-wrap:anywhere]">{{ n.h.sh_name }}</span>
+              <span class="shrink-0 font-mono text-xs tabular-nums text-bnc-stone-500">{{ formatDistance(n.d) }}</span>
+            </button>
+          </li>
+        </ul>
       </section>
     </article>
   </transition>
