@@ -373,3 +373,17 @@ html.dark .leaflet-container { background: var(--color-bnc-stone-900); }
 @media (prefers-reduced-motion: reduce) {
   .live-dot { animation: none; }
 }
+
+/* Detail cards were built as floating map cards; inside the sidebar
+   they sit flat on the panel. */
+.sidebar-detail article,
+.sidebar-detail aside {
+  max-width: none;
+  max-height: none;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
+}

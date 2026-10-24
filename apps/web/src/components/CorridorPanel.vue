@@ -19,22 +19,15 @@ const { corridors, halte, buses, loading, error } = storeToRefs(brt)
 const stats = computed(() => {
   const fk = focus.kor
   let count = 0
-  let speedSum = 0
-  let speedN = 0
   for (const b of buses.value.values()) {
     if (fk && b.kor !== fk) continue
     if (isStale(b)) continue
     count++
-    if (Number.isFinite(b.speed) && b.speed! > 0) {
-      speedSum += b.speed!
-      speedN++
-    }
   }
   return {
     corridors: corridors.value.length,
     halte: halte.value.length,
     buses: count,
-    avgSpeed: speedN ? Math.round(speedSum / speedN) : 0,
   }
 })
 
@@ -99,28 +92,9 @@ const busStatusLabel = computed(() => {
       </div>
     </header>
 
-    <dl
-      class="grid grid-cols-2 gap-2 rounded-md bg-bnc-stone-100 p-2 text-center font-mono text-[11px] uppercase tracking-wider dark:bg-bnc-stone-800 sm:grid-cols-4"
-    >
-      <div>
-        <dt class="text-bnc-stone-500">Koridor</dt>
-        <dd class="text-base font-bold text-bnc-ink dark:text-bnc-paper">{{ stats.corridors }}</dd>
-      </div>
-      <div>
-        <dt class="text-bnc-stone-500">{{ t('bus.listTitle') }}</dt>
-        <dd class="text-base font-bold text-bnc-ink dark:text-bnc-paper">{{ stats.buses }}</dd>
-      </div>
-      <div>
-        <dt class="text-bnc-stone-500">{{ t('stats.avg') }}</dt>
-        <dd class="text-base font-bold tabular-nums text-bnc-ink dark:text-bnc-paper">
-          {{ stats.avgSpeed }}<span class="text-[11px] font-normal text-bnc-stone-500"> {{ t('units.kmh') }}</span>
-        </dd>
-      </div>
-      <div>
-        <dt class="text-bnc-stone-500">{{ t('stats.viewers') }}</dt>
-        <dd class="text-base font-bold tabular-nums text-bnc-ink dark:text-bnc-paper">{{ socket.viewers }}</dd>
-      </div>
-    </dl>
+    <p class="font-mono text-xs tabular-nums text-bnc-stone-600 dark:text-bnc-stone-300">
+      {{ stats.corridors }} koridor · {{ stats.buses }} {{ t('bus.listTitle').toLowerCase() }}
+    </p>
 
     <p
       v-if="busStatusKey"
