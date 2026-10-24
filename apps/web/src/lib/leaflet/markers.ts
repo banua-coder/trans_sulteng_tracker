@@ -1,22 +1,16 @@
 import L from 'leaflet'
 import { onColor } from '@/lib/color'
 
-/** White front-facing bus glyph, drawn inside the route-colour tile. */
+/** Front-facing bus glyph, used on the bus-stop tile. */
 function busGlyph(ink: string): string {
-  return `<svg class="bus-glyph" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="${ink}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="16" height="14" rx="3"/><path d="M4 11h16M8 21v-3M16 21v-3"/><circle cx="8.5" cy="14" r=".6" fill="${ink}"/><circle cx="15.5" cy="14" r=".6" fill="${ink}"/></svg>`
+  return `<svg class="stop-glyph" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="${ink}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="16" height="14" rx="3"/><path d="M4 11h16M8 21v-3M16 21v-3"/><circle cx="8.5" cy="14" r=".6" fill="${ink}"/><circle cx="15.5" cy="14" r=".6" fill="${ink}"/></svg>`
 }
 
 /**
- * Bus marker: rounded-square tile in the route colour with a white bus
- * glyph, a corner chip carrying the route code, and a heading arrow.
- *
- * Two stacked elements inside the divIcon:
- *   1. an arrow that rotates with the bus heading (transform: rotate(angle))
- *   2. a static disc with the corridor code (always upright + readable)
- *
- * Both pieces are tinted with the same corridor color so a quick glance
- * tells you the route. Stale buses (>5 min since last fix) get a hatched
- * gray treatment via the `.stale` class.
+ * Bus marker: a small circle in the route colour with the route code,
+ * plus an arrow that rotates with the heading. Stale buses (>5 min
+ * since the last fix) get a hatched gray treatment via `.stale`.
+ * The rounded-square glyph tile is for bus stops, see stopTileMarker.
  */
 export function busIcon(opts: {
   color: string
@@ -29,16 +23,37 @@ export function busIcon(opts: {
   const safeAngle = Number.isFinite(angle) ? angle : 0
   return L.divIcon({
     className: `bus-marker${stale ? ' stale' : ''}`,
-    iconSize: [48, 48],
-    iconAnchor: [24, 24],
-    popupAnchor: [0, -22],
+    iconSize: [40, 40],
+    iconAnchor: [20, 20],
+    popupAnchor: [0, -18],
     html: `
       <div class="bus-arrow-wrap" style="transform: rotate(${safeAngle}deg)">
         <span class="bus-arrow" style="border-bottom-color: ${color}"></span>
       </div>
-      <div class="bus-disc" style="background:${color};color:${onColor(color)}">${busGlyph(onColor(color))}<span class="bus-code" style="border-color:${color}">${safe}</span></div>
+      <div class="bus-disc" style="background:${color};color:${onColor(color)}">${safe}</div>
     `,
   })
+}
+
+/** Bus-stop marker for a focused corridor: rounded-square tile in the
+ *  route colour with a bus glyph. Clicks forward to the plain circle
+ *  marker it replaces, so selection keeps working in one place. */
+export function stopTileMarker(
+  latlng: L.LatLngExpression,
+  color: string,
+  onClick: () => void,
+): L.Marker {
+  const m = L.marker(latlng, {
+    icon: L.divIcon({
+      className: 'stop-marker',
+      iconSize: [24, 24],
+      iconAnchor: [12, 12],
+      html: `<span style="background:${color}">${busGlyph(onColor(color))}</span>`,
+    }),
+    keyboard: false,
+  })
+  m.on('click', onClick)
+  return m
 }
 
 /** Halte marker as a tiny CircleMarker on Leaflet's overlay pane.

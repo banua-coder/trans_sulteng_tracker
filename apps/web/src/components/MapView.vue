@@ -15,7 +15,7 @@ import { useSelectionStore } from '@/stores/selection'
 import { useTripStore } from '@/stores/trip'
 import { useUiStore } from '@/stores/ui'
 import type { PlanResult } from '@/lib/tripPlanner'
-import { busIcon, halteHaloMarker, halteMarker, HALTE_RING, terminalMarker } from '@/lib/leaflet/markers'
+import { busIcon, halteHaloMarker, halteMarker, HALTE_RING, stopTileMarker, terminalMarker } from '@/lib/leaflet/markers'
 import { darkTiles, lightTiles, satelliteTiles } from '@/lib/leaflet/tiles'
 import { useTheme } from '@/lib/theme'
 import { haversineMeters, isStale } from '@/lib/format'
@@ -52,6 +52,10 @@ let tileLayer: L.Layer | null = null
 // before corridorLayer so it always draws beneath.
 const casingLayer = L.layerGroup()
 const corridorLayer = L.layerGroup()
+// Bus-stop tiles for the focused corridor. They sit over the plain
+// circle markers, which are hidden while a tile covers them.
+const stopTileLayer = L.layerGroup()
+const tileOf = new Map<L.CircleMarker, L.Marker>()
 // Lettered A/B terminals of the focused corridor leg.
 const terminalLayer = L.layerGroup()
 const halteLayer = L.layerGroup()
@@ -147,7 +151,35 @@ const halteMarkerShIds = new Map<L.CircleMarker, Set<string>>()
 let selectedHalteMarker: L.CircleMarker | null = null
 let selectedHalteHalo: L.Marker | null = null
 
+function renderStopTiles(fk: string | null, hide: boolean) {
+  stopTileLayer.clearLayers()
+  tileOf.clear()
+  if (!fk || hide) return
+  const slot = halteByLeg.get(fk)
+  if (!slot) return
+  const color = brt.corridorByKor.get(fk)?.color || '#0EA5E9'
+  for (const m of new Set([...slot.a, ...slot.b])) {
+    if ((m.options.opacity ?? 1) <= 0) continue
+    const tile = stopTileMarker(m.getLatLng(), color, () => m.fire('click'))
+    const name = m.getTooltip()?.getContent()
+    if (name) tile.bindTooltip(name as string, { direction: 'top', offset: [0, -10] })
+    tile.addTo(stopTileLayer)
+    tileOf.set(m, tile)
+    m.setStyle({ opacity: 0, fillOpacity: 0 })
+  }
+}
+
+function markSelectedTile() {
+  for (const t of tileOf.values()) t.getElement()?.classList.remove('selected')
+  if (selectedHalteMarker) tileOf.get(selectedHalteMarker)?.getElement()?.classList.add('selected')
+}
+
 function applySelectedHalte() {
+  applySelectedHalteInner()
+  markSelectedTile()
+}
+
+function applySelectedHalteInner() {
   if (selectedHalteMarker) {
     selectedHalteMarker.setStyle({ radius: 4.5, fillColor: '#fff', color: HALTE_RING, weight: 2.5 })
     selectedHalteMarker = null
@@ -214,6 +246,7 @@ function initMap() {
   casingLayer.addTo(map)
   corridorLayer.addTo(map)
   terminalLayer.addTo(map)
+  stopTileLayer.addTo(map)
   halteLayer.addTo(map)
   busLayer.addTo(map)
   meLayer.addTo(map)
@@ -252,7 +285,11 @@ function syncHalteVisibility() {
 
 function clearAll() {
   casingLayer.clearLayers()
+  stopTileLayer.clearLayers()
+  tileOf.clear()
   terminalLayer.clearLayers()
+  stopTileLayer.clearLayers()
+  tileOf.clear()
   corridorLayer.clearLayers()
   halteLayer.clearLayers()
   busLayer.clearLayers()
@@ -618,14 +655,32 @@ let lastSpotlightInit = false
  *  coordinate dedup, so byLeg slot alone isn't authoritative) and to
  *  gate halte clicks when corridor focus is active. Returns null when
  *  no corridor is focused or no direction is active. */
+/** The corridor leg the map should show: the selected bus's own
+ *  direction when a bus is selected (only its route, not the reverse),
+ *  otherwise the focused corridor's chosen direction. */
+function legTarget(): { kor: string; leg: 'a' | 'b' } | null {
+  if (selection.kind === 'bus' && selection.id) {
+    const b = brt.buses.get(selection.id)
+    const c = b?.kor ? brt.corridorByKor.get(b.kor) : undefined
+    if (b && c) return { kor: b.kor, leg: b.toward === c.toward ? 'a' : 'b' }
+  }
+  if (focus.kor) return { kor: focus.kor, leg: focus.direction }
+  return null
+}
+
 function activeLegHalteShIds(): Set<string> | null {
-  const fk = focus.kor
-  if (!fk) return null
-  const c = brt.corridorByKor.get(fk)
+  const lt = legTarget()
+  if (!lt) return null
+  const c = brt.corridorByKor.get(lt.kor)
   if (!c) return null
-  const wantToward = focus.direction === 'a' ? c.toward : c.origin
-  const wantOrigin = focus.direction === 'a' ? c.origin : c.toward
-  const leg = brt.getHalteForLeg(fk, wantToward, wantOrigin)
+  const wantToward = lt.leg === 'a' ? c.toward : c.origin
+  const wantOrigin = lt.leg === 'a' ? c.origin : c.toward
+  const leg = brt.getHalteForLeg(lt.kor, wantToward, wantOrigin)
+  if (!leg.length) {
+    // Stops for this leg are not loaded yet; fetch, then redraw.
+    void brt.ensureHalteForLeg(lt.kor, wantToward, wantOrigin).then(() => applyFocus(true)).catch(() => {})
+    return null
+  }
   return new Set(leg.map((h) => h.sh_id))
 }
 
@@ -638,7 +693,8 @@ function applyFocus(force = false) {
   // spotlight comes from a bus selection (spotlightKor fallback)
   // rather than focus.kor, we still want both legs visible — the
   // user is inspecting a single vehicle, not a direction.
-  const activeLeg: 'a' | 'b' | null = fk && focus.kor === fk ? focus.direction : null
+  const lt = legTarget()
+  const activeLeg: 'a' | 'b' | null = fk && lt && lt.kor === fk ? lt.leg : null
   const activeShIds = activeLeg ? activeLegHalteShIds() : null
   const planKors = tripPlanKors.value
   const planNames = planKors ? tripPlanHalteNames.value : null
@@ -747,7 +803,8 @@ function applyFocus(force = false) {
   // Bus-selected refinement: dim stops the bus has already passed so
   // the user can scan only what's still ahead (TJ-style "upcoming
   // halte" view, beads c1d).
-  applyUpcomingHalteFilter()
+  applyUpcomingHalteFilter(activeShIds)
+  renderStopTiles(fk, !!planKors)
 
   // Buses
   for (const bus of brt.buses.values()) upsertBusMarker(bus)
@@ -766,13 +823,20 @@ function busColorFor(b: BrtBus): string {
  *  wanted to see the whole route clearly; dimming the passed half made
  *  shared-coordinate halte (multi-corridor stops) appear half-erased,
  *  which read worse than it solved. */
-function applyUpcomingHalteFilter() {
+function applyUpcomingHalteFilter(activeShIds: Set<string> | null) {
   if (selection.kind !== 'bus' || !selection.id) return
   const bus = brt.buses.get(selection.id)
   if (!bus?.kor) return
   const slot = halteByLeg.get(bus.kor)
   if (!slot) return
   for (const m of [...slot.a, ...slot.b]) {
+    // Keep the leg filter: stops of the reverse direction stay hidden.
+    if (activeShIds) {
+      const ids = halteMarkerShIds.get(m)
+      let on = false
+      if (ids) for (const id of ids) if (activeShIds.has(id)) { on = true; break }
+      if (!on) continue
+    }
     m.setStyle({ opacity: 1, fillOpacity: 1 })
   }
 }
@@ -1140,7 +1204,7 @@ watch(
   },
   (next, prev) => {
     if (next === prev) return
-    applyUpcomingHalteFilter()
+    applyUpcomingHalteFilter(legTarget() ? activeLegHalteShIds() : null)
   },
 )
 

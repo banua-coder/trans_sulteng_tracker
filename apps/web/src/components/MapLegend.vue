@@ -95,7 +95,7 @@ const open = computed<boolean>({
   place-items: center;
   width: 20px;
   height: 20px;
-  border-radius: 6px;
+  border-radius: 9999px;
   background: var(--color-bnc-accent);
   border: 2px solid #fff;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
