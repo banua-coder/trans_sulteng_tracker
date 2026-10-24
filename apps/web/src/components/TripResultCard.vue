@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onColor } from '@/lib/color'
-import { computed } from 'vue'
+import { computed, toRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useBrtStore } from '@/stores/brt'
 import type { PlanStep } from '@/lib/tripPlanner'
@@ -12,9 +12,12 @@ const props = defineProps<{
   steps: PlanStep[]
   isFastest?: boolean
 }>()
+const steps = toRef(props, 'steps')
 
 const { t } = useI18n()
 const brt = useBrtStore()
+
+const wait = computed(() => steps.value.find((st) => st.kind === 'ride' && st.waitMin != null) ?? null)
 
 const totalKm = computed(() => {
   const m = props.totalWalkM + props.totalRideM
@@ -74,7 +77,15 @@ const totalKm = computed(() => {
 
     <!-- bottom row: distance + fastest badge -->
     <div class="flex items-center justify-between gap-2">
-      <span class="font-mono text-xs text-bnc-stone-500">{{ totalKm }} km</span>
+      <span class="min-w-0 text-xs text-bnc-stone-500">
+        <span class="font-mono">{{ totalKm }} km</span>
+        <template v-if="wait">
+          <span aria-hidden="true"> · </span>
+          <span :class="wait.waitLive ? 'font-medium text-bnc-ink dark:text-bnc-paper' : ''">
+            {{ t(wait.waitLive ? 'trip.waitLive' : 'trip.waitEstimate', { min: Math.max(1, Math.round(wait.waitMin ?? 0)) }) }}
+          </span>
+        </template>
+      </span>
       <span
         v-if="isFastest"
         class="rounded-full bg-yellow-100 px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-400"

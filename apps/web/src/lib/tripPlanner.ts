@@ -80,6 +80,10 @@ export interface PlanStep {
   kor?: string         // present for ride steps
   durationMin: number
   distM: number
+  /** First boarding only: minutes until the bus arrives after you reach the stop. */
+  waitMin?: number
+  /** True when waitMin comes from a live bus position, false when it is a headway guess. */
+  waitLive?: boolean
 }
 
 export interface PlanResult {
