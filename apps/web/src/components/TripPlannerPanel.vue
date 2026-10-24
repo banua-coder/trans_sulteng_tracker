@@ -46,7 +46,15 @@ interface PopoverRect { top: number; left: number; width: number }
 function rectBelow(anchor: HTMLElement | null): PopoverRect {
   if (!anchor) return { top: 0, left: 0, width: 0 }
   const r = anchor.getBoundingClientRect()
-  return { top: r.bottom + 4, left: r.left, width: r.width }
+  // Align to the whole A/B card, not just the input.
+  const card = anchor.closest('[data-plan-card]')?.getBoundingClientRect() ?? r
+  return { top: r.bottom + 4, left: card.left, width: card.width }
+}
+
+/** A stop is listed once per corridor and direction; show it once. */
+function uniqueByName<T extends { sh_name: string }>(rows: T[]): T[] {
+  const seen = new Set<string>()
+  return rows.filter((r) => (seen.has(r.sh_name) ? false : (seen.add(r.sh_name), true)))
 }
 
 // ── Origin search ──────────────────────────────────────────────────────────
@@ -75,9 +83,7 @@ watch(originFocused, (v) => {
 const originResults = computed(() => {
   const q = originQuery.value.trim().toLowerCase()
   if (!q) return []
-  return brt.halte
-    .filter((h) => h.sh_name.toLowerCase().includes(q))
-    .slice(0, 8)
+  return uniqueByName(brt.halte.filter((h) => h.sh_name.toLowerCase().includes(q))).slice(0, 8)
 })
 
 function pickOriginHalte(h: (typeof brt.halte)[number]) {
@@ -177,9 +183,7 @@ useEventListener('resize', syncAll)
 const destResults = computed(() => {
   const q = destQuery.value.trim().toLowerCase()
   if (!q) return []
-  return brt.halte
-    .filter((h) => h.sh_name.toLowerCase().includes(q))
-    .slice(0, 8)
+  return uniqueByName(brt.halte.filter((h) => h.sh_name.toLowerCase().includes(q))).slice(0, 8)
 })
 
 function pickDestHalte(h: (typeof brt.halte)[number]) {
@@ -214,277 +218,154 @@ const showNoResults = computed(
 </script>
 
 <template>
-  <div class="flex flex-col gap-3">
-    <!-- Origin row -->
-    <div ref="originRowEl" class="flex min-w-0 items-center gap-2">
-      <!-- GPS button -->
-      <button
-        type="button"
-        class="grid h-11 w-11 shrink-0 place-items-center rounded-full text-bnc-stone-600 transition-colors hover:bg-bnc-stone-100 dark:text-bnc-stone-300 dark:hover:bg-bnc-stone-800"
-        :aria-label="t('trip.useGps')"
-        :title="t('trip.useGps')"
-        @click="useGps"
-      >
-        <!-- spinner while waiting -->
-        <svg
-          v-if="gpsLoading"
-          class="h-4 w-4 animate-spin text-bnc-accent"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          aria-hidden
-        >
-          <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
-        </svg>
-        <!-- GPS icon -->
-        <svg
-          v-else
-          class="h-4 w-4"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          aria-hidden
-        >
-          <path d="M12 2a10 10 0 1 0 10 10" />
-          <circle cx="12" cy="12" r="3" />
-          <path d="M22 2l-7 7" />
-          <path d="M16 2h6v6" />
-        </svg>
-      </button>
+  <div class="flex flex-col gap-4">
+    <div>
+      <h2 class="font-display text-2xl font-semibold tracking-tight">{{ t('trip.heading') }}</h2>
+      <p class="mt-1 text-sm text-bnc-stone-600 dark:text-bnc-stone-300">{{ t('trip.subheading') }}</p>
+    </div>
 
-      <!-- Tap-on-map toggle -->
-      <button
-        type="button"
-        class="grid h-11 w-11 shrink-0 place-items-center rounded-full transition-colors"
-        :class="
-          tapMode === 'origin'
-            ? 'bg-bnc-accent text-white'
-            : 'text-bnc-stone-600 hover:bg-bnc-stone-100 dark:text-bnc-stone-300 dark:hover:bg-bnc-stone-800'
-        "
-        :aria-label="t('trip.tapOnMap')"
-        :aria-pressed="tapMode === 'origin'"
-        :title="t('trip.tapOnMap')"
-        @click="toggleTapMode('origin')"
-      >
-        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden>
-          <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
-          <circle cx="12" cy="10" r="3" />
-        </svg>
-      </button>
-
-      <!-- GPS error inline. Gated on !origin so any subsequent
-           successful pick (tap-on-map, search, GPS retry) displaces
-           the error and shows the new origin chip — otherwise the
-           error keeps occupying the slot and looks like tap-on-map
-           failed silently. -->
-      <p v-if="gpsError && !origin" class="flex flex-1 items-center gap-2 text-xs text-red-600 dark:text-red-400">
+    <!-- Origin and destination in one card, swap on the right edge -->
+    <div data-plan-card class="relative rounded-2xl border border-bnc-stone-200 bg-white dark:border-bnc-stone-800 dark:bg-bnc-stone-900">
+      <div ref="originRowEl" class="flex min-w-0 items-center gap-3 px-4 py-3 pr-16">
+        <span class="grid h-7 w-7 shrink-0 place-items-center rounded-full border-2 border-bnc-accent font-mono text-xs font-bold text-bnc-accent" aria-hidden="true">A</span>
+        <label class="min-w-0 flex-1">
+          <span class="block text-xs font-medium text-bnc-stone-500">{{ t('trip.from') }}</span>
+          <span v-if="origin" class="flex items-center gap-1">
+            <span class="min-w-0 flex-1 [overflow-wrap:anywhere] font-display text-sm font-semibold">{{ origin.label }}</span>
+            <button type="button" class="-my-2 grid h-11 w-11 shrink-0 place-items-center rounded-full text-bnc-stone-500 hover:bg-bnc-stone-100 dark:hover:bg-bnc-stone-800" :aria-label="t('trip.clear')" @click="clearOrigin">
+              <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12" /></svg>
+            </button>
+          </span>
+          <input
+            v-else
+            ref="originInputEl"
+            v-model="originQuery"
+            type="text"
+            autocomplete="off"
+            :placeholder="t('trip.pickFrom')"
+            class="block w-full bg-transparent py-1 text-sm placeholder:text-bnc-stone-400 focus:outline-none"
+            @focus="originFocused = true"
+          />
+        </label>
+      </div>
+      <p v-if="gpsError && !origin" class="flex items-center gap-2 px-4 pb-2 text-xs text-red-600 dark:text-red-400">
         {{ t('trip.gpsFailed') }}
-        <button
-          type="button"
-          class="min-h-11 rounded-md px-2 font-medium underline underline-offset-2 hover:bg-bnc-stone-100 dark:hover:bg-bnc-stone-800"
-          @click="useGps"
-        >
-          {{ t('errors.retry') }}
-        </button>
+        <button type="button" class="min-h-11 rounded-md px-2 font-medium underline underline-offset-2 hover:bg-bnc-stone-100 dark:hover:bg-bnc-stone-800" @click="useGps">{{ t('errors.retry') }}</button>
       </p>
 
-      <!-- Chip when origin set -->
-      <template v-else-if="origin">
-        <span class="flex min-w-0 flex-1 items-center gap-1.5 rounded-full bg-bnc-stone-100 px-3 py-1.5 text-sm dark:bg-bnc-stone-800">
-          <svg class="h-3 w-3 shrink-0 text-bnc-accent" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" />
-          </svg>
-          <span class="min-w-0 flex-1 [overflow-wrap:anywhere] font-display text-sm font-medium">{{ origin.label }}</span>
-          <button
-            type="button"
-            class="-my-2 -mr-2 ml-1 shrink-0 rounded-full p-2.5 text-bnc-stone-500 transition-colors hover:bg-bnc-stone-200 hover:text-bnc-ink dark:hover:bg-bnc-stone-700 dark:hover:text-bnc-paper"
-            :aria-label="t('trip.clear')"
-            @click="clearOrigin"
-          >
-            <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden>
-              <path d="M18 6 6 18M6 6l12 12" />
-            </svg>
-          </button>
-        </span>
-      </template>
+      <hr class="border-bnc-stone-200 dark:border-bnc-stone-800" />
 
-      <!-- Search input. min-w-0 + a small width:1px override the
-           browser's default min-width:auto on flex inputs so the row
-           can shrink below the input's intrinsic width on narrow
-           viewports without overflowing the bottom sheet. -->
-      <input
-        v-else
-        ref="originInputEl"
-        v-model="originQuery"
-        type="text"
-        autocomplete="off"
-        :placeholder="t('trip.originPlaceholder')"
-        class="w-px min-w-0 flex-1 rounded-[var(--radius-md)] border border-bnc-stone-200 bg-bnc-stone-50 px-3 py-2 text-sm placeholder:text-bnc-stone-400 focus:border-bnc-accent focus:outline-none dark:border-bnc-stone-800 dark:bg-bnc-stone-800"
-        @focus="originFocused = true"
-      />
-    </div>
-
-    <!-- Origin popover (Teleported to body so it escapes the bottom
-         sheet's overflow-y-auto). -->
-    <Teleport to="body">
-      <ul
-        v-if="originFocused && originResults.length"
-        ref="originPopoverEl"
-        class="fixed z-[1200] max-h-60 overflow-y-auto rounded-[var(--radius-md)] border border-bnc-stone-200 bg-white shadow-[var(--shadow-elevated)] dark:border-bnc-stone-700 dark:bg-bnc-stone-900"
-        :style="{ top: originPopoverRect.top + 'px', left: originPopoverRect.left + 'px', width: originPopoverRect.width + 'px' }"
-      >
-        <li v-for="h in originResults" :key="h.sh_id">
-          <button
-            type="button"
-            class="flex w-full items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-bnc-stone-50 dark:hover:bg-bnc-stone-800"
-            @click="pickOriginHalte(h)"
-          >
-            <span
-              class="h-2 w-2 shrink-0 rounded-full"
-              :style="{ background: brt.colorForKor(h.kor), color: onColor(brt.colorForKor(h.kor)) }"
-              aria-hidden
-            />
-            <span class="min-w-0 flex-1 [overflow-wrap:anywhere] text-sm">{{ h.sh_name }}</span>
-            <span class="shrink-0 font-mono text-[10px] text-bnc-stone-400">{{ h.kor }}</span>
-          </button>
-        </li>
-      </ul>
-    </Teleport>
-
-    <!-- Swap button -->
-    <div class="flex items-center gap-2">
-      <div class="ml-4 h-px flex-1 bg-bnc-stone-100 dark:bg-bnc-stone-800" aria-hidden />
-      <button
-        type="button"
-        class="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-bnc-stone-200 bg-white text-bnc-stone-600 transition-colors hover:border-bnc-stone-300 hover:bg-bnc-stone-50 dark:border-bnc-stone-700 dark:bg-bnc-stone-900 dark:text-bnc-stone-300 dark:hover:bg-bnc-stone-800"
-        :aria-label="t('trip.swap')"
-        :title="t('trip.swap')"
-        @click="trip.swap()"
-      >
-        <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden>
-          <path d="M17 3l4 4-4 4" />
-          <path d="M3 7h18" />
-          <path d="M7 21l-4-4 4-4" />
-          <path d="M21 17H3" />
-        </svg>
-      </button>
-      <div class="mr-0 h-px flex-1 bg-bnc-stone-100 dark:bg-bnc-stone-800" aria-hidden />
-    </div>
-
-    <!-- Destination row -->
-    <div class="flex min-w-0 items-center gap-2">
-      <!-- Tap-on-map toggle -->
-      <button
-        type="button"
-        class="grid h-11 w-11 shrink-0 place-items-center rounded-full transition-colors"
-        :class="
-          tapMode === 'dest'
-            ? 'bg-bnc-primary text-white'
-            : 'text-bnc-stone-600 hover:bg-bnc-stone-100 dark:text-bnc-stone-300 dark:hover:bg-bnc-stone-800'
-        "
-        :aria-label="t('trip.tapOnMap')"
-        :aria-pressed="tapMode === 'dest'"
-        :title="t('trip.tapOnMap')"
-        @click="toggleTapMode('dest')"
-      >
-        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden>
-          <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
-          <circle cx="12" cy="10" r="3" />
-        </svg>
-      </button>
-
-      <!-- Chip when destination set -->
-      <template v-if="destination">
-        <span class="flex min-w-0 flex-1 items-center gap-1.5 rounded-full bg-bnc-stone-100 px-3 py-1.5 text-sm dark:bg-bnc-stone-800">
-          <svg class="h-3 w-3 shrink-0 text-bnc-primary dark:text-bnc-accent" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" />
-          </svg>
-          <span class="min-w-0 flex-1 [overflow-wrap:anywhere] font-display text-sm font-medium">{{ destination.label }}</span>
-          <button
-            type="button"
-            class="-my-2 -mr-2 ml-1 shrink-0 rounded-full p-2.5 text-bnc-stone-500 transition-colors hover:bg-bnc-stone-200 hover:text-bnc-ink dark:hover:bg-bnc-stone-700 dark:hover:text-bnc-paper"
-            :aria-label="t('trip.clear')"
-            @click="clearDest"
-          >
-            <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden>
-              <path d="M18 6 6 18M6 6l12 12" />
-            </svg>
-          </button>
-        </span>
-      </template>
-
-      <!-- Search input -- see origin input above for min-w-0 rationale. -->
-      <input
-        v-else
-        ref="destInputEl"
-        v-model="destQuery"
-        type="text"
-        autocomplete="off"
-        :placeholder="t('trip.destinationPlaceholder')"
-        class="w-px min-w-0 flex-1 rounded-[var(--radius-md)] border border-bnc-stone-200 bg-bnc-stone-50 px-3 py-2 text-sm placeholder:text-bnc-stone-400 focus:border-bnc-accent focus:outline-none dark:border-bnc-stone-800 dark:bg-bnc-stone-800"
-        @focus="destFocused = true"
-      />
-    </div>
-
-    <!-- Destination popover -->
-    <Teleport to="body">
-      <ul
-        v-if="destFocused && destResults.length"
-        ref="destPopoverEl"
-        class="fixed z-[1200] max-h-60 overflow-y-auto rounded-[var(--radius-md)] border border-bnc-stone-200 bg-white shadow-[var(--shadow-elevated)] dark:border-bnc-stone-700 dark:bg-bnc-stone-900"
-        :style="{ top: destPopoverRect.top + 'px', left: destPopoverRect.left + 'px', width: destPopoverRect.width + 'px' }"
-      >
-        <li v-for="h in destResults" :key="h.sh_id">
-          <button
-            type="button"
-            class="flex w-full items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-bnc-stone-50 dark:hover:bg-bnc-stone-800"
-            @click="pickDestHalte(h)"
-          >
-            <span
-              class="h-2 w-2 shrink-0 rounded-full"
-              :style="{ background: brt.colorForKor(h.kor), color: onColor(brt.colorForKor(h.kor)) }"
-              aria-hidden
-            />
-            <span class="min-w-0 flex-1 [overflow-wrap:anywhere] text-sm">{{ h.sh_name }}</span>
-            <span class="shrink-0 font-mono text-[10px] text-bnc-stone-400">{{ h.kor }}</span>
-          </button>
-        </li>
-      </ul>
-    </Teleport>
-
-    <!-- Results section -->
-    <div class="mt-1 flex flex-col gap-2">
-      <!-- Loading -->
-      <div v-if="loading" class="flex items-center gap-2 py-2 text-sm text-bnc-stone-500">
-        <svg class="h-4 w-4 animate-spin text-bnc-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden>
-          <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
-        </svg>
-        {{ t('trip.searching') }}
+      <div class="flex min-w-0 items-center gap-3 px-4 py-3 pr-16">
+        <span class="grid h-7 w-7 shrink-0 place-items-center rounded-full border-2 border-bnc-stone-400 font-mono text-xs font-bold text-bnc-stone-500" aria-hidden="true">B</span>
+        <label class="min-w-0 flex-1">
+          <span class="block text-xs font-medium text-bnc-stone-500">{{ t('trip.to') }}</span>
+          <span v-if="destination" class="flex items-center gap-1">
+            <span class="min-w-0 flex-1 [overflow-wrap:anywhere] font-display text-sm font-semibold">{{ destination.label }}</span>
+            <button type="button" class="-my-2 grid h-11 w-11 shrink-0 place-items-center rounded-full text-bnc-stone-500 hover:bg-bnc-stone-100 dark:hover:bg-bnc-stone-800" :aria-label="t('trip.clear')" @click="clearDest">
+              <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12" /></svg>
+            </button>
+          </span>
+          <input
+            v-else
+            ref="destInputEl"
+            v-model="destQuery"
+            type="text"
+            autocomplete="off"
+            :placeholder="t('trip.pickTo')"
+            class="block w-full bg-transparent py-1 text-sm placeholder:text-bnc-stone-400 focus:outline-none"
+            @focus="destFocused = true"
+          />
+        </label>
       </div>
 
-      <!-- Error -->
-      <p v-else-if="error" class="rounded-md bg-red-50 px-3 py-2 text-sm text-red-600 dark:bg-red-900/30 dark:text-red-400">
-        {{ error }}
-      </p>
-
-      <!-- No results -->
-      <p
-        v-else-if="showNoResults"
-        class="rounded-md bg-bnc-stone-100 px-3 py-3 font-mono text-[11px] uppercase tracking-wider text-bnc-stone-500 dark:bg-bnc-stone-800"
+      <button
+        type="button"
+        class="absolute right-3 top-1/2 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-xl border border-bnc-stone-200 bg-white text-bnc-stone-700 shadow-sm hover:bg-bnc-stone-50 dark:border-bnc-stone-700 dark:bg-bnc-stone-900 dark:text-bnc-stone-200 dark:hover:bg-bnc-stone-800"
+        :aria-label="t('trip.swap')"
+        @click="trip.swap()"
       >
-        {{ t('trip.noResults') }}
-      </p>
+        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4v16M3 8l4-4 4 4M17 20V4M13 16l4 4 4-4" /></svg>
+      </button>
+    </div>
 
-      <!-- Plan cards -->
+    <!-- Origin suggestions: shortcuts first, then matching stops -->
+    <Teleport to="body">
+      <div
+        v-if="originFocused && !origin"
+        ref="originPopoverEl"
+        class="fixed z-[1200] overflow-hidden rounded-xl border border-bnc-stone-200 bg-white shadow-[var(--shadow-elevated)] dark:border-bnc-stone-700 dark:bg-bnc-stone-900"
+        :style="{ top: originPopoverRect.top + 'px', left: originPopoverRect.left + 'px', width: originPopoverRect.width + 'px' }"
+        role="listbox"
+      >
+        <button type="button" class="flex min-h-11 w-full items-center gap-3 px-4 text-left text-sm font-medium text-bnc-accent hover:bg-bnc-stone-50 dark:hover:bg-bnc-stone-800" @click="useGps(); originFocused = false">
+          <svg class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3" /><path d="M12 2v3M12 19v3M2 12h3M19 12h3" /><circle cx="12" cy="12" r="8" /></svg>
+          {{ gpsLoading ? t('trip.locating') : t('trip.useGpsNow') }}
+        </button>
+        <button type="button" class="flex min-h-11 w-full items-center gap-3 border-t border-bnc-stone-100 px-4 text-left text-sm font-medium text-bnc-accent hover:bg-bnc-stone-50 dark:border-bnc-stone-800 dark:hover:bg-bnc-stone-800" @click="toggleTapMode('origin'); originFocused = false">
+          <svg class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" /></svg>
+          {{ t('trip.pickOnMap') }}
+        </button>
+        <p v-if="!originQuery.trim()" class="border-t border-bnc-stone-100 px-4 py-3 text-xs text-bnc-stone-500 dark:border-bnc-stone-800">{{ t('trip.typeToSearch') }}</p>
+        <button
+          v-for="h in originResults"
+          :key="h.sh_id"
+          type="button"
+          role="option"
+          class="flex min-h-11 w-full items-center gap-3 border-t border-bnc-stone-100 px-4 py-2 text-left text-sm hover:bg-bnc-stone-50 dark:border-bnc-stone-800 dark:hover:bg-bnc-stone-800"
+          @click="pickOriginHalte(h)"
+        >
+          <span class="inline-flex shrink-0 items-center rounded-md px-1.5 py-0.5 font-mono text-[11px] font-bold" :style="{ background: brt.colorForKor(h.kor), color: onColor(brt.colorForKor(h.kor)) }">{{ h.kor }}</span>
+          <span class="min-w-0 flex-1 [overflow-wrap:anywhere]">{{ h.sh_name }}</span>
+        </button>
+      </div>
+    </Teleport>
+
+    <Teleport to="body">
+      <div
+        v-if="destFocused && !destination"
+        ref="destPopoverEl"
+        class="fixed z-[1200] overflow-hidden rounded-xl border border-bnc-stone-200 bg-white shadow-[var(--shadow-elevated)] dark:border-bnc-stone-700 dark:bg-bnc-stone-900"
+        :style="{ top: destPopoverRect.top + 'px', left: destPopoverRect.left + 'px', width: destPopoverRect.width + 'px' }"
+        role="listbox"
+      >
+        <button type="button" class="flex min-h-11 w-full items-center gap-3 px-4 text-left text-sm font-medium text-bnc-accent hover:bg-bnc-stone-50 dark:hover:bg-bnc-stone-800" @click="toggleTapMode('dest'); destFocused = false">
+          <svg class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" /></svg>
+          {{ t('trip.pickOnMap') }}
+        </button>
+        <p v-if="!destQuery.trim()" class="border-t border-bnc-stone-100 px-4 py-3 text-xs text-bnc-stone-500 dark:border-bnc-stone-800">{{ t('trip.typeToSearch') }}</p>
+        <button
+          v-for="h in destResults"
+          :key="h.sh_id"
+          type="button"
+          role="option"
+          class="flex min-h-11 w-full items-center gap-3 border-t border-bnc-stone-100 px-4 py-2 text-left text-sm hover:bg-bnc-stone-50 dark:border-bnc-stone-800 dark:hover:bg-bnc-stone-800"
+          @click="pickDestHalte(h)"
+        >
+          <span class="inline-flex shrink-0 items-center rounded-md px-1.5 py-0.5 font-mono text-[11px] font-bold" :style="{ background: brt.colorForKor(h.kor), color: onColor(brt.colorForKor(h.kor)) }">{{ h.kor }}</span>
+          <span class="min-w-0 flex-1 [overflow-wrap:anywhere]">{{ h.sh_name }}</span>
+        </button>
+      </div>
+    </Teleport>
+
+    <!-- Tapping the map is active -->
+    <p v-if="tapMode" class="rounded-xl bg-bnc-accent/10 px-4 py-3 text-sm text-bnc-ink dark:text-bnc-paper">
+      {{ t(tapMode === 'origin' ? 'trip.tapHintOrigin' : 'trip.tapHintDest') }}
+    </p>
+
+    <!-- Results -->
+    <div v-if="origin && destination" class="flex flex-col gap-3" aria-live="polite">
+      <div v-if="loading" class="flex items-center gap-2 py-2 text-sm text-bnc-stone-500">
+        <svg class="h-4 w-4 animate-spin text-bnc-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" /></svg>
+        {{ t('trip.searching') }}
+      </div>
+      <p v-else-if="error" class="rounded-md bg-red-50 px-3 py-2 text-sm text-red-600 dark:bg-red-900/30 dark:text-red-400">{{ error }}</p>
+      <p v-else-if="showNoResults" class="rounded-xl bg-bnc-stone-100 px-4 py-3 text-sm text-bnc-stone-600 dark:bg-bnc-stone-800 dark:text-bnc-stone-300">{{ t('trip.noResults') }}</p>
       <template v-else>
-        <div v-if="plans.length" class="flex justify-end">
+        <div class="flex items-center justify-between">
+          <h3 class="font-display text-base font-semibold">{{ t('trip.available') }}</h3>
           <button
             type="button"
-            class="inline-flex min-h-11 items-center gap-1.5 rounded-md px-2 text-xs font-medium text-bnc-stone-600 hover:bg-bnc-stone-100 dark:text-bnc-stone-300 dark:hover:bg-bnc-stone-800"
+            class="inline-flex min-h-11 items-center gap-1.5 rounded-md px-2 text-xs font-medium text-bnc-accent hover:bg-bnc-stone-100 dark:hover:bg-bnc-stone-800"
             @click="trip.recompute()"
           >
             <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7L21 8" /><path d="M21 3v5h-5" /></svg>
