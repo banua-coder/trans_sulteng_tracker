@@ -54,6 +54,9 @@ export const useUiStore = defineStore('ui', () => {
   const mobileScrollY = ref<number>(0)
   /** Bumped to ask the phone sheet to open to its middle snap. */
   const sheetPing = ref(0)
+  /** Phone sheet + nav height in px (0 on desktop). The map reads it to
+   *  keep its camera inside the visible part. */
+  const sheetH = ref(0)
   function openSheet() { sheetPing.value++ }
 
   // Live map basemap — 'map' = CARTO Voyager/Dark Matter (theme
@@ -133,6 +136,7 @@ export const useUiStore = defineStore('ui', () => {
     mobileTab,
     mobileScrollY,
     sheetPing,
+    sheetH,
     openSheet,
     tileMode,
     setTileMode,

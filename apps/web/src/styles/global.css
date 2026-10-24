@@ -396,3 +396,7 @@ html.dark .leaflet-container { background: var(--color-bnc-stone-900); }
 /* Phone bottom navigation height; the sheet and map clear it. */
 :root { --nav-h: calc(56px + env(safe-area-inset-bottom)); }
 @media (min-width: 1024px) { :root { --nav-h: 0px; } }
+
+/* The phone sheet overlays the full-size map, so Leaflet's bottom
+   controls (zoom, attribution) ride above it. */
+.leaflet-container .leaflet-bottom { bottom: var(--sheet-h, 0px); }

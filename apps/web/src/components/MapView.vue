@@ -231,6 +231,23 @@ function markFlyInProgress(ms = 700) {
  *  closing the bus info card returns the user to where they were. */
 let priorViewport: { center: L.LatLng; zoom: number } | null = null
 
+/** Pixels of the map the phone sheet hides at the bottom. Camera moves
+ *  aim at the part still visible. A detail opens the sheet to about
+ *  half the screen, so assume at least that much for those moves. */
+function sheetInset(): number {
+  if (window.innerWidth >= 1024) return 0
+  return Math.max(ui.sheetH, window.innerHeight * 0.45)
+}
+
+/** Where to centre the map so `ll` lands in the middle of the visible
+ *  area (above the sheet) rather than the middle of the full map. */
+function visibleCenter(ll: L.LatLngExpression, zoom: number): L.LatLng {
+  const target = L.latLng(ll)
+  const inset = sheetInset()
+  if (!map || !inset) return target
+  return map.unproject(map.project(target, zoom).add([0, inset / 2]), zoom)
+}
+
 function initMap() {
   if (!containerEl.value || map) return
 
@@ -464,7 +481,8 @@ function drawTripPreview(plan: PlanResult | null) {
   }
 
   if (bounds.isValid()) {
-    map.fitBounds(bounds.pad(0.2), { duration: 0.6, animate: true })
+    markFlyInProgress()
+    map.fitBounds(bounds.pad(0.2), { duration: 0.6, animate: true, paddingBottomRight: [0, sheetInset()] })
   }
 }
 
@@ -532,7 +550,9 @@ function drawCorridors(items: BrtCorridor[]) {
   }
 
   if (map && allBounds.isValid()) {
-    map.fitBounds(allBounds.pad(0.08), { animate: false })
+    // Real sheet height here: the sheet opens later and the sheet-height
+    // watcher then slides the view with it.
+    map.fitBounds(allBounds.pad(0.08), { animate: false, paddingBottomRight: [0, window.innerWidth >= 1024 ? 0 : ui.sheetH] })
   }
   applyFocus(true)
 }
@@ -958,7 +978,7 @@ function upsertBusMarker(b: BrtBus) {
     selection.id === key &&
     map
   ) {
-    map.panTo([b.lat, b.lng], { animate: true, duration: 0.6 })
+    map.panTo(visibleCenter([b.lat, b.lng], map.getZoom()), { animate: true, duration: 0.6 })
   }
 }
 
@@ -1024,6 +1044,21 @@ onMounted(() => {
     resizeObserver.observe(containerEl.value)
   }
 })
+
+// The sheet overlays the map, so when the user opens, drags or
+// collapses it, slide the view by half the change. What was in the
+// middle of the visible area stays there, like perjalananmu's map.
+// Skipped while a fly is running, which already aimed past the sheet.
+let prevSheetH: number | null = null
+watch(
+  () => ui.sheetH,
+  (h) => {
+    const prev = prevSheetH
+    prevSheetH = h
+    if (!map || prev == null || flyInProgress || window.innerWidth >= 1024) return
+    map.panBy([0, (h - prev) / 2], { animate: false })
+  },
+)
 
 watch(
   () => city.pref,
@@ -1133,7 +1168,7 @@ watch(
         for (const ln of legLines) bounds.extend(ln.getBounds())
         if (bounds.isValid()) {
           following = false
-          map.flyToBounds(bounds.pad(0.12), { duration: 0.6 })
+          map.flyToBounds(bounds.pad(0.12), { duration: 0.6, paddingBottomRight: [0, sheetInset()] })
         }
       }
     }
@@ -1163,7 +1198,7 @@ watch(
         following = true
         const targetZoom = Math.max(map.getZoom(), 16)
         markFlyInProgress()
-        map.flyTo([b.lat, b.lng], targetZoom, { duration: 0.6 })
+        map.flyTo(visibleCenter([b.lat, b.lng], targetZoom), targetZoom, { duration: 0.6 })
       }
     } else if (kind === 'halte' && id) {
       following = false
@@ -1174,7 +1209,7 @@ watch(
         if (Number.isFinite(hLat) && Number.isFinite(hLng)) {
           const targetZoom = Math.max(map.getZoom(), 16)
           markFlyInProgress()
-          map.flyTo([hLat as number, hLng as number], targetZoom, { duration: 0.6 })
+          map.flyTo(visibleCenter([hLat as number, hLng as number], targetZoom), targetZoom, { duration: 0.6 })
         }
       }
     } else {
@@ -1247,7 +1282,8 @@ watch(
 // be re-tapped to re-zoom.
 watch(tripFocusedStop, (p) => {
   if (!p || !map) return
-  map.flyTo([p.lat, p.lng], Math.max(map.getZoom(), 17), { duration: 0.5 })
+  const z = Math.max(map.getZoom(), 17)
+  map.flyTo(visibleCenter([p.lat, p.lng], z), z, { duration: 0.5 })
   trip.focusStop(null)
 })
 
