@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { buildGraph, planTrip } from '@/lib/tripPlanner'
+import { nsHalte } from '@/lib/crossCity'
 import type { BrtHalte } from '@/types/brt'
 
 function halte(kor: string, id: string, name: string, lat: number, lng: number): BrtHalte {
@@ -54,5 +55,15 @@ describe('planTrip', () => {
     const far = { lat: -0.7815, lng: 119.8 }
     expect(planTrip(g, far, NEAR_Y3).length).toBeGreaterThan(0)
     expect(planTrip(g, far, NEAR_Y3, 5, null, { originPinned: true })).toEqual([])
+  })
+
+  it('rides across cities when both reuse the same corridor code', () => {
+    // Two cities, both with a corridor called X; the second is namespaced.
+    const otherX = X.map((h) => nsHalte('11', { ...h, sh_id: 'o' + h.sh_id, sh_lat: String(parseFloat(h.sh_lat) - 0.026) }))
+    const g = buildGraph([], [X, otherX])
+    // otherX1 lands on X3, so the trip changes there and rides on south.
+    const plans = planTrip(g, NEAR_X1, { lat: -0.8321, lng: 119.8 })
+    const rides = plans[0]?.steps.filter((s) => s.kind === 'ride').map((s) => s.kor)
+    expect(rides).toEqual(['X', '11:X'])
   })
 })

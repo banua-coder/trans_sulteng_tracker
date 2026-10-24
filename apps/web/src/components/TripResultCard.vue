@@ -3,6 +3,7 @@ import { computed, toRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useBrtStore } from '@/stores/brt'
 import type { PlanStep } from '@/lib/tripPlanner'
+import { korLabel, splitKor } from '@/lib/crossCity'
 
 const props = defineProps<{
   totalMin: number
@@ -33,6 +34,14 @@ const legs = computed(() => {
     else if (st.kind === 'ride' && st.kor) out.push({ kind: 'ride', kor: st.kor, min: st.durationMin })
   }
   return out
+})
+
+/** The trip rides both Trans Palu and Trans Donggala. */
+const crossCity = computed(() => {
+  const prefs = new Set(
+    steps.value.filter((st) => st.kind === 'ride' && st.kor).map((st) => splitKor(st.kor!).pref ?? ''),
+  )
+  return prefs.size > 1
 })
 
 const transfers = computed(() => Math.max(0, steps.value.filter((st) => st.kind === 'ride').length - 1))
@@ -73,7 +82,7 @@ const totalKm = computed(() => {
           :style="{ borderColor: brt.colorForKor(leg.kor) }"
         >
           <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="16" height="14" rx="3" /><path d="M4 11h16M8 21v-3M16 21v-3" /></svg>
-          {{ leg.kor }}
+          {{ korLabel(leg.kor) }}
         </span>
       </template>
     </div>
@@ -81,6 +90,7 @@ const totalKm = computed(() => {
     <p class="text-xs text-bnc-stone-500">
       <template v-if="transfers > 0">{{ t('trip.transfers', { n: transfers }) }} · </template>{{ t('trip.walkTotal', { m: Math.round(totalWalkM / 10) * 10 }) }} · <span class="font-mono">{{ totalKm }} km</span>
     </p>
+    <p v-if="crossCity" class="text-xs font-medium text-warn">{{ t('trip.crossCity') }}</p>
     <p v-if="wait" class="text-xs" :class="wait.waitLive ? 'font-medium text-bnc-ink dark:text-bnc-paper' : 'text-bnc-stone-500'">
       {{ t(wait.waitLive ? 'trip.waitLive' : 'trip.waitEstimate', { min: Math.max(1, Math.round(wait.waitMin ?? 0)) }) }}
     </p>
