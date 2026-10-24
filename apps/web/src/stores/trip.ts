@@ -191,7 +191,7 @@ export const useTripStore = defineStore('trip', () => {
         originPinned: origin.value.kind === 'halte',
       })
       if (seq !== recomputeSeq) return // newer recompute won, ignore
-      plans.value = resp.paths
+      plans.value = withLiveWait(resp.paths)
       // Don't auto-select — the user picks from the result list first
       // (matches TJ Transjakarta's flow: list → tap → detail).
       selectedPlanIdx.value = null
@@ -375,108 +375,131 @@ export const useTripStore = defineStore('trip', () => {
   /** Buses currently approaching the given ride step's boarding
    *  halte. Same shape as brt.incomingBusesForHalte but scoped to a
    *  plan step's `fromName` / `kor`. */
+  function incomingFor(step: PlanStep | null | undefined): IncomingBus[] {
+    if (!step || step.kind !== 'ride' || !step.kor) return []
+    const corridor = brt.corridorByKor.get(step.kor)
+    if (!corridor) return []
+
+    const boardingShIds = new Set(
+      brt.halte
+        .filter((h) => h.kor === step.kor && h.sh_name === step.fromName)
+        .map((h) => h.sh_id),
+    )
+
+    let boardingCoord: { lat: number; lng: number } | null = null
+    const namedAtKor = brt.halte.find(
+      (x) => x.kor === step.kor && x.sh_name === step.fromName,
+    )
+    if (namedAtKor) {
+      const lat = parseFloat(namedAtKor.sh_lat)
+      const lng = parseFloat(namedAtKor.sh_lng)
+      if (Number.isFinite(lat) && Number.isFinite(lng)) {
+        boardingCoord = { lat, lng }
+      }
+    }
+
+    const out: IncomingBus[] = []
+    const seen = new Set<string>()
+    for (const bus of brt.buses.values()) {
+      if (bus.kor !== step.kor) continue
+
+      let headingHere = false
+      const originName = bus.toward === corridor.toward ? corridor.origin : corridor.toward
+      const leg = brt.getHalteForLeg(step.kor, bus.toward, originName)
+      if (leg.length) {
+        const progressIdx = busLegProgress(bus, leg)
+        for (let i = progressIdx; i < leg.length; i++) {
+          if (leg[i].sh_name === step.fromName) { headingHere = true; break }
+        }
+      }
+      if (!headingHere && bus.new_shel_t && boardingShIds.has(bus.new_shel_t)) {
+        headingHere = true
+      }
+
+      let nearby = false
+      if (
+        boardingCoord
+        && Number.isFinite(bus.lat) && Number.isFinite(bus.lng)
+      ) {
+        const d = haversineMeters(
+          boardingCoord,
+          { lat: Number(bus.lat), lng: Number(bus.lng) },
+        )
+        nearby = d <= 80
+      }
+      if (!headingHere && !nearby) continue
+      const key = bus.imei || bus.id
+      if (seen.has(key)) continue
+      seen.add(key)
+
+      let etaMin: number | null = null
+      let distM: number | null = null
+      if (
+        !nearby && boardingCoord
+        && Number.isFinite(bus.lat) && Number.isFinite(bus.lng)
+      ) {
+        const eta = etaToHalte(
+          { lat: Number(bus.lat), lng: Number(bus.lng), speed: bus.speed, dist_shel: null },
+          { sh_lat: boardingCoord.lat, sh_lng: boardingCoord.lng },
+        )
+        distM = eta?.distM ?? null
+        etaMin = eta?.etaMin ?? null
+      }
+
+      out.push({
+        bus,
+        etaMin: nearby ? 0 : etaMin,
+        distM: nearby ? 0 : distM,
+        atStop: nearby,
+        fresh: !isStale(bus),
+        quality: getEtaQuality(bus),
+        corridorColor: brt.colorForKor(step.kor) || '#0EA5E9',
+        arrivalAt: !nearby && etaMin != null
+          ? (() => {
+              const d = new Date(Date.now() + Math.max(0, etaMin) * 60_000)
+              const p = (n: number) => (n < 10 ? `0${n}` : String(n))
+              return `${p(d.getHours())}:${p(d.getMinutes())}`
+            })()
+          : null,
+      })
+    }
+
+    out.sort((a, b) => {
+      if (a.atStop !== b.atStop) return a.atStop ? -1 : 1
+      if (a.etaMin == null && b.etaMin == null) return 0
+      if (a.etaMin == null) return 1
+      if (b.etaMin == null) return -1
+      return a.etaMin - b.etaMin
+    })
+    return out
+  }
+
   function incomingBusesForStep(
     stepRef: MaybeRefOrGetter<PlanStep | null | undefined>,
   ): ComputedRef<IncomingBus[]> {
-    return computed(() => {
-      const step = toValue(stepRef)
-      if (!step || step.kind !== 'ride' || !step.kor) return []
-      const corridor = brt.corridorByKor.get(step.kor)
-      if (!corridor) return []
+    return computed(() => incomingFor(toValue(stepRef)))
+  }
 
-      const boardingShIds = new Set(
-        brt.halte
-          .filter((h) => h.kor === step.kor && h.sh_name === step.fromName)
-          .map((h) => h.sh_id),
-      )
+  /** Headway guess when no live bus is on its way: buses come about
+   *  every 10 minutes, so the average wait is half of that. */
+  const FALLBACK_WAIT_MIN = 5
 
-      let boardingCoord: { lat: number; lng: number } | null = null
-      const namedAtKor = brt.halte.find(
-        (x) => x.kor === step.kor && x.sh_name === step.fromName,
-      )
-      if (namedAtKor) {
-        const lat = parseFloat(namedAtKor.sh_lat)
-        const lng = parseFloat(namedAtKor.sh_lng)
-        if (Number.isFinite(lat) && Number.isFinite(lng)) {
-          boardingCoord = { lat, lng }
-        }
-      }
-
-      const out: IncomingBus[] = []
-      const seen = new Set<string>()
-      for (const bus of brt.buses.values()) {
-        if (bus.kor !== step.kor) continue
-
-        let headingHere = false
-        const originName = bus.toward === corridor.toward ? corridor.origin : corridor.toward
-        const leg = brt.getHalteForLeg(step.kor, bus.toward, originName)
-        if (leg.length) {
-          const progressIdx = busLegProgress(bus, leg)
-          for (let i = progressIdx; i < leg.length; i++) {
-            if (leg[i].sh_name === step.fromName) { headingHere = true; break }
-          }
-        }
-        if (!headingHere && bus.new_shel_t && boardingShIds.has(bus.new_shel_t)) {
-          headingHere = true
-        }
-
-        let nearby = false
-        if (
-          boardingCoord
-          && Number.isFinite(bus.lat) && Number.isFinite(bus.lng)
-        ) {
-          const d = haversineMeters(
-            boardingCoord,
-            { lat: Number(bus.lat), lng: Number(bus.lng) },
-          )
-          nearby = d <= 80
-        }
-        if (!headingHere && !nearby) continue
-        const key = bus.imei || bus.id
-        if (seen.has(key)) continue
-        seen.add(key)
-
-        let etaMin: number | null = null
-        let distM: number | null = null
-        if (
-          !nearby && boardingCoord
-          && Number.isFinite(bus.lat) && Number.isFinite(bus.lng)
-        ) {
-          const eta = etaToHalte(
-            { lat: Number(bus.lat), lng: Number(bus.lng), speed: bus.speed, dist_shel: null },
-            { sh_lat: boardingCoord.lat, sh_lng: boardingCoord.lng },
-          )
-          distM = eta?.distM ?? null
-          etaMin = eta?.etaMin ?? null
-        }
-
-        out.push({
-          bus,
-          etaMin: nearby ? 0 : etaMin,
-          distM: nearby ? 0 : distM,
-          atStop: nearby,
-          fresh: !isStale(bus),
-          quality: getEtaQuality(bus),
-          corridorColor: brt.colorForKor(step.kor) || '#0EA5E9',
-          arrivalAt: !nearby && etaMin != null
-            ? (() => {
-                const d = new Date(Date.now() + Math.max(0, etaMin) * 60_000)
-                const p = (n: number) => (n < 10 ? `0${n}` : String(n))
-                return `${p(d.getHours())}:${p(d.getMinutes())}`
-              })()
-            : null,
-        })
-      }
-
-      out.sort((a, b) => {
-        if (a.atStop !== b.atStop) return a.atStop ? -1 : 1
-        if (a.etaMin == null && b.etaMin == null) return 0
-        if (a.etaMin == null) return 1
-        if (b.etaMin == null) return -1
-        return a.etaMin - b.etaMin
-      })
-      return out
+  /** Add the wait for the first bus to each plan, from live positions
+   *  where a bus is heading for the boarding stop, then re-rank. The
+   *  rider walks to the stop first, so a bus that arrives before them
+   *  adds no wait. ponytail: transfers keep the fixed 5 min wait; live
+   *  ETAs at the transfer stop are a later step. */
+  function withLiveWait(paths: PlanResult[]): PlanResult[] {
+    const out = paths.map((plan) => {
+      const idx = plan.steps.findIndex((s) => s.kind === 'ride')
+      if (idx < 0) return plan
+      const walkBefore = plan.steps.slice(0, idx).reduce((n, s) => n + s.durationMin, 0)
+      const live = incomingFor(plan.steps[idx]).find((b) => b.fresh && b.etaMin != null)
+      const waitMin = live ? Math.max(0, live.etaMin! - walkBefore) : FALLBACK_WAIT_MIN
+      const steps = plan.steps.map((s, i) => (i === idx ? { ...s, waitMin, waitLive: !!live } : s))
+      return { ...plan, steps, totalMin: plan.totalMin + waitMin }
     })
+    return out.sort((a, b) => a.totalMin - b.totalMin)
   }
 
   // Rebuild graph when the city changes (different corridors / halte).

@@ -481,6 +481,16 @@ const showNoResults = computed(
 
       <!-- Plan cards -->
       <template v-else>
+        <div v-if="plans.length" class="flex justify-end">
+          <button
+            type="button"
+            class="inline-flex min-h-11 items-center gap-1.5 rounded-md px-2 text-xs font-medium text-bnc-stone-600 hover:bg-bnc-stone-100 dark:text-bnc-stone-300 dark:hover:bg-bnc-stone-800"
+            @click="trip.recompute()"
+          >
+            <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7L21 8" /><path d="M21 3v5h-5" /></svg>
+            {{ t('trip.recompute') }}
+          </button>
+        </div>
         <TripResultCard
           v-for="(plan, idx) in plans"
           :key="idx"
