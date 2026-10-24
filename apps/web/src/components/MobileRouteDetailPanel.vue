@@ -67,7 +67,7 @@ function corridorBadgesFor(h: BrtHalte) {
           <p class="font-mono text-[10px] uppercase tracking-wider text-bnc-stone-500">
             {{ t('route.detailTitle') }}
           </p>
-          <h2 class="truncate font-display text-sm font-bold tracking-tight">
+          <h2 class="[overflow-wrap:anywhere] font-display text-sm font-bold tracking-tight">
             {{ corridor.origin }} – {{ corridor.toward }}
           </h2>
         </div>
@@ -111,6 +111,7 @@ function corridorBadgesFor(h: BrtHalte) {
           :available="directionAvailable"
           :toward-label="corridor.toward"
           :origin-label="corridor.origin"
+          :color="corridor.color || undefined"
           @update:direction="focus.setDirection($event)"
         />
       </template>

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { onColor } from '@/lib/color'
 /**
  * Strava-style end-of-trip share card. Rendered offscreen at a
  * fixed 1080×1350 (IG story 9:16, reads cleanly on WA + Twitter).
@@ -120,7 +121,7 @@ function fmt(m: number): string {
           v-for="c in summary.corridors"
           :key="c.kor"
           class="inline-flex items-center rounded-md px-2 py-1 font-mono text-sm font-bold uppercase tracking-wider text-white"
-          :style="{ background: c.color }"
+          :style="{ background: c.color, color: onColor(c.color) }"
         >
           {{ c.kor }}
         </span>

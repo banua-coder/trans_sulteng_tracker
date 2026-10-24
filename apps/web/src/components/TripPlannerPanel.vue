@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { onColor } from '@/lib/color'
 import { computed, nextTick, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
@@ -297,7 +298,7 @@ const showNoResults = computed(
           <svg class="h-3 w-3 shrink-0 text-bnc-accent" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
             <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" />
           </svg>
-          <span class="min-w-0 flex-1 truncate font-display text-sm font-medium">{{ origin.label }}</span>
+          <span class="min-w-0 flex-1 [overflow-wrap:anywhere] font-display text-sm font-medium">{{ origin.label }}</span>
           <button
             type="button"
             class="-my-2 -mr-2 ml-1 shrink-0 rounded-full p-2.5 text-bnc-stone-500 transition-colors hover:bg-bnc-stone-200 hover:text-bnc-ink dark:hover:bg-bnc-stone-700 dark:hover:text-bnc-paper"
@@ -344,10 +345,10 @@ const showNoResults = computed(
           >
             <span
               class="h-2 w-2 shrink-0 rounded-full"
-              :style="{ background: brt.colorForKor(h.kor) }"
+              :style="{ background: brt.colorForKor(h.kor), color: onColor(brt.colorForKor(h.kor)) }"
               aria-hidden
             />
-            <span class="min-w-0 flex-1 truncate text-sm">{{ h.sh_name }}</span>
+            <span class="min-w-0 flex-1 [overflow-wrap:anywhere] text-sm">{{ h.sh_name }}</span>
             <span class="shrink-0 font-mono text-[10px] text-bnc-stone-400">{{ h.kor }}</span>
           </button>
         </li>
@@ -402,7 +403,7 @@ const showNoResults = computed(
           <svg class="h-3 w-3 shrink-0 text-bnc-primary dark:text-bnc-accent" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
             <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" />
           </svg>
-          <span class="min-w-0 flex-1 truncate font-display text-sm font-medium">{{ destination.label }}</span>
+          <span class="min-w-0 flex-1 [overflow-wrap:anywhere] font-display text-sm font-medium">{{ destination.label }}</span>
           <button
             type="button"
             class="-my-2 -mr-2 ml-1 shrink-0 rounded-full p-2.5 text-bnc-stone-500 transition-colors hover:bg-bnc-stone-200 hover:text-bnc-ink dark:hover:bg-bnc-stone-700 dark:hover:text-bnc-paper"
@@ -445,10 +446,10 @@ const showNoResults = computed(
           >
             <span
               class="h-2 w-2 shrink-0 rounded-full"
-              :style="{ background: brt.colorForKor(h.kor) }"
+              :style="{ background: brt.colorForKor(h.kor), color: onColor(brt.colorForKor(h.kor)) }"
               aria-hidden
             />
-            <span class="min-w-0 flex-1 truncate text-sm">{{ h.sh_name }}</span>
+            <span class="min-w-0 flex-1 [overflow-wrap:anywhere] text-sm">{{ h.sh_name }}</span>
             <span class="shrink-0 font-mono text-[10px] text-bnc-stone-400">{{ h.kor }}</span>
           </button>
         </li>

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { onColor } from '@/lib/color'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useBrtStore } from '@/stores/brt'
@@ -59,7 +60,7 @@ const totalKm = computed(() => {
           <template v-else-if="step.kind === 'ride' && step.kor">
             <span
               class="inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full px-1 font-mono text-[9px] font-bold text-white"
-              :style="{ background: brt.colorForKor(step.kor) }"
+              :style="{ background: brt.colorForKor(step.kor), color: onColor(brt.colorForKor(step.kor)) }"
               :aria-label="step.kor"
             >
               {{ step.kor }}

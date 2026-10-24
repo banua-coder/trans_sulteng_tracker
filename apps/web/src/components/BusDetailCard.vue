@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { onColor } from '@/lib/color'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
@@ -81,7 +82,7 @@ useBusAnnouncements(selectedBus, upcomingStops)
       <SheetStickyHeader :back-label="t('a11y.back')" mobile-only @back="selection.back()">
         <span
           class="grid h-7 w-7 shrink-0 place-items-center rounded-full font-mono text-[10px] font-bold text-white"
-          :style="{ background: corridorColor }"
+          :style="{ background: corridorColor, color: onColor(corridorColor) }"
           aria-hidden
         >
           {{ selectedBus.kor || '·' }}
@@ -96,7 +97,7 @@ useBusAnnouncements(selectedBus, upcomingStops)
               {{ selectedBus.name }}
             </span>
           </div>
-          <p class="mt-0.5 truncate font-mono text-[10px] uppercase tracking-wider text-bnc-stone-500">
+          <p class="mt-0.5 [overflow-wrap:anywhere] font-mono text-[10px] uppercase tracking-wider text-bnc-stone-500">
             → {{ selectedBus.toward || '—' }}
           </p>
           <!-- Inline bus telemetry: speed + freshness + (optional) pax.
@@ -146,12 +147,12 @@ useBusAnnouncements(selectedBus, upcomingStops)
             >
               <span
                 class="grid h-5 w-5 shrink-0 place-items-center rounded-full font-mono text-[9px] font-bold text-white"
-                :style="{ background: corridorColor }"
+                :style="{ background: corridorColor, color: onColor(corridorColor) }"
                 aria-hidden
               >
                 {{ i + 1 }}
               </span>
-              <span class="min-w-0 flex-1 truncate text-xs font-medium">{{ stop.sh_name }}</span>
+              <span class="min-w-0 flex-1 [overflow-wrap:anywhere] text-xs font-medium">{{ stop.sh_name }}</span>
               <span class="shrink-0 text-right">
                 <span
                   v-if="stop.atStop"

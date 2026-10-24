@@ -2,6 +2,7 @@
 import '@/lib/leaflet/setup'
 import L from 'leaflet'
 import polyline from '@mapbox/polyline'
+import { isLightRoute } from '@/lib/color'
 import { onBeforeUnmount, onMounted, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
@@ -122,7 +123,9 @@ const casingOf = new WeakMap<L.Polyline, L.Polyline>()
 function styleLine(ln: L.Polyline, color: string, opacity: number, weight: number) {
   ln.setStyle({ color, opacity, weight })
   casingOf.get(ln)?.setStyle({
-    color: '#fff',
+    // White casing vanishes against pale routes (yellow, sky blue), so
+    // those get a dark one.
+    color: isLightRoute(color) ? '#0a0e14' : '#fff',
     weight: weight + 3,
     opacity: weight >= 6 ? 0.9 : 0,
   })

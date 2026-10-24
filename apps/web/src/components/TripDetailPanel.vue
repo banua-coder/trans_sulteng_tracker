@@ -143,7 +143,7 @@ function focusStep(step: PlanStep) {
         <p class="font-mono text-[10px] uppercase tracking-wider text-bnc-stone-500">
           {{ t('trip.itineraryTitle') }}
         </p>
-        <h2 class="truncate font-display text-sm font-bold tracking-tight">
+        <h2 class="[overflow-wrap:anywhere] font-display text-sm font-bold tracking-tight">
           {{ origin?.label ?? '—' }} → {{ destination?.label ?? '—' }}
         </h2>
       </div>
@@ -232,7 +232,7 @@ function focusStep(step: PlanStep) {
               >
                 {{ step.kor }}
               </span>
-              <span class="truncate">{{ step.fromName }} → {{ step.toName }}</span>
+              <span class="[overflow-wrap:anywhere]">{{ step.fromName }} → {{ step.toName }}</span>
             </p>
             <p class="mt-0.5 font-mono text-[10px] tabular-nums text-bnc-stone-500">
               {{ Math.max(1, Math.round(step.durationMin)) }} {{ t('units.minutes') }}
@@ -302,7 +302,7 @@ function focusStep(step: PlanStep) {
                       />
                       <span
                         v-else
-                        class="truncate font-mono text-[11px] font-bold"
+                        class="[overflow-wrap:anywhere] font-mono text-[11px] font-bold"
                       >
                         {{ b.bus.kor }}
                       </span>

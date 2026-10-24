@@ -102,14 +102,14 @@ function stripeStyle(): Record<string, string> {
         </span>
         <span
           v-if="toward"
-          class="truncate text-xs text-bnc-stone-700 dark:text-bnc-stone-200"
+          class="[overflow-wrap:anywhere] text-xs text-bnc-stone-700 dark:text-bnc-stone-200"
         >
           {{ toward }}
         </span>
       </div>
       <div v-else-if="finalDestination" class="flex items-center gap-1">
         <span class="font-mono text-[9px] text-bnc-stone-400">→</span>
-        <span class="truncate font-mono text-[10px] text-bnc-stone-500 dark:text-bnc-stone-400">
+        <span class="[overflow-wrap:anywhere] font-mono text-[10px] text-bnc-stone-500 dark:text-bnc-stone-400">
           {{ finalDestination }}
         </span>
       </div>
