@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { onColor } from '@/lib/color'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
@@ -83,10 +84,10 @@ const busStatusLabel = computed(() => {
         />
       </span>
       <div class="min-w-0">
-        <h2 class="truncate font-display text-base font-semibold tracking-tight">
+        <h2 class="[overflow-wrap:anywhere] font-display text-base font-semibold tracking-tight">
           {{ cityMeta?.name ?? city.slug }}
         </h2>
-        <p v-if="cityMeta?.city" class="truncate text-xs text-bnc-stone-500">
+        <p v-if="cityMeta?.city" class="[overflow-wrap:anywhere] text-xs text-bnc-stone-500">
           {{ cityMeta.city }}
         </p>
       </div>
@@ -129,11 +130,11 @@ const busStatusLabel = computed(() => {
             <div class="flex items-center gap-2">
               <span
                 class="grid h-7 w-7 shrink-0 place-items-center rounded-full font-mono text-[10px] font-extrabold text-white"
-                :style="{ background: c.color || '#0EA5E9' }"
+                :style="{ background: c.color || '#0EA5E9', color: onColor(c.color || '#0EA5E9') }"
                 aria-hidden
               >{{ c.kor }}</span>
               <div class="min-w-0 flex-1">
-                <p class="truncate text-xs font-medium text-bnc-stone-700 dark:text-bnc-stone-200">
+                <p class="[overflow-wrap:anywhere] text-xs font-medium text-bnc-stone-700 dark:text-bnc-stone-200">
                   {{ c.origin }} → {{ c.toward }}
                 </p>
                 <p class="mt-0.5 font-mono text-[10px] text-bnc-stone-500">

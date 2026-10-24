@@ -97,10 +97,10 @@ function pick(h: BrtHalte) {
               aria-hidden
             />
             <div class="min-w-0 flex-1">
-              <p class="truncate font-display text-sm font-semibold tracking-tight">
+              <p class="[overflow-wrap:anywhere] font-display text-sm font-semibold tracking-tight">
                 {{ r.halte.sh_name }}
               </p>
-              <p class="truncate font-mono text-[10px] text-bnc-stone-500">
+              <p class="[overflow-wrap:anywhere] font-mono text-[10px] text-bnc-stone-500">
                 {{ r.halte.kor }} · {{ formatDistance(r.meters) }}
               </p>
             </div>

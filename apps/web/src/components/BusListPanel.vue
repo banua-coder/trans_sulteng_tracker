@@ -181,7 +181,7 @@ function pick(bus: BrtBus) {
                 stale
               </span>
             </div>
-            <p class="truncate font-mono text-[10px] text-bnc-stone-500">
+            <p class="[overflow-wrap:anywhere] font-mono text-[10px] text-bnc-stone-500">
               → {{ r.nextHalteName ?? r.bus.toward ?? '—' }}
             </p>
           </div>

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { onColor } from '@/lib/color'
 import { computed } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useBrtStore } from '@/stores/brt'
@@ -56,7 +57,7 @@ function pickBus(bus: BrtBus) {
       >
         <span
           class="grid h-9 w-9 shrink-0 place-items-center rounded-full font-mono text-xs font-bold text-white"
-          :style="{ background: accentColor }"
+          :style="{ background: accentColor, color: onColor(accentColor) }"
           aria-hidden
         >
           {{ corridor?.kor ?? '·' }}
@@ -100,6 +101,7 @@ function pickBus(bus: BrtBus) {
         :available="directionAvailable"
         :toward-label="corridor?.toward || ''"
         :origin-label="corridor?.origin || ''"
+        :color="corridor?.color || undefined"
         @update:direction="focus.setDirection($event)"
       />
 

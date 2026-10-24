@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { onColor } from '@/lib/color'
 /**
  * TJ-style "Rute & Halte" picker — rendered INSIDE the existing
  * mobile BottomSheet when no corridor/bus/halte is selected. Replaces
@@ -240,7 +241,7 @@ function pickHalte(shId: string) {
             type="button"
             class="inline-flex shrink-0 items-center rounded-md px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-white transition-opacity"
             :style="{
-              background: p.color,
+              background: p.color, color: onColor(p.color),
               opacity: halteListFilterKor === null || halteListFilterKor === p.kor ? 1 : 0.4,
             }"
             :aria-pressed="halteListFilterKor === p.kor"
@@ -259,7 +260,7 @@ function pickHalte(shId: string) {
             @click="pickHalte(h.sh_id)"
           >
             <div class="min-w-0 flex-1">
-              <p class="truncate font-display text-sm font-semibold tracking-tight">
+              <p class="[overflow-wrap:anywhere] font-display text-sm font-semibold tracking-tight">
                 {{ h.sh_name }}
               </p>
               <div class="mt-1 flex flex-wrap gap-1">
@@ -267,7 +268,7 @@ function pickHalte(shId: string) {
                   v-for="b in brt.corridorBadgesForHalte(h, halteListFilterKor)"
                   :key="b.kor"
                   class="inline-flex items-center rounded px-1.5 py-[1px] font-mono text-[9px] font-bold uppercase tracking-wider text-white transition-opacity"
-                  :style="{ background: b.color, opacity: halteListFilterKor === null || b.current ? 1 : 0.45 }"
+                  :style="{ background: b.color, color: onColor(b.color), opacity: halteListFilterKor === null || b.current ? 1 : 0.45 }"
                 >
                   {{ b.kor }}
                 </span>

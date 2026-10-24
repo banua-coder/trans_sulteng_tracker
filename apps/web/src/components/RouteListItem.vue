@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { onColor } from '@/lib/color'
 /**
  * Single corridor row used in RoutesIndexView. Mirrors TJ's route
  * picker shape: a colored circle with the corridor code, the
@@ -21,14 +22,14 @@ defineProps<{
   >
     <span
       class="grid h-10 w-10 shrink-0 place-items-center rounded-full font-mono text-xs font-extrabold text-white"
-      :style="{ background: color }"
+      :style="{ background: color, color: onColor(color) }"
       aria-hidden
     >
       {{ kor }}
     </span>
 
     <div class="min-w-0 flex-1">
-      <p class="truncate font-display text-sm font-semibold tracking-tight">
+      <p class="[overflow-wrap:anywhere] font-display text-sm font-semibold tracking-tight">
         {{ origin }} – {{ toward }}
       </p>
       <p

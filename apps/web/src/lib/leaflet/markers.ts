@@ -1,8 +1,10 @@
 import L from 'leaflet'
+import { onColor } from '@/lib/color'
 
 /** White front-facing bus glyph, drawn inside the route-colour tile. */
-const BUS_GLYPH =
-  '<svg class="bus-glyph" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="16" height="14" rx="3"/><path d="M4 11h16M8 21v-3M16 21v-3"/><circle cx="8.5" cy="14" r=".6" fill="#fff"/><circle cx="15.5" cy="14" r=".6" fill="#fff"/></svg>'
+function busGlyph(ink: string): string {
+  return `<svg class="bus-glyph" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="${ink}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="16" height="14" rx="3"/><path d="M4 11h16M8 21v-3M16 21v-3"/><circle cx="8.5" cy="14" r=".6" fill="${ink}"/><circle cx="15.5" cy="14" r=".6" fill="${ink}"/></svg>`
+}
 
 /**
  * Bus marker: rounded-square tile in the route colour with a white bus
@@ -34,7 +36,7 @@ export function busIcon(opts: {
       <div class="bus-arrow-wrap" style="transform: rotate(${safeAngle}deg)">
         <span class="bus-arrow" style="border-bottom-color: ${color}"></span>
       </div>
-      <div class="bus-disc" style="background:${color}">${BUS_GLYPH}<span class="bus-code" style="color:${color};border-color:${color}">${safe}</span></div>
+      <div class="bus-disc" style="background:${color};color:${onColor(color)}">${busGlyph(onColor(color))}<span class="bus-code" style="border-color:${color}">${safe}</span></div>
     `,
   })
 }
@@ -91,7 +93,7 @@ export function terminalMarker(
       className: 'terminal-marker',
       iconSize: [24, 24],
       iconAnchor: [12, 12],
-      html: `<span style="background:${color}">${safe}</span>`,
+      html: `<span style="background:${color};color:${onColor(color)}">${safe}</span>`,
     }),
     interactive: false,
     keyboard: false,

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { onColor } from '@/lib/color'
 /**
  * One printable A4 page within a corridor's booklet — header, map of
  * the corridor, side column with a slice of the halte list, optional
@@ -209,7 +210,7 @@ onBeforeUnmount(() => {
           <template v-if="legPageTotal > 1">· hal. {{ legPageNum }}/{{ legPageTotal }}</template>
         </p>
         <h1>
-          <span class="chip" :style="{ background: corridor.color || '#0EA5E9' }">{{ corridor.kor }}</span>
+          <span class="chip" :style="{ background: corridor.color || '#0EA5E9', color: onColor(corridor.color || '#0EA5E9') }">{{ corridor.kor }}</span>
           {{ titleLabel }}
         </h1>
         <p class="footnote">
@@ -249,7 +250,7 @@ onBeforeUnmount(() => {
                   v-for="k in legTransfersFor(h)"
                   :key="k"
                   class="transfer-chip"
-                  :style="{ background: brt.colorForKor(k) || '#0EA5E9' }"
+                  :style="{ background: brt.colorForKor(k) || '#0EA5E9', color: onColor(brt.colorForKor(k) || '#0EA5E9') }"
                 >{{ k }}</span>
               </span>
             </li>

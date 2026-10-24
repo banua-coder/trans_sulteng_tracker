@@ -43,7 +43,7 @@ function discard() {
       <p class="font-mono text-[10px] uppercase tracking-wider text-bnc-stone-500">
         {{ t('ride.resume.title') }}
       </p>
-      <p class="truncate text-xs">
+      <p class="[overflow-wrap:anywhere] text-xs">
         {{ t('ride.resume.body', { destination }) }}
       </p>
     </div>
