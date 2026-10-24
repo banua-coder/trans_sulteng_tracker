@@ -125,6 +125,8 @@ export const messages = {
       next: 'Lanjut',
       prev: 'Kembali',
       done: 'Selesai',
+      skip: 'Lewati',
+      progress: 'Langkah {n} dari {total}',
       full: {
         city: {
           title: 'Pilih kota',
@@ -414,6 +416,8 @@ export const messages = {
       next: 'Next',
       prev: 'Back',
       done: 'Done',
+      skip: 'Skip',
+      progress: 'Step {n} of {total}',
       full: {
         city: {
           title: 'Pick a city',

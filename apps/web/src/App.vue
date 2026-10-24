@@ -3,6 +3,7 @@ import { onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import TopBar from '@/components/TopBar.vue'
 import OperatingBanner from '@/components/OperatingBanner.vue'
+import TourCoach from '@/components/TourCoach.vue'
 import { useCityStore } from '@/stores/city'
 import { useBrtStore } from '@/stores/brt'
 import { useTour } from '@/composables/useTour'
@@ -56,6 +57,7 @@ watch(
   <div class="flex min-h-dvh flex-col">
     <TopBar class="app-chrome" />
     <OperatingBanner class="app-chrome" />
+    <TourCoach />
     <main class="relative flex-1">
       <router-view v-slot="{ Component }">
         <transition name="fade" mode="out-in">
