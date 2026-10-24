@@ -14,7 +14,7 @@ import { useSelectionStore } from '@/stores/selection'
 import { useTripStore } from '@/stores/trip'
 import { useUiStore } from '@/stores/ui'
 import type { PlanResult } from '@/lib/tripPlanner'
-import { busIcon, halteHaloMarker, halteMarker } from '@/lib/leaflet/markers'
+import { busIcon, halteHaloMarker, halteMarker, HALTE_RING, terminalMarker } from '@/lib/leaflet/markers'
 import { darkTiles, lightTiles, satelliteTiles } from '@/lib/leaflet/tiles'
 import { useTheme } from '@/lib/theme'
 import { haversineMeters, isStale } from '@/lib/format'
@@ -46,7 +46,13 @@ const {
 const containerEl = shallowRef<HTMLElement | null>(null)
 let map: L.Map | null = null
 let tileLayer: L.Layer | null = null
+// White casing sits under the colour line so the selected route
+// separates from the basemap (perjalananmu-style). Added to the map
+// before corridorLayer so it always draws beneath.
+const casingLayer = L.layerGroup()
 const corridorLayer = L.layerGroup()
+// Lettered A/B terminals of the focused corridor leg.
+const terminalLayer = L.layerGroup()
 const halteLayer = L.layerGroup()
 const busLayer = L.layerGroup()
 const meLayer = L.layerGroup()
@@ -70,6 +76,18 @@ const lastReceivedAt = new Map<string, number>()
  *  the map to one leg even though styling stays per-corridor. */
 type Leg = 'a' | 'b'
 const corridorLines = new Map<string, Record<Leg, L.Polyline[]>>()
+const casingOf = new WeakMap<L.Polyline, L.Polyline>()
+
+/** Style a corridor line and its casing together. The casing only
+ *  shows on emphasised (weight >= 6) lines. */
+function styleLine(ln: L.Polyline, color: string, opacity: number, weight: number) {
+  ln.setStyle({ color, opacity, weight })
+  casingOf.get(ln)?.setStyle({
+    color: '#fff',
+    weight: weight + 3,
+    opacity: weight >= 6 ? 0.9 : 0,
+  })
+}
 const halteByLeg = new Map<string, Record<Leg, L.CircleMarker[]>>()
 /** Dedup map: coord key → marker instance. Prevents drawing multiple
  *  overlapping icons when several corridors share a physical stop. */
@@ -89,7 +107,7 @@ let selectedHalteHalo: L.Marker | null = null
 
 function applySelectedHalte() {
   if (selectedHalteMarker) {
-    selectedHalteMarker.setStyle({ radius: 5, fillColor: '#94a3b8', weight: 2 })
+    selectedHalteMarker.setStyle({ radius: 4.5, fillColor: '#fff', color: HALTE_RING, weight: 2.5 })
     selectedHalteMarker = null
   }
   if (selectedHalteHalo) {
@@ -105,7 +123,7 @@ function applySelectedHalte() {
   const coordKey = `${lat.toFixed(5)},${lng.toFixed(5)}`
   const marker = halteSeen.get(coordKey)
   if (!marker) return
-  marker.setStyle({ radius: 8, fillColor: '#1D9CD4', weight: 2.5 })
+  marker.setStyle({ radius: 8, fillColor: '#1D9CD4', color: '#fff', weight: 2.5 })
   marker.bringToFront()
   selectedHalteMarker = marker
   if (map) {
@@ -151,7 +169,9 @@ function initMap() {
   L.control.zoom({ position: 'bottomright' }).addTo(map)
   tileLayer = currentTiles().addTo(map)
 
+  casingLayer.addTo(map)
   corridorLayer.addTo(map)
+  terminalLayer.addTo(map)
   halteLayer.addTo(map)
   busLayer.addTo(map)
   meLayer.addTo(map)
@@ -189,6 +209,8 @@ function syncHalteVisibility() {
 }
 
 function clearAll() {
+  casingLayer.clearLayers()
+  terminalLayer.clearLayers()
   corridorLayer.clearLayers()
   halteLayer.clearLayers()
   busLayer.clearLayers()
@@ -268,23 +290,11 @@ function drawTripPreview(plan: PlanResult | null) {
 
   if (originPt) {
     bounds.extend([originPt.lat, originPt.lng])
-    L.circleMarker([originPt.lat, originPt.lng], {
-      radius: 8,
-      color: '#fff',
-      weight: 3,
-      fillColor: '#1D9CD4',
-      fillOpacity: 1,
-    }).addTo(tripPreviewLayer)
+    terminalMarker([originPt.lat, originPt.lng], 'A', '#1D9CD4').addTo(tripPreviewLayer)
   }
   if (destPt) {
     bounds.extend([destPt.lat, destPt.lng])
-    L.circleMarker([destPt.lat, destPt.lng], {
-      radius: 8,
-      color: '#fff',
-      weight: 3,
-      fillColor: '#dc2626',
-      fillOpacity: 1,
-    }).addTo(tripPreviewLayer)
+    terminalMarker([destPt.lat, destPt.lng], 'B', '#dc2626').addTo(tripPreviewLayer)
   }
 
   function halteCoordByName(name: string, kor: string | undefined): L.LatLngTuple | null {
@@ -308,6 +318,13 @@ function drawTripPreview(plan: PlanResult | null) {
         const path = slice ?? [from, to]
         for (const p of path) bounds.extend(p)
         const color = brt.colorForKor(step.kor) || '#1D9CD4'
+        L.polyline(path, {
+          color: '#fff',
+          weight: 10,
+          opacity: 0.9,
+          lineCap: 'round',
+          lineJoin: 'round',
+        }).addTo(tripPreviewLayer)
         L.polyline(path, {
           color,
           weight: 7,
@@ -371,7 +388,18 @@ function drawTripPreview(plan: PlanResult | null) {
   }
 }
 
+/** A/B terminals at the start and end of the focused leg line(s). */
+function addTerminals(lines: L.Polyline[], color: string) {
+  if (!lines.length) return
+  const first = (lines[0].getLatLngs() as L.LatLng[])[0]
+  const lastLn = lines[lines.length - 1].getLatLngs() as L.LatLng[]
+  const last = lastLn[lastLn.length - 1]
+  if (first) terminalMarker(first, 'A', color).addTo(terminalLayer)
+  if (last) terminalMarker(last, 'B', color).addTo(terminalLayer)
+}
+
 function drawCorridors(items: BrtCorridor[]) {
+  casingLayer.clearLayers()
   corridorLayer.clearLayers()
   corridorLines.clear()
   const allBounds = L.latLngBounds([])
@@ -390,12 +418,21 @@ function drawCorridors(items: BrtCorridor[]) {
         if (!latlngs.length) continue
         const line = L.polyline(latlngs, {
           color,
-          weight: 5,
-          opacity: dim ? 0.35 : 0.85,
+          weight: 3,
+          opacity: dim ? 0.35 : 0.7,
           lineCap: 'round',
           lineJoin: 'round',
           interactive: true,
         })
+        const casing = L.polyline(latlngs, {
+          color: '#fff',
+          weight: 6,
+          opacity: 0,
+          lineCap: 'round',
+          lineJoin: 'round',
+          interactive: false,
+        }).addTo(casingLayer)
+        casingOf.set(line, casing)
         line.on('click', () => {
         // When a different corridor is already focused, ignore clicks
         // on other corridors' (dimmed) polylines — the user explicitly
@@ -576,6 +613,7 @@ function applyFocus(force = false) {
   lastSpotlightInit = true
 
   // Corridors
+  terminalLayer.clearLayers()
   for (const [kor, byLeg] of corridorLines.entries()) {
     const c = brt.corridorByKor.get(kor)
     const baseColor = c?.color || '#0EA5E9'
@@ -587,18 +625,20 @@ function applyFocus(force = false) {
       // is hidden because drawTripPreview already paints the exact
       // sliced segments the user actually rides through. Showing the
       // full corridor lines would re-add the off-route portions.
-      for (const ln of all) ln.setStyle({ color: baseColor, opacity: 0, weight: 0 })
+      for (const ln of all) styleLine(ln, baseColor, 0, 0)
     } else if (fk === null) {
-      const opacity = baseDim ? 0.35 : 0.85
-      for (const ln of all) ln.setStyle({ color: baseColor, opacity, weight: 5 })
+      const opacity = baseDim ? 0.35 : 0.7
+      for (const ln of all) styleLine(ln, baseColor, opacity, 3)
     } else if (kor === fk) {
       if (activeLeg) {
         const active = activeLeg === 'a' ? byLeg.a : byLeg.b
         const inactive = activeLeg === 'a' ? byLeg.b : byLeg.a
-        for (const ln of active) ln.setStyle({ color: baseColor, opacity: 0.95, weight: 6 })
-        for (const ln of inactive) ln.setStyle({ color: baseColor, opacity: 0, weight: 0 })
+        for (const ln of active) styleLine(ln, baseColor, 1, 6.5)
+        for (const ln of inactive) styleLine(ln, baseColor, 0, 0)
+        addTerminals(active, baseColor)
       } else {
-        for (const ln of all) ln.setStyle({ color: baseColor, opacity: 0.95, weight: 6 })
+        for (const ln of all) styleLine(ln, baseColor, 1, 6.5)
+        addTerminals(all, baseColor)
       }
     } else {
       // Dimmed, not hidden: a first-time rider who hasn't picked a
@@ -607,7 +647,7 @@ function applyFocus(force = false) {
       // used above for off-hours corridors (baseDim) — same visual
       // language, not a new one. Previously 0.1, which read as
       // near-invisible to anyone who wasn't already a TJ power user.
-      for (const ln of all) ln.setStyle({ color: baseColor, opacity: 0.35, weight: 2 })
+      for (const ln of all) styleLine(ln, baseColor, 0.45, 2.5)
     }
   }
 
@@ -635,7 +675,8 @@ function applyFocus(force = false) {
     // there) — kept in sync so lines and their halte read as one
     // de-emphasized group rather than two different intensities.
     const opacity = fk === null || kor === fk ? 1 : 0.35
-    for (const m of all) m.setStyle({ opacity, fillOpacity: opacity })
+    const ring = fk !== null && kor === fk ? (brt.corridorByKor.get(kor)?.color || HALTE_RING) : HALTE_RING
+    for (const m of all) m.setStyle({ color: ring, opacity, fillOpacity: opacity })
   }
 
   // Direction filter: override the above per-marker. We iterate the

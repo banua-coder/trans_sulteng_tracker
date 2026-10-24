@@ -1,7 +1,12 @@
 import L from 'leaflet'
 
+/** White front-facing bus glyph, drawn inside the route-colour tile. */
+const BUS_GLYPH =
+  '<svg class="bus-glyph" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="16" height="14" rx="3"/><path d="M4 11h16M8 21v-3M16 21v-3"/><circle cx="8.5" cy="14" r=".6" fill="#fff"/><circle cx="15.5" cy="14" r=".6" fill="#fff"/></svg>'
+
 /**
- * TransJakarta-style bus marker.
+ * Bus marker: rounded-square tile in the route colour with a white bus
+ * glyph, a corner chip carrying the route code, and a heading arrow.
  *
  * Two stacked elements inside the divIcon:
  *   1. an arrow that rotates with the bus heading (transform: rotate(angle))
@@ -29,7 +34,7 @@ export function busIcon(opts: {
       <div class="bus-arrow-wrap" style="transform: rotate(${safeAngle}deg)">
         <span class="bus-arrow" style="border-bottom-color: ${color}"></span>
       </div>
-      <div class="bus-disc" style="background:${color}">${safe}</div>
+      <div class="bus-disc" style="background:${color}">${BUS_GLYPH}<span class="bus-code" style="color:${color};border-color:${color}">${safe}</span></div>
     `,
   })
 }
@@ -40,11 +45,14 @@ export function busIcon(opts: {
  *  visibly stutters with 50+ markers and the bus-shelter SVG's
  *  drop-shadow filter forcing compositing. CircleMarker draws on the
  *  shared overlay SVG and pans natively with the map. */
+/** Default stop ring; the focused corridor recolours it to its own. */
+export const HALTE_RING = '#64748b'
+
 const HALTE_DOT_DEFAULTS: L.CircleMarkerOptions = {
-  radius: 5,
-  color: '#ffffff',
-  weight: 2,
-  fillColor: '#94a3b8',
+  radius: 4.5,
+  color: HALTE_RING,
+  weight: 2.5,
+  fillColor: '#ffffff',
   fillOpacity: 1,
   interactive: true,
 }
@@ -69,4 +77,24 @@ const _halteHaloIcon = L.divIcon({
 
 export function halteHaloMarker(latlng: L.LatLngExpression): L.Marker {
   return L.marker(latlng, { icon: _halteHaloIcon, interactive: false, keyboard: false })
+}
+
+/** Lettered terminal (A/B): solid route-colour disc, white border. */
+export function terminalMarker(
+  latlng: L.LatLngExpression,
+  letter: string,
+  color: string,
+): L.Marker {
+  const safe = letter.replace(/[<>"']/g, '').slice(0, 1)
+  return L.marker(latlng, {
+    icon: L.divIcon({
+      className: 'terminal-marker',
+      iconSize: [24, 24],
+      iconAnchor: [12, 12],
+      html: `<span style="background:${color}">${safe}</span>`,
+    }),
+    interactive: false,
+    keyboard: false,
+    zIndexOffset: 500,
+  })
 }

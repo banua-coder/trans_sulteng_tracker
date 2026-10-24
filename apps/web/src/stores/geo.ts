@@ -45,6 +45,48 @@ export const useGeoStore = defineStore('geo', () => {
 
   const supported = typeof navigator !== 'undefined' && 'geolocation' in navigator
 
+  let watchId: number | null = null
+
+  function applyFix(c: { latitude: number; longitude: number; accuracy: number }) {
+    const p: Position = {
+      lat: c.latitude,
+      lng: c.longitude,
+      accuracy: c.accuracy,
+      at: Date.now(),
+    }
+    position.value = p
+    status.value = 'granted'
+    writeCache(p)
+  }
+
+  /** Keep the position live after the first grant. */
+  function startWatch() {
+    if (!supported || watchId != null) return
+    watchId = navigator.geolocation.watchPosition(
+      (pos) => applyFix(pos.coords),
+      (err) => {
+        if (err.code === err.PERMISSION_DENIED) {
+          status.value = 'denied'
+          stopWatch()
+        }
+      },
+      { enableHighAccuracy: true, maximumAge: 5_000, timeout: 20_000 },
+    )
+  }
+
+  function stopWatch() {
+    if (watchId != null) navigator.geolocation.clearWatch(watchId)
+    watchId = null
+  }
+
+  // Returning user who already granted: resume live updates silently.
+  if (supported && position.value) {
+    navigator.permissions
+      ?.query({ name: 'geolocation' })
+      .then((r) => { if (r.state === 'granted') startWatch() })
+      .catch(() => {})
+  }
+
   async function request() {
     if (!supported) {
       status.value = 'unsupported'
@@ -60,15 +102,8 @@ export const useGeoStore = defineStore('geo', () => {
           timeout: 10_000,
         })
       })
-      const p: Position = {
-        lat: pos.coords.latitude,
-        lng: pos.coords.longitude,
-        accuracy: pos.coords.accuracy,
-        at: Date.now(),
-      }
-      position.value = p
-      status.value = 'granted'
-      writeCache(p)
+      applyFix(pos.coords)
+      startWatch()
     } catch (e) {
       const err = e as GeolocationPositionError
       if (err.code === err.PERMISSION_DENIED) status.value = 'denied'
@@ -78,6 +113,7 @@ export const useGeoStore = defineStore('geo', () => {
   }
 
   function clear() {
+    stopWatch()
     position.value = null
     status.value = 'idle'
     error.value = null
@@ -90,5 +126,5 @@ export const useGeoStore = defineStore('geo', () => {
 
   const isGranted = computed(() => status.value === 'granted' && position.value !== null)
 
-  return { status, position, error, supported, isGranted, request, clear }
+  return { status, position, error, supported, isGranted, request, clear, applyFix }
 })

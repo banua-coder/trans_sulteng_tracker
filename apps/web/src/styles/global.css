@@ -150,18 +150,42 @@ html.dark .leaflet-container { background: var(--color-bnc-stone-900); }
   transform: translate(-50%, -50%);
   width: 32px;
   height: 32px;
-  border-radius: 9999px;
+  border-radius: 9px;
   display: flex;
   align-items: center;
   justify-content: center;
   color: #fff;
-  font-family: var(--font-mono);
-  font-weight: 700;
-  font-size: 12px;
-  letter-spacing: 0.02em;
   border: 2px solid #fff;
   box-shadow: 0 2px 6px rgba(0,0,0,0.22);
   z-index: 2;
+}
+/* Route code lives in a corner chip so the tile stays a clean glyph. */
+.bus-marker .bus-code {
+  position: absolute;
+  right: -9px;
+  bottom: -8px;
+  min-width: 20px;
+  padding: 0 4px;
+  border: 1.5px solid;
+  border-radius: 9999px;
+  background: #fff;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 11px;
+  line-height: 14px;
+  text-align: center;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+.terminal-marker span {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border: 2px solid #fff;
+  border-radius: 9999px;
+  color: #fff;
+  font: 700 12px/1 var(--font-mono);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.3);
 }
 /* The arrow lives inside a wrapper that rotates by bus.angle.
    It points outward from the disc, in the direction of motion. */
