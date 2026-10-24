@@ -15,7 +15,7 @@ import { useSelectionStore } from '@/stores/selection'
 import { useTripStore } from '@/stores/trip'
 import { useUiStore } from '@/stores/ui'
 import type { PlanResult } from '@/lib/tripPlanner'
-import { busIcon, halteHaloMarker, halteMarker, HALTE_RING, terminalMarker } from '@/lib/leaflet/markers'
+import { busIcon, halteHaloMarker, halteMarker, HALTE_RING, stopTileMarker, terminalMarker } from '@/lib/leaflet/markers'
 import { darkTiles, lightTiles, satelliteTiles } from '@/lib/leaflet/tiles'
 import { useTheme } from '@/lib/theme'
 import { haversineMeters, isStale } from '@/lib/format'
@@ -52,6 +52,10 @@ let tileLayer: L.Layer | null = null
 // before corridorLayer so it always draws beneath.
 const casingLayer = L.layerGroup()
 const corridorLayer = L.layerGroup()
+// Bus-stop tiles for the focused corridor. They sit over the plain
+// circle markers, which are hidden while a tile covers them.
+const stopTileLayer = L.layerGroup()
+const tileOf = new Map<L.CircleMarker, L.Marker>()
 // Lettered A/B terminals of the focused corridor leg.
 const terminalLayer = L.layerGroup()
 const halteLayer = L.layerGroup()
@@ -147,7 +151,35 @@ const halteMarkerShIds = new Map<L.CircleMarker, Set<string>>()
 let selectedHalteMarker: L.CircleMarker | null = null
 let selectedHalteHalo: L.Marker | null = null
 
+function renderStopTiles(fk: string | null, hide: boolean) {
+  stopTileLayer.clearLayers()
+  tileOf.clear()
+  if (!fk || hide) return
+  const slot = halteByLeg.get(fk)
+  if (!slot) return
+  const color = brt.corridorByKor.get(fk)?.color || '#0EA5E9'
+  for (const m of new Set([...slot.a, ...slot.b])) {
+    if ((m.options.opacity ?? 1) <= 0) continue
+    const tile = stopTileMarker(m.getLatLng(), color, () => m.fire('click'))
+    const name = m.getTooltip()?.getContent()
+    if (name) tile.bindTooltip(name as string, { direction: 'top', offset: [0, -10] })
+    tile.addTo(stopTileLayer)
+    tileOf.set(m, tile)
+    m.setStyle({ opacity: 0, fillOpacity: 0 })
+  }
+}
+
+function markSelectedTile() {
+  for (const t of tileOf.values()) t.getElement()?.classList.remove('selected')
+  if (selectedHalteMarker) tileOf.get(selectedHalteMarker)?.getElement()?.classList.add('selected')
+}
+
 function applySelectedHalte() {
+  applySelectedHalteInner()
+  markSelectedTile()
+}
+
+function applySelectedHalteInner() {
   if (selectedHalteMarker) {
     selectedHalteMarker.setStyle({ radius: 4.5, fillColor: '#fff', color: HALTE_RING, weight: 2.5 })
     selectedHalteMarker = null
@@ -214,6 +246,7 @@ function initMap() {
   casingLayer.addTo(map)
   corridorLayer.addTo(map)
   terminalLayer.addTo(map)
+  stopTileLayer.addTo(map)
   halteLayer.addTo(map)
   busLayer.addTo(map)
   meLayer.addTo(map)
@@ -252,7 +285,11 @@ function syncHalteVisibility() {
 
 function clearAll() {
   casingLayer.clearLayers()
+  stopTileLayer.clearLayers()
+  tileOf.clear()
   terminalLayer.clearLayers()
+  stopTileLayer.clearLayers()
+  tileOf.clear()
   corridorLayer.clearLayers()
   halteLayer.clearLayers()
   busLayer.clearLayers()
@@ -748,6 +785,7 @@ function applyFocus(force = false) {
   // the user can scan only what's still ahead (TJ-style "upcoming
   // halte" view, beads c1d).
   applyUpcomingHalteFilter()
+  renderStopTiles(fk, !!planKors)
 
   // Buses
   for (const bus of brt.buses.values()) upsertBusMarker(bus)
