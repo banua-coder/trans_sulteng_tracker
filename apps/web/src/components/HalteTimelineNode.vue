@@ -25,7 +25,7 @@ const emit = defineEmits<{ halteClick: [id: string] }>()
       class="absolute left-[7px] w-px"
       :class="{
         'top-3 bottom-0': isFirst && !isLast,
-        'top-0 bottom-3': isLast && !isFirst,
+        'top-0 h-[18px]': isLast && !isFirst,
         'top-0 bottom-0': !isFirst && !isLast,
       }"
       :style="{ background: accentColor, opacity: 0.5 }"
