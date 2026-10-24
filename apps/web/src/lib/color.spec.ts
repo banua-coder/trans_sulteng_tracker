@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isLightRoute, onColor } from '@/lib/color'
+import { badgeBg, contrast, isLightRoute, onColor } from '@/lib/color'
 
 describe('onColor', () => {
   it('uses white on dark corridor colours', () => {
@@ -22,5 +22,19 @@ describe('isLightRoute', () => {
     expect(isLightRoute('#ffc800')).toBe(true)
     expect(isLightRoute('#43c0fa')).toBe(true)
     expect(isLightRoute('#d60000')).toBe(false)
+  })
+})
+
+describe('badgeBg', () => {
+  const feed = ['#d60000', '#1486ff', '#10a305', '#ffc800', '#43c0fa', '#0f1273', '#b467f4', '#dd36b9', '#7b3f00', '#1e00ff', '#f40606', '#16c049']
+  it('gives every feed colour at least 4.5:1 with its text colour', () => {
+    for (const c of feed) {
+      const bg = badgeBg(c)
+      expect(contrast(bg, onColor(bg)), c).toBeGreaterThanOrEqual(4.5)
+    }
+  })
+  it('leaves dark and light colours alone', () => {
+    expect(badgeBg('#0f1273')).toBe('#0f1273')
+    expect(badgeBg('#ffc800')).toBe('#ffc800')
   })
 })

@@ -21,6 +21,7 @@ import PlateBadge from '@/components/PlateBadge.vue'
 import SheetStickyHeader from '@/components/SheetStickyHeader.vue'
 import type { PlanStep } from '@/lib/tripPlanner'
 import { korLabel } from '@/lib/crossCity'
+import { badgeBg, onColor } from '@/lib/color'
 
 const { t } = useI18n()
 const trip = useTripStore()
@@ -97,6 +98,12 @@ const stepBuses = computed<IncomingBus[][]>(() =>
 
 function back() {
   trip.selectPlan(null)
+}
+
+/** Badge fill plus a text colour that stays readable on it. */
+function chipStyle(color: string) {
+  const bg = badgeBg(color)
+  return { background: bg, color: onColor(bg) }
 }
 
 function colorForStep(step: PlanStep): string {
@@ -180,8 +187,8 @@ function focusStep(step: PlanStep) {
         <div class="relative flex w-6 shrink-0 flex-col items-center">
           <span
             v-if="stepNumbers.get(idx) != null"
-            class="z-10 grid h-5 w-5 place-items-center rounded-full border-2 border-white font-mono text-[10px] font-bold tabular-nums text-white shadow-sm dark:border-bnc-stone-900"
-            :style="{ background: colorForStep(step) }"
+            class="z-10 grid h-5 w-5 place-items-center rounded-full border-2 border-white font-mono text-[10px] font-bold tabular-nums shadow-sm dark:border-bnc-stone-900"
+            :style="chipStyle(colorForStep(step))"
           >
             {{ stepNumbers.get(idx) }}
           </span>
@@ -228,8 +235,8 @@ function focusStep(step: PlanStep) {
           <template v-else-if="step.kind === 'ride'">
             <p class="flex flex-wrap items-center gap-1.5 text-sm font-medium">
               <span
-                class="inline-flex items-center rounded-md px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-white"
-                :style="{ background: colorForStep(step) }"
+                class="inline-flex items-center rounded-md px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider"
+                :style="chipStyle(colorForStep(step))"
               >
                 {{ korLabel(step.kor ?? '') }}
               </span>
@@ -289,8 +296,8 @@ function focusStep(step: PlanStep) {
                   @click.stop="selection.selectBus(b.bus.imei || b.bus.id)"
                 >
                   <span
-                    class="inline-flex shrink-0 items-center rounded-md px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase tracking-wider text-white"
-                    :style="{ background: b.corridorColor }"
+                    class="inline-flex shrink-0 items-center rounded-md px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase tracking-wider"
+                    :style="chipStyle(b.corridorColor)"
                   >
                     {{ b.bus.kor }}
                   </span>

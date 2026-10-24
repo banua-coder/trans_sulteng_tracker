@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onColor } from '@/lib/color'
+import { badgeBg, onColor } from '@/lib/color'
 import { computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
@@ -166,7 +166,7 @@ function openDirections() {
               :type="corridorsAtHalte.length > 1 ? 'button' : undefined"
               class="inline-flex items-center rounded-md px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-white transition-opacity"
               :style="{
-                background: c.color, color: onColor(c.color),
+                background: badgeBg(c.color), color: onColor(badgeBg(c.color)),
                 opacity: halteFilterKor === null || halteFilterKor === c.kor ? 1 : 0.4,
               }"
               :aria-pressed="corridorsAtHalte.length > 1 ? halteFilterKor === c.kor : undefined"
@@ -204,7 +204,7 @@ function openDirections() {
               <!-- Corridor kor badge -->
               <span
                 class="inline-flex shrink-0 items-center rounded-md px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-white"
-                :style="{ background: a.corridorColor, color: onColor(a.corridorColor) }"
+                :style="{ background: badgeBg(a.corridorColor), color: onColor(badgeBg(a.corridorColor)) }"
               >
                 {{ a.bus.kor }}
               </span>
