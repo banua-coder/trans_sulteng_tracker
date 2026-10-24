@@ -56,6 +56,19 @@ export const useTripStore = defineStore('trip', () => {
   function ensureWorker(): Worker {
     if (worker) return worker
     worker = new TripPlannerWorker()
+    // A crashed worker or failed chunk load would otherwise leave every
+    // pending call hanging and the spinner on forever. Reject them all
+    // and drop the worker so the next call starts a fresh one.
+    const fail = (message: string) => {
+      const pending = [...inflight.values()]
+      inflight.clear()
+      worker?.terminate()
+      worker = null
+      graphReady.value = false
+      for (const cb of pending) cb({ type: 'error', message })
+    }
+    worker.onerror = (ev) => fail(ev.message || 'planner worker failed')
+    worker.onmessageerror = () => fail('planner worker message error')
     worker.onmessage = (ev: MessageEvent) => {
       const data = ev.data as { id: number; type: string }
       const cb = inflight.get(data.id)
@@ -134,6 +147,10 @@ export const useTripStore = defineStore('trip', () => {
     const seq = ++recomputeSeq
     if (!graphReady.value) await buildGraph()
     if (seq !== recomputeSeq) return // a newer recompute superseded us
+    if (!graphReady.value) {
+      loading.value = false
+      return // buildGraph already recorded the error
+    }
     loading.value = true
     error.value = null
     try {
@@ -147,14 +164,18 @@ export const useTripStore = defineStore('trip', () => {
       // + the halte's own kor). Without this, Dijkstra can drop the
       // user off on a different corridor 300 m away — e.g. ending on
       // K1 when the picked halte isn't on K1 at all.
+      // A stop appears once per corridor and direction; union them all
+      // so picking the K1 row of a stop that K4A also serves still
+      // allows K4A to end the trip.
       let destKors: string[] | null = null
       if (destination.value.sh_id) {
         const h = brt.halte.find((x) => x.sh_id === destination.value!.sh_id)
         if (h) {
           const kors = new Set<string>()
-          kors.add(h.kor)
-          if (h.in_koridor) {
-            for (const k of h.in_koridor.split('|').filter(Boolean)) kors.add(k)
+          for (const row of brt.halte) {
+            if (row.sh_name !== h.sh_name) continue
+            kors.add(row.kor)
+            for (const k of (row.in_koridor ?? '').split('|').filter(Boolean)) kors.add(k)
           }
           destKors = [...kors]
         }
@@ -165,6 +186,7 @@ export const useTripStore = defineStore('trip', () => {
         dest: { lat: d.lat, lng: d.lng },
         k: 5,
         destKors,
+        originPinned: origin.value.kind === 'halte',
       })
       if (seq !== recomputeSeq) return // newer recompute won, ignore
       plans.value = resp.paths
@@ -176,7 +198,9 @@ export const useTripStore = defineStore('trip', () => {
       selectedPlanIdx.value = null
       error.value = e instanceof Error ? e.message : String(e)
     } finally {
-      loading.value = false
+      // A superseded call must not switch the spinner off under the
+      // newer one that is still running.
+      if (seq === recomputeSeq) loading.value = false
     }
   }
 
