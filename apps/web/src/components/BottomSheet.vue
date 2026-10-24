@@ -15,7 +15,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 // more than half the viewport and the map above always stays usable.
 type Snap = 'peek' | 'mid'
 
-const props = defineProps<{ forceSnap?: Snap | null }>()
+const props = defineProps<{ forceSnap?: Snap | null; ping?: number }>()
 
 const snap = ref<Snap>('peek')
 
@@ -25,6 +25,7 @@ watch(
     if (next) snap.value = next
   },
 )
+watch(() => props.ping, () => { snap.value = 'mid' })
 const sheetEl = ref<HTMLElement | null>(null)
 const dragging = ref(false)
 
@@ -36,6 +37,7 @@ let frame: number | null = null
 // Peek is a fixed strip. Mid fits its content up to half the viewport,
 // so a short detail card does not leave an empty panel under it.
 const sheetStyle = computed(() => ({
+  bottom: 'var(--nav-h, 0px)',
   height: snap.value === 'peek' ? '88px' : 'auto',
   maxHeight: '50dvh',
   transform: dragging.value ? `translateY(${currentTranslate}px)` : 'translateY(0)',
@@ -92,7 +94,9 @@ let sizeObserver: ResizeObserver | null = null
 
 function syncCssVar() {
   if (typeof document === 'undefined' || !sheetEl.value) return
-  document.documentElement.style.setProperty('--sheet-h', `${sheetEl.value.offsetHeight}px`)
+  // The sheet rides above the bottom nav, so the map must clear both.
+  const nav = document.getElementById('mobile-nav')?.offsetHeight ?? 0
+  document.documentElement.style.setProperty('--sheet-h', `${sheetEl.value.offsetHeight + nav}px`)
 }
 
 onMounted(() => {
@@ -101,6 +105,8 @@ onMounted(() => {
   if (sheetEl.value && typeof ResizeObserver !== 'undefined') {
     sizeObserver = new ResizeObserver(syncCssVar)
     sizeObserver.observe(sheetEl.value)
+    const nav = document.getElementById('mobile-nav')
+    if (nav) sizeObserver.observe(nav)
   }
 })
 

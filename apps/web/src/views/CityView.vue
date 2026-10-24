@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, defineAsyncComponent, onBeforeUnmount, watch } from 'vue'
 import { storeToRefs } from 'pinia'
+import { useI18n } from 'vue-i18n'
 import { useBrtStore } from '@/stores/brt'
 import { useCityStore } from '@/stores/city'
 import { useFocusStore } from '@/stores/focus'
@@ -14,6 +15,7 @@ import MyLocationButton from '@/components/MyLocationButton.vue'
 import BasemapToggle from '@/components/BasemapToggle.vue'
 import DesktopSidebar from '@/components/DesktopSidebar.vue'
 import BottomSheet from '@/components/BottomSheet.vue'
+import MobileNav from '@/components/MobileNav.vue'
 import BusDetailCard from '@/components/BusDetailCard.vue'
 import HalteDetailCard from '@/components/HalteDetailCard.vue'
 import MobileRoutesPanel from '@/components/MobileRoutesPanel.vue'
@@ -44,6 +46,15 @@ const { selectedPlan: tripSelectedPlan } = storeToRefs(trip)
 const { isActive: rideActive } = storeToRefs(ride)
 
 useUrlSync()
+
+const { t } = useI18n()
+function openPlanner() {
+  selection.clear()
+  focus.clear()
+  trip.selectPlan(null)
+  ui.mobileTab = 'plan'
+  ui.openSheet()
+}
 
 // Auto-expand the mobile bottom sheet to mid the moment a detail/route
 // becomes active; null lets the user control the snap freely.
@@ -91,6 +102,15 @@ onBeforeUnmount(() => {
       >
         <MapView class="h-full w-full" />
       </div>
+      <!-- Phone: a floating "where to?" pill, the planner's front door. -->
+      <button
+        type="button"
+        class="pointer-events-auto absolute left-3 right-16 top-3 z-[800] flex min-h-11 items-center gap-3 rounded-full border border-bnc-stone-200 bg-white/95 px-4 text-left text-sm text-bnc-stone-500 shadow-[var(--shadow-elevated)] backdrop-blur dark:border-bnc-stone-800 dark:bg-bnc-stone-900/95 lg:hidden"
+        @click="openPlanner"
+      >
+        <svg class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+        {{ t('sidebar.whereTo') }}
+      </button>
       <BusDataBadge />
       <MapLegend />
       <div class="pointer-events-none absolute right-3 top-3 z-[800] flex flex-col gap-2">
@@ -106,7 +126,7 @@ onBeforeUnmount(() => {
            corridor focused → MobileRouteDetailPanel (halte timeline)
            nothing        → MobileRoutesPanel (RUTE / HALTE tabs)
          Desktop keeps the sidebar's old layout untouched. -->
-    <BottomSheet :force-snap="sheetForceSnap">
+    <BottomSheet :force-snap="sheetForceSnap" :ping="ui.sheetPing">
       <RideHud v-if="rideActive" />
       <BusDetailCard v-else-if="selectionKind === 'bus'" />
       <HalteDetailCard v-else-if="selectionKind === 'halte'" />
@@ -116,6 +136,8 @@ onBeforeUnmount(() => {
     </BottomSheet>
 
 
+
+    <MobileNav />
 
     <RideResumeBanner />
   </div>
