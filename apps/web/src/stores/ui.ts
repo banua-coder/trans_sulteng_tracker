@@ -45,7 +45,7 @@ export const useUiStore = defineStore('ui', () => {
     readJson<Record<string, boolean>>(KEY_PANELS, {}),
   )
 
-  const legendOpen = ref<boolean>(readJson<boolean>(KEY_LEGEND, true))
+  const legendOpen = ref<boolean>(readJson<boolean>(KEY_LEGEND, typeof window === 'undefined' || window.innerWidth >= 1024))
 
   const busSearch = ref<string>(readJson<string>(KEY_SEARCH, ''))
 

@@ -176,7 +176,7 @@ function openDirections() {
                 {{ a.bus.kor }}
               </span>
               <div class="flex min-w-0 flex-col">
-                <div class="flex items-center gap-1.5">
+                <div class="flex flex-wrap items-center gap-x-1.5 gap-y-1">
                   <PlateBadge v-if="a.bus.plate_number" :plate="a.bus.plate_number" size="sm" />
                   <span
                     v-else
@@ -186,13 +186,13 @@ function openDirections() {
                   </span>
                   <span
                     v-if="a.bus.name"
-                    class="inline-flex items-center rounded bg-bnc-stone-200 px-1 py-[1px] font-mono text-[9px] font-bold tracking-wider dark:bg-bnc-stone-700"
+                    class="inline-flex items-center whitespace-nowrap rounded bg-bnc-stone-200 px-1.5 py-[1px] font-mono text-[10px] font-bold tracking-wider dark:bg-bnc-stone-700"
                   >
                     {{ a.bus.name }}
                   </span>
                   <span
                     v-if="a.atStop"
-                    class="rounded-full px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-white"
+                    class="whitespace-nowrap rounded-full px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wide text-white"
                     :style="{ background: 'var(--color-good)' }"
                   >
                     {{ t('halte.atStop') }}
@@ -216,13 +216,13 @@ function openDirections() {
                   </template>
                 </p>
               </div>
-              <span class="ml-auto flex flex-col items-end">
+              <span class="ml-auto flex shrink-0 flex-col items-end whitespace-nowrap pl-1">
                 <span
                   class="font-mono text-sm font-bold tabular-nums text-bnc-accent"
                   :style="{ color: `var(--color-${a.quality})` }"
                 >
                   <template v-if="a.etaMin != null">
-                    ~{{ Math.max(1, Math.round(a.etaMin)) }}<span class="text-[10px] font-normal text-bnc-stone-500">{{ t('units.minutes') }}</span>
+                    ~{{ Math.max(1, Math.round(a.etaMin)) }}<span class="ml-0.5 text-[10px] font-normal text-bnc-stone-500">{{ t('units.minutes') }}</span>
                   </template>
                   <template v-else>—</template>
                 </span>

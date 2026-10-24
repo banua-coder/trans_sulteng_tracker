@@ -8,7 +8,7 @@
  * content swaps — e.g. opening a bus detail card auto-expands to
  * mid so the user sees the new content without dragging.
  */
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 // Two snaps only — peek (handle + first row) and mid (50 dvh, the
 // user-requested cap). No 'full' snap, so the sheet never covers
@@ -33,13 +33,11 @@ let startTranslate = 0
 let currentTranslate = 0
 let frame: number | null = null
 
-const heights: Record<Snap, string> = {
-  peek: '88px',
-  mid: '50dvh',
-}
-
+// Peek is a fixed strip. Mid fits its content up to half the viewport,
+// so a short detail card does not leave an empty panel under it.
 const sheetStyle = computed(() => ({
-  height: heights[snap.value],
+  height: snap.value === 'peek' ? '88px' : 'auto',
+  maxHeight: '50dvh',
   transform: dragging.value ? `translateY(${currentTranslate}px)` : 'translateY(0)',
   transition: dragging.value ? 'none' : 'height 280ms ease, transform 280ms ease',
 }))
@@ -90,18 +88,26 @@ function cycle() {
 // document root so CityView's map can reserve exactly the right
 // amount of bottom inset (and re-flow when the user drags). The map
 // frame will end at the sheet's top edge at every snap.
-function syncCssVar(value: Snap) {
-  if (typeof document === 'undefined') return
-  document.documentElement.style.setProperty('--sheet-h', heights[value])
+let sizeObserver: ResizeObserver | null = null
+
+function syncCssVar() {
+  if (typeof document === 'undefined' || !sheetEl.value) return
+  document.documentElement.style.setProperty('--sheet-h', `${sheetEl.value.offsetHeight}px`)
 }
 
 onMounted(() => {
-  syncCssVar(snap.value)
+  syncCssVar()
+  // Content decides the mid height, so follow the real size.
+  if (sheetEl.value && typeof ResizeObserver !== 'undefined') {
+    sizeObserver = new ResizeObserver(syncCssVar)
+    sizeObserver.observe(sheetEl.value)
+  }
 })
 
-watch(snap, syncCssVar)
+watch(snap, () => nextTick(syncCssVar))
 
 onBeforeUnmount(() => {
+  sizeObserver?.disconnect()
   if (frame) cancelAnimationFrame(frame)
   if (typeof document !== 'undefined') {
     document.documentElement.style.removeProperty('--sheet-h')
@@ -131,7 +137,7 @@ onBeforeUnmount(() => {
       <span class="sr-only">Geser untuk membuka panel</span>
     </button>
 
-    <div class="overflow-y-auto px-4 pb-4" data-sheet-scroll>
+    <div class="min-h-0 overflow-y-auto px-4 pb-4" data-sheet-scroll>
       <slot />
     </div>
   </aside>
