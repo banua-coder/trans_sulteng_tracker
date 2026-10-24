@@ -219,7 +219,7 @@ const showNoResults = computed(
       <!-- GPS button -->
       <button
         type="button"
-        class="grid h-8 w-8 shrink-0 place-items-center rounded-full text-bnc-stone-600 transition-colors hover:bg-bnc-stone-100 dark:text-bnc-stone-300 dark:hover:bg-bnc-stone-800"
+        class="grid h-11 w-11 shrink-0 place-items-center rounded-full text-bnc-stone-600 transition-colors hover:bg-bnc-stone-100 dark:text-bnc-stone-300 dark:hover:bg-bnc-stone-800"
         :aria-label="t('trip.useGps')"
         :title="t('trip.useGps')"
         @click="useGps"
@@ -258,7 +258,7 @@ const showNoResults = computed(
       <!-- Tap-on-map toggle -->
       <button
         type="button"
-        class="grid h-8 w-8 shrink-0 place-items-center rounded-full transition-colors"
+        class="grid h-11 w-11 shrink-0 place-items-center rounded-full transition-colors"
         :class="
           tapMode === 'origin'
             ? 'bg-bnc-accent text-white'
@@ -280,7 +280,16 @@ const showNoResults = computed(
            the error and shows the new origin chip — otherwise the
            error keeps occupying the slot and looks like tap-on-map
            failed silently. -->
-      <p v-if="gpsError && !origin" class="flex-1 text-xs text-red-500">{{ t('trip.gpsFailed') }}</p>
+      <p v-if="gpsError && !origin" class="flex flex-1 items-center gap-2 text-xs text-red-600 dark:text-red-400">
+        {{ t('trip.gpsFailed') }}
+        <button
+          type="button"
+          class="min-h-11 rounded-md px-2 font-medium underline underline-offset-2 hover:bg-bnc-stone-100 dark:hover:bg-bnc-stone-800"
+          @click="useGps"
+        >
+          {{ t('errors.retry') }}
+        </button>
+      </p>
 
       <!-- Chip when origin set -->
       <template v-else-if="origin">
@@ -291,7 +300,7 @@ const showNoResults = computed(
           <span class="min-w-0 flex-1 truncate font-display text-sm font-medium">{{ origin.label }}</span>
           <button
             type="button"
-            class="ml-1 shrink-0 rounded-full p-0.5 text-bnc-stone-500 transition-colors hover:bg-bnc-stone-200 hover:text-bnc-ink dark:hover:bg-bnc-stone-700 dark:hover:text-bnc-paper"
+            class="-my-2 -mr-2 ml-1 shrink-0 rounded-full p-2.5 text-bnc-stone-500 transition-colors hover:bg-bnc-stone-200 hover:text-bnc-ink dark:hover:bg-bnc-stone-700 dark:hover:text-bnc-paper"
             :aria-label="t('trip.clear')"
             @click="clearOrigin"
           >
@@ -350,7 +359,7 @@ const showNoResults = computed(
       <div class="ml-4 h-px flex-1 bg-bnc-stone-100 dark:bg-bnc-stone-800" aria-hidden />
       <button
         type="button"
-        class="grid h-7 w-7 shrink-0 place-items-center rounded-full border border-bnc-stone-200 bg-white text-bnc-stone-600 transition-colors hover:border-bnc-stone-300 hover:bg-bnc-stone-50 dark:border-bnc-stone-700 dark:bg-bnc-stone-900 dark:text-bnc-stone-300 dark:hover:bg-bnc-stone-800"
+        class="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-bnc-stone-200 bg-white text-bnc-stone-600 transition-colors hover:border-bnc-stone-300 hover:bg-bnc-stone-50 dark:border-bnc-stone-700 dark:bg-bnc-stone-900 dark:text-bnc-stone-300 dark:hover:bg-bnc-stone-800"
         :aria-label="t('trip.swap')"
         :title="t('trip.swap')"
         @click="trip.swap()"
@@ -370,7 +379,7 @@ const showNoResults = computed(
       <!-- Tap-on-map toggle -->
       <button
         type="button"
-        class="grid h-8 w-8 shrink-0 place-items-center rounded-full transition-colors"
+        class="grid h-11 w-11 shrink-0 place-items-center rounded-full transition-colors"
         :class="
           tapMode === 'dest'
             ? 'bg-bnc-primary text-white'
@@ -396,7 +405,7 @@ const showNoResults = computed(
           <span class="min-w-0 flex-1 truncate font-display text-sm font-medium">{{ destination.label }}</span>
           <button
             type="button"
-            class="ml-1 shrink-0 rounded-full p-0.5 text-bnc-stone-500 transition-colors hover:bg-bnc-stone-200 hover:text-bnc-ink dark:hover:bg-bnc-stone-700 dark:hover:text-bnc-paper"
+            class="-my-2 -mr-2 ml-1 shrink-0 rounded-full p-2.5 text-bnc-stone-500 transition-colors hover:bg-bnc-stone-200 hover:text-bnc-ink dark:hover:bg-bnc-stone-700 dark:hover:text-bnc-paper"
             :aria-label="t('trip.clear')"
             @click="clearDest"
           >

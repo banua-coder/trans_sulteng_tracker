@@ -26,6 +26,8 @@ const totalKm = computed(() => {
     class="flex cursor-pointer flex-col gap-2 rounded-[var(--radius-md)] border border-bnc-stone-200 bg-white p-3 transition-colors hover:border-bnc-stone-300 dark:border-bnc-stone-800 dark:bg-bnc-stone-900 dark:hover:border-bnc-stone-700"
     role="button"
     tabindex="0"
+    @keydown.enter.prevent="($event.currentTarget as HTMLElement).click()"
+    @keydown.space.prevent="($event.currentTarget as HTMLElement).click()"
   >
     <!-- top row: time + step chain -->
     <div class="flex items-start justify-between gap-2">
