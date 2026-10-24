@@ -10,6 +10,7 @@ import CopyLinkButton from '@/components/CopyLinkButton.vue'
 import HalteTimelineNode from '@/components/HalteTimelineNode.vue'
 import IncomingBusCard from '@/components/IncomingBusCard.vue'
 import DirectionSelector from '@/components/DirectionSelector.vue'
+import { prettyName } from '@/lib/format'
 import type { BrtBus, BrtHalte } from '@/types/brt'
 
 const brt = useBrtStore()
@@ -35,8 +36,8 @@ const directionLabel = computed(() => {
   const c = corridor.value
   if (!c) return ''
   return direction.value === 'a'
-    ? `${c.origin} → ${c.toward}`
-    : `${c.toward} → ${c.origin}`
+    ? `${prettyName(c.origin)} → ${prettyName(c.toward)}`
+    : `${prettyName(c.toward)} → ${prettyName(c.origin)}`
 })
 
 function pickBus(bus: BrtBus) {

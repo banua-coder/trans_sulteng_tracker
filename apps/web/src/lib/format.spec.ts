@@ -24,3 +24,15 @@ describe('formatPlateForSpeech', () => {
     expect(formatPlateForSpeech('')).toBe('')
   })
 })
+
+import { prettyName } from './format'
+
+describe('prettyName', () => {
+  it('title-cases shouted names and keeps short acronyms', () => {
+    expect(prettyName('TRANFERPOINT TAMAN GOR')).toBe('Tranferpoint Taman GOR')
+    expect(prettyName('PELABUHAN PANTOLOAN')).toBe('Pelabuhan Pantoloan')
+  })
+  it('leaves mixed-case names alone', () => {
+    expect(prettyName('Halte Unisa 2')).toBe('Halte Unisa 2')
+  })
+})

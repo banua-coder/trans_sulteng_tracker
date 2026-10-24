@@ -21,6 +21,7 @@ import CopyLinkButton from '@/components/CopyLinkButton.vue'
 import EtaQualityGuide from '@/components/EtaQualityGuide.vue'
 import SheetStickyHeader from '@/components/SheetStickyHeader.vue'
 import DirectionSelector from '@/components/DirectionSelector.vue'
+import { prettyName } from '@/lib/format'
 import type { BrtBus, BrtHalte } from '@/types/brt'
 
 const { t } = useI18n()
@@ -68,7 +69,7 @@ function corridorBadgesFor(h: BrtHalte) {
             {{ t('route.detailTitle') }}
           </p>
           <h2 class="[overflow-wrap:anywhere] font-display text-sm font-bold tracking-tight">
-            {{ corridor.origin }} – {{ corridor.toward }}
+            {{ prettyName(corridor.origin) }} – {{ prettyName(corridor.toward) }}
           </h2>
         </div>
       </div>
