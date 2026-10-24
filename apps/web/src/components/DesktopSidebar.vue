@@ -18,6 +18,7 @@ import { useTripStore } from '@/stores/trip'
 import CorridorPanel from '@/components/CorridorPanel.vue'
 import BusListPanel from '@/components/BusListPanel.vue'
 import NearbyHaltePanel from '@/components/NearbyHaltePanel.vue'
+import HalteListPanel from '@/components/HalteListPanel.vue'
 import BusDetailCard from '@/components/BusDetailCard.vue'
 import HalteDetailCard from '@/components/HalteDetailCard.vue'
 import SidebarIcon from '@/components/SidebarIcon.vue'
@@ -151,7 +152,10 @@ function onKey(e: KeyboardEvent, i: number) {
           </router-link>
         </template>
         <BusListPanel v-else-if="tab === 'buses'" />
-        <NearbyHaltePanel v-else-if="tab === 'stops'" />
+        <template v-else-if="tab === 'stops'">
+          <NearbyHaltePanel />
+          <HalteListPanel />
+        </template>
         <TripPlannerPanel v-else />
       </div>
     </div>
