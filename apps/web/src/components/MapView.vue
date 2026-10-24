@@ -231,6 +231,8 @@ function markFlyInProgress(ms = 700) {
  *  closing the bus info card returns the user to where they were. */
 let priorViewport: { center: L.LatLng; zoom: number } | null = null
 
+let tripBounds: L.LatLngBounds | null = null
+
 /** Pixels of the map the phone sheet hides at the bottom. Camera moves
  *  aim at the part still visible. A detail opens the sheet to about
  *  half the screen, so assume at least that much for those moves. */
@@ -241,9 +243,8 @@ function sheetInset(): number {
 
 /** Where to centre the map so `ll` lands in the middle of the visible
  *  area (above the sheet) rather than the middle of the full map. */
-function visibleCenter(ll: L.LatLngExpression, zoom: number): L.LatLng {
+function visibleCenter(ll: L.LatLngExpression, zoom: number, inset = sheetInset()): L.LatLng {
   const target = L.latLng(ll)
-  const inset = sheetInset()
   if (!map || !inset) return target
   return map.unproject(map.project(target, zoom).add([0, inset / 2]), zoom)
 }
@@ -379,6 +380,7 @@ function corridorSlice(
  *  Fits the map viewport to the plan bounds. */
 function drawTripPreview(plan: PlanResult | null) {
   tripPreviewLayer.clearLayers()
+  tripBounds = null
   if (!plan || !map) return
 
   const bounds = L.latLngBounds([])
@@ -481,6 +483,7 @@ function drawTripPreview(plan: PlanResult | null) {
   }
 
   if (bounds.isValid()) {
+    tripBounds = bounds
     markFlyInProgress()
     map.fitBounds(bounds.pad(0.2), { duration: 0.6, animate: true, paddingBottomRight: [0, sheetInset()] })
   }
@@ -1045,18 +1048,47 @@ onMounted(() => {
   }
 })
 
-// The sheet overlays the map, so when the user opens, drags or
-// collapses it, slide the view by half the change. What was in the
-// middle of the visible area stays there, like perjalananmu's map.
-// Skipped while a fly is running, which already aimed past the sheet.
-let prevSheetH: number | null = null
+// The sheet overlays the map. When the user collapses or reopens it,
+// re-frame what they are looking at (stop, bus, route or trip) inside
+// the part of the map the sheet leaves, zoom included. With nothing
+// selected, slide the view by half the change so the middle stays put.
+// Skipped while a fly is running: that one already aimed past the sheet.
+let prevTargetH: number | null = null
 watch(
-  () => ui.sheetH,
-  (h) => {
-    const prev = prevSheetH
-    prevSheetH = h
+  () => ui.sheetSnap,
+  () => {
+    const inset = ui.sheetTargetH
+    const prev = prevTargetH
+    prevTargetH = inset
     if (!map || prev == null || flyInProgress || window.innerWidth >= 1024) return
-    map.panBy([0, (h - prev) / 2], { animate: false })
+    const m = map
+    const pad: L.PointExpression = [0, inset]
+    markFlyInProgress()
+
+    const point = (ll: L.LatLngExpression) => {
+      const z = Math.max(m.getZoom(), 16)
+      m.flyTo(visibleCenter(ll, z, inset), z, { duration: 0.5 })
+    }
+    if (selection.kind === 'bus' && selection.id) {
+      const b = brt.buses.get(selection.id)
+      if (b) return point([b.lat, b.lng])
+    } else if (selection.kind === 'halte' && selection.id) {
+      const h = brt.halte.find((x) => x.sh_id === selection.id)
+      if (h) return point([parseFloat(h.sh_lat), parseFloat(h.sh_lng)])
+    }
+    const fk = focus.kor
+    if (fk) {
+      const byLeg = corridorLines.get(fk)
+      const dir = focus.direction
+      const lines = byLeg ? (dir === 'a' ? byLeg.a : dir === 'b' ? byLeg.b : [...byLeg.a, ...byLeg.b]) : []
+      const b = L.latLngBounds([])
+      for (const ln of lines) b.extend(ln.getBounds())
+      if (b.isValid()) return void m.flyToBounds(b.pad(0.12), { duration: 0.5, paddingBottomRight: pad })
+    }
+    if (trip.selectedPlan && tripBounds?.isValid()) {
+      return void m.flyToBounds(tripBounds.pad(0.2), { duration: 0.5, paddingBottomRight: pad })
+    }
+    m.panBy([0, (inset - prev) / 2], { animate: false })
   },
 )
 

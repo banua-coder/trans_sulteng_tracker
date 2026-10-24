@@ -56,6 +56,11 @@ const sheetStyle = computed(() => ({
   height: `${snap.value === 'peek' ? PEEK_PX : midPx.value}px`,
   transition: 'height 200ms cubic-bezier(0.2, 0.8, 0.2, 1)',
 }))
+function publishTarget() {
+  const nav = document.getElementById('mobile-nav')?.offsetHeight ?? 0
+  ui.sheetSnap = snap.value
+  ui.sheetTargetH = (snap.value === 'peek' ? PEEK_PX : midPx.value) + nav
+}
 function onResize() { viewportH.value = window.innerHeight }
 
 // Swipe up opens, swipe down collapses; a plain tap toggles. The sheet
@@ -101,6 +106,7 @@ function syncCssVar() {
 
 onMounted(() => {
   syncCssVar()
+  publishTarget()
   // Content decides the mid height, so follow the real size.
   if (sheetEl.value && typeof ResizeObserver !== 'undefined') {
     sizeObserver = new ResizeObserver(syncCssVar)
@@ -115,7 +121,8 @@ onMounted(() => {
   }
 })
 
-watch(snap, () => nextTick(syncCssVar))
+watch(snap, () => { nextTick(syncCssVar); publishTarget() })
+watch(midPx, publishTarget)
 
 onBeforeUnmount(() => {
   sizeObserver?.disconnect()
