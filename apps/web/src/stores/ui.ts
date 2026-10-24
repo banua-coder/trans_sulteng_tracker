@@ -52,6 +52,9 @@ export const useUiStore = defineStore('ui', () => {
   type MobileTab = 'routes' | 'halte' | 'plan'
   const mobileTab = ref<MobileTab>(readJson<MobileTab>(KEY_MOBILE_TAB, 'routes'))
   const mobileScrollY = ref<number>(0)
+  /** Bumped to ask the phone sheet to open to its middle snap. */
+  const sheetPing = ref(0)
+  function openSheet() { sheetPing.value++ }
 
   // Live map basemap — 'map' = CARTO Voyager/Dark Matter (theme
   // aware), 'satellite' = ESRI World Imagery. Stored so the user's
@@ -129,6 +132,8 @@ export const useUiStore = defineStore('ui', () => {
     busSearch,
     mobileTab,
     mobileScrollY,
+    sheetPing,
+    openSheet,
     tileMode,
     setTileMode,
     toggleTileMode,

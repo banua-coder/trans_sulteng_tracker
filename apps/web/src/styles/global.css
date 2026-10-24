@@ -392,3 +392,7 @@ html.dark .leaflet-container { background: var(--color-bnc-stone-900); }
   max-height: none;
   overflow: visible;
 }
+
+/* Phone bottom navigation height; the sheet and map clear it. */
+:root { --nav-h: calc(56px + env(safe-area-inset-bottom)); }
+@media (min-width: 1024px) { :root { --nav-h: 0px; } }

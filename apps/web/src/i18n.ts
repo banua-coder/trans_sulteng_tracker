@@ -92,6 +92,7 @@ export const messages = {
       retry: 'Coba lagi',
     },
     sidebar: {
+      whereTo: 'Mau ke mana?',
       routes: 'Rute',
       buses: 'Bus',
       stops: 'Halte',
@@ -407,6 +408,7 @@ export const messages = {
       retry: 'Retry',
     },
     sidebar: {
+      whereTo: 'Where to?',
       routes: 'Routes',
       buses: 'Buses',
       stops: 'Stops',

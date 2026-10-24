@@ -80,7 +80,7 @@ const isAnimated = computed(() => status.value === 'loading' || status.value ===
   <transition name="badge-fade">
     <div
       v-if="status"
-      class="pointer-events-auto absolute left-3 top-3 z-[800] rounded-full border border-bnc-stone-200 bg-white/95 shadow-[var(--shadow-elevated)] backdrop-blur dark:border-bnc-stone-800 dark:bg-bnc-stone-900/95"
+      class="pointer-events-auto absolute left-3 top-[68px] z-[800] lg:top-3 rounded-full border border-bnc-stone-200 bg-white/95 shadow-[var(--shadow-elevated)] backdrop-blur dark:border-bnc-stone-800 dark:bg-bnc-stone-900/95"
       role="status"
       aria-live="polite"
     >

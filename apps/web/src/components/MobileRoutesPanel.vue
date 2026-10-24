@@ -118,50 +118,11 @@ function pickHalte(shId: string) {
          content effectively start 4px higher than the sticky's
          rendered bottom edge and visually overlap on first paint. -->
     <div
+      v-if="tab !== 'plan'"
       class="sticky top-0 z-10 -mx-4 flex flex-col gap-2 bg-bnc-paper px-4 pb-3 pt-2 shadow-[0_4px_8px_-6px_rgba(10,14,20,0.12)] dark:bg-bnc-stone-900"
     >
-      <!-- tabs -->
-      <div class="flex shrink-0 gap-2">
-        <button
-          type="button"
-          class="flex-1 rounded-full px-4 py-1.5 font-mono text-xs font-bold uppercase tracking-wider transition-colors"
-          :class="
-            tab === 'routes'
-              ? 'bg-bnc-primary text-white shadow-sm'
-              : 'bg-bnc-stone-100 text-bnc-stone-600 dark:bg-bnc-stone-800 dark:text-bnc-stone-300'
-          "
-          @click="tab = 'routes'"
-        >
-          {{ t('route.tabRoute') }}
-        </button>
-        <button
-          type="button"
-          class="flex-1 rounded-full px-4 py-1.5 font-mono text-xs font-bold uppercase tracking-wider transition-colors"
-          :class="
-            tab === 'halte'
-              ? 'bg-bnc-primary text-white shadow-sm'
-              : 'bg-bnc-stone-100 text-bnc-stone-600 dark:bg-bnc-stone-800 dark:text-bnc-stone-300'
-          "
-          @click="tab = 'halte'"
-        >
-          {{ t('route.tabHalte') }}
-        </button>
-        <button
-          type="button"
-          class="flex-1 rounded-full px-4 py-1.5 font-mono text-xs font-bold uppercase tracking-wider transition-colors"
-          :class="
-            tab === 'plan'
-              ? 'bg-bnc-primary text-white shadow-sm'
-              : 'bg-bnc-stone-100 text-bnc-stone-600 dark:bg-bnc-stone-800 dark:text-bnc-stone-300'
-          "
-          @click="tab = 'plan'"
-        >
-          {{ t('route.tabPlan') }}
-        </button>
-      </div>
-
       <!-- search (shared with BusListPanel via ui store so search persists across swaps) -->
-      <label v-if="tab !== 'plan'" class="relative block shrink-0">
+      <label class="relative block shrink-0">
         <span class="sr-only">{{ t('route.search') }}</span>
         <input
           v-model="busSearch"
