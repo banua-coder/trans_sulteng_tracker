@@ -42,14 +42,32 @@ function toggleTapMode(which: 'origin' | 'dest') {
 // Search popovers are Teleported to <body> so they can escape the
 // bottom sheet's `overflow-y-auto` clip + height cap (the previous
 // in-flow version was being cropped by the parent sheet).
-interface PopoverRect { top: number; left: number; width: number }
+interface PopoverRect { top?: number; bottom?: number; left: number; width: number; maxH: number }
 
 function rectBelow(anchor: HTMLElement | null): PopoverRect {
-  if (!anchor) return { top: 0, left: 0, width: 0 }
+  if (!anchor) return { top: 0, left: 0, width: 0, maxH: 0 }
   const r = anchor.getBoundingClientRect()
   // Align to the whole A/B card, not just the input.
   const card = anchor.closest('[data-plan-card]')?.getBoundingClientRect() ?? r
-  return { top: r.bottom + 4, left: card.left, width: card.width }
+  // On phones the bottom nav covers the lower edge, and the sheet
+  // leaves little room under the input. Use whichever side has more.
+  const navH = document.getElementById('mobile-nav')?.offsetHeight ?? 0
+  const below = window.innerHeight - r.bottom - navH - 12
+  const above = r.top - 12
+  if (below < 240 && above > below) {
+    return { bottom: window.innerHeight - r.top + 4, left: card.left, width: card.width, maxH: above }
+  }
+  return { top: r.bottom + 4, left: card.left, width: card.width, maxH: below }
+}
+
+function popoverStyle(r: PopoverRect) {
+  return {
+    top: r.top != null ? r.top + 'px' : undefined,
+    bottom: r.bottom != null ? r.bottom + 'px' : undefined,
+    left: r.left + 'px',
+    width: r.width + 'px',
+    maxHeight: r.maxH + 'px',
+  }
 }
 
 /** A stop is listed once per corridor and direction; show it once. */
@@ -64,7 +82,7 @@ const originFocused = ref(false)
 const originRowEl = ref<HTMLElement | null>(null)
 const originInputEl = ref<HTMLElement | null>(null)
 const originPopoverEl = ref<HTMLElement | null>(null)
-const originPopoverRect = ref<PopoverRect>({ top: 0, left: 0, width: 0 })
+const originPopoverRect = ref<PopoverRect>({ top: 0, left: 0, width: 0, maxH: 0 })
 const gpsLoading = ref(false)
 const gpsError = ref(false)
 
@@ -162,7 +180,7 @@ const destQuery = ref('')
 const destFocused = ref(false)
 const destInputEl = ref<HTMLElement | null>(null)
 const destPopoverEl = ref<HTMLElement | null>(null)
-const destPopoverRect = ref<PopoverRect>({ top: 0, left: 0, width: 0 })
+const destPopoverRect = ref<PopoverRect>({ top: 0, left: 0, width: 0, maxH: 0 })
 
 onClickOutside(destPopoverEl, (event) => {
   if (destInputEl.value && destInputEl.value.contains(event.target as Node)) return
@@ -297,8 +315,8 @@ const showNoResults = computed(
       <div
         v-if="originFocused && !origin"
         ref="originPopoverEl"
-        class="fixed z-[1200] overflow-hidden rounded-xl border border-bnc-stone-200 bg-white shadow-[var(--shadow-elevated)] dark:border-bnc-stone-700 dark:bg-bnc-stone-900"
-        :style="{ top: originPopoverRect.top + 'px', left: originPopoverRect.left + 'px', width: originPopoverRect.width + 'px' }"
+        class="fixed z-[1200] overflow-y-auto overscroll-contain rounded-xl border border-bnc-stone-200 bg-white shadow-[var(--shadow-elevated)] dark:border-bnc-stone-700 dark:bg-bnc-stone-900"
+        :style="popoverStyle(originPopoverRect)"
         role="listbox"
       >
         <button type="button" class="flex min-h-11 w-full items-center gap-3 px-4 text-left text-sm font-medium text-bnc-accent hover:bg-bnc-stone-50 dark:hover:bg-bnc-stone-800" @click="useGps(); originFocused = false">
@@ -329,8 +347,8 @@ const showNoResults = computed(
       <div
         v-if="destFocused && !destination"
         ref="destPopoverEl"
-        class="fixed z-[1200] overflow-hidden rounded-xl border border-bnc-stone-200 bg-white shadow-[var(--shadow-elevated)] dark:border-bnc-stone-700 dark:bg-bnc-stone-900"
-        :style="{ top: destPopoverRect.top + 'px', left: destPopoverRect.left + 'px', width: destPopoverRect.width + 'px' }"
+        class="fixed z-[1200] overflow-y-auto overscroll-contain rounded-xl border border-bnc-stone-200 bg-white shadow-[var(--shadow-elevated)] dark:border-bnc-stone-700 dark:bg-bnc-stone-900"
+        :style="popoverStyle(destPopoverRect)"
         role="listbox"
       >
         <button type="button" class="flex min-h-11 w-full items-center gap-3 px-4 text-left text-sm font-medium text-bnc-accent hover:bg-bnc-stone-50 dark:hover:bg-bnc-stone-800" @click="toggleTapMode('dest'); destFocused = false">
