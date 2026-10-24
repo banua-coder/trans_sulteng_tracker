@@ -23,6 +23,7 @@ import type { PlanResult, PlanStep } from '@/lib/tripPlanner'
 import { haversineM, speedKmh as computeSpeedKmh, type LatLng, type PositionFix } from '@/lib/geo'
 import { initialState, isStaleFix, reduce, type RideState } from '@/lib/ride/reducer'
 import { useBrtStore } from './brt'
+import { useGeoStore } from './geo'
 import { useCityStore } from './city'
 import { useTripStore } from './trip'
 import { buildTripPaths, type TripPathSegment } from '@/lib/tripPath'
@@ -72,6 +73,7 @@ export const useRideStore = defineStore('ride', () => {
   const brt = useBrtStore()
   const trip = useTripStore()
   const cityStore = useCityStore()
+  const geo = useGeoStore()
 
   // Feature flag — Phases 1-4 ship gated, Phase 5 removes the gate.
   const enabled = useStorage<boolean>(FEATURE_FLAG_KEY, false, localStorage)
@@ -112,7 +114,7 @@ export const useRideStore = defineStore('ride', () => {
    *  Both `watchPosition` (via VueUse) and the periodic
    *  `getCurrentPosition` poll feed this single entry point so the
    *  ring buffer, trace, and reducer stay consistent. */
-  function ingestFix(lat: number, lng: number, ts: number) {
+  function ingestFix(lat: number, lng: number, ts: number, geoAccuracy = 20) {
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) return
     // Drop duplicates. Fake-GPS and paused-then-resumed watchers can
     // re-fire with the same timestamp; without this guard we'd log
@@ -120,6 +122,8 @@ export const useRideStore = defineStore('ride', () => {
     const prevTs = state.value.lastFix?.ts ?? 0
     if (ts <= prevTs) return
     const fix: PositionFix = { lat, lng, ts }
+    // Keep the map's blue dot in step with the ride's fixes.
+    geo.applyFix({ latitude: lat, longitude: lng, accuracy: geoAccuracy })
     pushFix(fix)
     pushTrace(fix)
     const speedKmh = computeSpeedKmh(fixBuffer.value)
@@ -136,7 +140,7 @@ export const useRideStore = defineStore('ride', () => {
   watch(locatedAt, (ts) => {
     if (!ts) return
     const c = coords.value
-    ingestFix(c.latitude, c.longitude, ts)
+    ingestFix(c.latitude, c.longitude, ts, c.accuracy)
   })
 
   // Belt-and-braces: some browsers (notably iOS PWAs and Android
@@ -153,7 +157,7 @@ export const useRideStore = defineStore('ride', () => {
       if (state.value.status === 'idle') return
       if (visibility.value !== 'visible') return
       navigator.geolocation.getCurrentPosition(
-        (pos) => ingestFix(pos.coords.latitude, pos.coords.longitude, pos.timestamp),
+        (pos) => ingestFix(pos.coords.latitude, pos.coords.longitude, pos.timestamp, pos.coords.accuracy),
         () => { /* transient poll failures are already surfaced via geoError */ },
         { enableHighAccuracy: true, maximumAge: 0, timeout: 5_000 },
       )
@@ -244,7 +248,7 @@ export const useRideStore = defineStore('ride', () => {
   function primePermission() {
     if (typeof navigator === 'undefined' || !('geolocation' in navigator)) return
     navigator.geolocation.getCurrentPosition(
-      (pos) => ingestFix(pos.coords.latitude, pos.coords.longitude, pos.timestamp),
+      (pos) => ingestFix(pos.coords.latitude, pos.coords.longitude, pos.timestamp, pos.coords.accuracy),
       () => { /* geoError already tracks the reason */ },
       { enableHighAccuracy: true, maximumAge: 0, timeout: 8_000 },
     )
