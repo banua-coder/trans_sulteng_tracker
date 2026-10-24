@@ -7,7 +7,7 @@ function halte(kor: string, id: string, name: string, lat: number, lng: number):
     sh_id: id, sh_name: name, kor, origin: '', toward: '',
     sh_lat: String(lat), sh_lng: String(lng),
     or_lat: '', or_lng: '', tw_lat: '', tw_lng: '',
-    points: '', color: '', in_koridor: kor,
+    points: '', color: '', in_koridor: kor, color_koridor: '',
   }
 }
 
