@@ -58,6 +58,9 @@ export const messages = {
     halte: {
       incomingBuses: 'Bus menuju halte ini',
       noBuses: 'Tidak ada bus yang menuju halte ini.',
+      planFrom: 'Berangkat dari sini',
+      planTo: 'Tuju halte ini',
+      nearby: 'Halte di dekatnya',
       directions: 'Arahkan',
       atStop: 'Di halte',
       showAll: 'Semua',
@@ -370,6 +373,9 @@ export const messages = {
     halte: {
       incomingBuses: 'Buses heading here',
       noBuses: 'No buses approaching this stop.',
+      planFrom: 'Start here',
+      planTo: 'Go to this stop',
+      nearby: 'Nearby stops',
       directions: 'Directions',
       atStop: 'At stop',
       showAll: 'All',
