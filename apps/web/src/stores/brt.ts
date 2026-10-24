@@ -11,7 +11,7 @@ import {
 } from '@/lib/format'
 import type { BrtBus, BrtCity, BrtCorridor, BrtHalte } from '@/types/brt'
 import { useCityStore } from './city'
-import { nsCorridor, nsHalte, splitKor } from '@/lib/crossCity'
+import { nsCorridor, nsHalte, nsKor, splitKor } from '@/lib/crossCity'
 
 /** Arrival row used by the halte detail card and the trip planner's
  *  per-step disclosure. Pre-computed in the store so components are
@@ -233,7 +233,20 @@ export const useBrtStore = defineStore('brt', () => {
     })
   }
 
+  /** Live buses of the other city, kors namespaced (see crossCity.ts).
+   *  Planner-only: the map and bus lists never read this. */
+  const foreignBuses = shallowReactive<Map<string, BrtBus>>(new Map())
+  function upsertForeignBus(b: BrtBus) {
+    if (b.lat == null || b.lng == null || !b.pref) return
+    foreignBuses.set(`${b.pref}|${b.imei || b.id}`, {
+      ...b,
+      kor: nsKor(String(b.pref), b.kor),
+      _receivedAt: Date.now(),
+    })
+  }
+
   function clearBuses() {
+    foreignBuses.clear()
     buses.clear()
   }
 
@@ -676,6 +689,8 @@ export const useBrtStore = defineStore('brt', () => {
     loadRoutes,
     upsertBus,
     clearBuses,
+    foreignBuses,
+    upsertForeignBus,
     halteByLeg,
     ensureHalteForLeg,
     getHalteForLeg,

@@ -9,6 +9,7 @@ import { useBrtStore } from '@/stores/brt'
 import { useCityStore } from '@/stores/city'
 import TripResultCard from '@/components/TripResultCard.vue'
 import type { Endpoint } from '@/stores/trip'
+import { korCity, korLabel } from '@/lib/crossCity'
 
 const { t } = useI18n()
 const trip = useTripStore()
@@ -76,6 +77,9 @@ onClickOutside(originPopoverEl, (event) => {
 function syncOriginRect() {
   originPopoverRect.value = rectBelow(originInputEl.value)
 }
+// Search covers both cities, so load the other one up front.
+watch(() => city.pref, () => { trip.ensureForeign() }, { immediate: true })
+
 watch(originFocused, (v) => {
   if (v) nextTick(syncOriginRect)
 })
@@ -83,10 +87,10 @@ watch(originFocused, (v) => {
 const originResults = computed(() => {
   const q = originQuery.value.trim().toLowerCase()
   if (!q) return []
-  return uniqueByName(brt.halte.filter((h) => h.sh_name.toLowerCase().includes(q))).slice(0, 8)
+  return uniqueByName(brt.planHalte.filter((h) => h.sh_name.toLowerCase().includes(q))).slice(0, 8)
 })
 
-function pickOriginHalte(h: (typeof brt.halte)[number]) {
+function pickOriginHalte(h: (typeof brt.planHalte)[number]) {
   trip.setOrigin({
     kind: 'halte',
     label: h.sh_name,
@@ -183,10 +187,10 @@ useEventListener('resize', syncAll)
 const destResults = computed(() => {
   const q = destQuery.value.trim().toLowerCase()
   if (!q) return []
-  return uniqueByName(brt.halte.filter((h) => h.sh_name.toLowerCase().includes(q))).slice(0, 8)
+  return uniqueByName(brt.planHalte.filter((h) => h.sh_name.toLowerCase().includes(q))).slice(0, 8)
 })
 
-function pickDestHalte(h: (typeof brt.halte)[number]) {
+function pickDestHalte(h: (typeof brt.planHalte)[number]) {
   trip.setDestination({
     kind: 'halte',
     label: h.sh_name,
@@ -314,8 +318,9 @@ const showNoResults = computed(
           class="flex min-h-11 w-full items-center gap-3 border-t border-bnc-stone-100 px-4 py-2 text-left text-sm hover:bg-bnc-stone-50 dark:border-bnc-stone-800 dark:hover:bg-bnc-stone-800"
           @click="pickOriginHalte(h)"
         >
-          <span class="inline-flex shrink-0 items-center rounded-md px-1.5 py-0.5 font-mono text-[11px] font-bold" :style="{ background: brt.colorForKor(h.kor), color: onColor(brt.colorForKor(h.kor)) }">{{ h.kor }}</span>
+          <span class="inline-flex shrink-0 items-center rounded-md px-1.5 py-0.5 font-mono text-[11px] font-bold" :style="{ background: brt.colorForKor(h.kor), color: onColor(brt.colorForKor(h.kor)) }">{{ korLabel(h.kor) }}</span>
           <span class="min-w-0 flex-1 [overflow-wrap:anywhere]">{{ h.sh_name }}</span>
+          <span v-if="korCity(h.kor)" class="shrink-0 text-xs text-bnc-stone-500">{{ korCity(h.kor) }}</span>
         </button>
       </div>
     </Teleport>
@@ -341,8 +346,9 @@ const showNoResults = computed(
           class="flex min-h-11 w-full items-center gap-3 border-t border-bnc-stone-100 px-4 py-2 text-left text-sm hover:bg-bnc-stone-50 dark:border-bnc-stone-800 dark:hover:bg-bnc-stone-800"
           @click="pickDestHalte(h)"
         >
-          <span class="inline-flex shrink-0 items-center rounded-md px-1.5 py-0.5 font-mono text-[11px] font-bold" :style="{ background: brt.colorForKor(h.kor), color: onColor(brt.colorForKor(h.kor)) }">{{ h.kor }}</span>
+          <span class="inline-flex shrink-0 items-center rounded-md px-1.5 py-0.5 font-mono text-[11px] font-bold" :style="{ background: brt.colorForKor(h.kor), color: onColor(brt.colorForKor(h.kor)) }">{{ korLabel(h.kor) }}</span>
           <span class="min-w-0 flex-1 [overflow-wrap:anywhere]">{{ h.sh_name }}</span>
+          <span v-if="korCity(h.kor)" class="shrink-0 text-xs text-bnc-stone-500">{{ korCity(h.kor) }}</span>
         </button>
       </div>
     </Teleport>

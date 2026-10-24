@@ -98,13 +98,20 @@ export const useTripStore = defineStore('trip', () => {
    *  missing reverse-direction halte for some corridors (K2A has 0
    *  reverse rows in bulk; per-leg returns 19). Prefetch all legs in
    *  parallel before building so the worker gets the full picture. */
+  let foreignLoading: Promise<void> | null = null
+  function ensureForeign(): Promise<void> {
+    if (brt.foreignCorridors.length) return Promise.resolve()
+    foreignLoading ??= brt
+      .loadForeign(city.pref === '12' ? '11' : '12')
+      .finally(() => { foreignLoading = null })
+    return foreignLoading
+  }
+
   async function buildGraph() {
     graphReady.value = false
     // The other city joins the graph so a trip can cross the border
     // (Wisma Donggala ↔ Halte Unisa is a 96 m walk).
-    if (!brt.foreignCorridors.length) {
-      await brt.loadForeign(city.pref === '12' ? '11' : '12')
-    }
+    await ensureForeign()
     const corridors = [...brt.corridors, ...brt.foreignCorridors]
     // Prefetch per-leg in parallel — covers bulk feed gaps.
     const prefetches: Promise<unknown>[] = []
@@ -352,8 +359,8 @@ export const useTripStore = defineStore('trip', () => {
   })
 
   /** Map of step index → display number for the timeline. Only
-   *  numbers ride + walk steps; transfer rows stay un-numbered so
-   *  they don't duplicate the surrounding ride's transfer-point disc. */
+   *  numbers ride + walk steps; a transfer row is numbered only when it
+   *  moves to a differently named stop. */
   const stepNumbers = computed<Map<number, number>>(() => {
     const out = new Map<number, number>()
     const plan = selectedPlan.value
@@ -373,6 +380,11 @@ export const useTripStore = defineStore('trip', () => {
       } else if (step.kind === 'walk') {
         const n = seen.get(step.toName)
         if (n != null) out.set(i, n)
+      } else if (step.kind === 'transfer') {
+        // Changing to a differently named stop (Wisma Donggala → Halte
+        // Unisa): that stop has its own map marker, so number the row.
+        const n = seen.get(step.toName)
+        if (n != null && n !== seen.get(step.fromName)) out.set(i, n)
       }
     }
     return out
@@ -383,17 +395,17 @@ export const useTripStore = defineStore('trip', () => {
    *  plan step's `fromName` / `kor`. */
   function incomingFor(step: PlanStep | null | undefined): IncomingBus[] {
     if (!step || step.kind !== 'ride' || !step.kor) return []
-    const corridor = brt.corridorByKor.get(step.kor)
+    const corridor = brt.planCorridorByKor.get(step.kor)
     if (!corridor) return []
 
     const boardingShIds = new Set(
-      brt.halte
+      brt.planHalte
         .filter((h) => h.kor === step.kor && h.sh_name === step.fromName)
         .map((h) => h.sh_id),
     )
 
     let boardingCoord: { lat: number; lng: number } | null = null
-    const namedAtKor = brt.halte.find(
+    const namedAtKor = brt.planHalte.find(
       (x) => x.kor === step.kor && x.sh_name === step.fromName,
     )
     if (namedAtKor) {
@@ -406,7 +418,7 @@ export const useTripStore = defineStore('trip', () => {
 
     const out: IncomingBus[] = []
     const seen = new Set<string>()
-    for (const bus of brt.buses.values()) {
+    for (const bus of [...brt.buses.values(), ...brt.foreignBuses.values()]) {
       if (bus.kor !== step.kor) continue
 
       let headingHere = false
@@ -555,6 +567,7 @@ export const useTripStore = defineStore('trip', () => {
     selectPlan,
     clear,
     buildGraph,
+    ensureForeign,
     recompute,
     planKors,
     planHalteNames,

@@ -68,9 +68,13 @@ export const useSocketStore = defineStore('socket', () => {
       if (firstBusReceived) return
       if (!sock?.connected) return
       if (currentPref !== pref) return
-      sock.emit('subscribe', { pref })
+      sock.emit('subscribe', subscribeMsg(pref))
     }, RESUBSCRIBE_DELAY_MS)
   }
+
+  /** Join the other city's room too so the cross-city planner can use
+   *  its live buses. Their events are routed by `pref` in the handler. */
+  const subscribeMsg = (pref: string) => ({ pref, extra: [pref === '12' ? '11' : '12'] })
 
   function connect(pref: string) {
     const brt = useBrtStore()
@@ -94,7 +98,7 @@ export const useSocketStore = defineStore('socket', () => {
         clearConnectFailTimer()
         state.value = 'live'
         if (currentPref) {
-          sock?.emit('subscribe', { pref: currentPref })
+          sock?.emit('subscribe', subscribeMsg(currentPref))
           scheduleResubscribe(currentPref)
         }
       })
@@ -120,6 +124,10 @@ export const useSocketStore = defineStore('socket', () => {
         viewers.value = count
       })
       sock.on('bus', (payload: BrtBus) => {
+        if (payload.pref && currentPref && String(payload.pref) !== currentPref) {
+          brt.upsertForeignBus(payload)
+          return
+        }
         firstBusReceived = true
         inSubscribeGrace.value = false
         clearResubscribe()
@@ -129,7 +137,7 @@ export const useSocketStore = defineStore('socket', () => {
 
     currentPref = pref
     if (sock.connected) {
-      sock.emit('subscribe', { pref })
+      sock.emit('subscribe', subscribeMsg(pref))
       scheduleResubscribe(pref)
     }
   }
