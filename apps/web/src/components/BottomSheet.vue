@@ -9,11 +9,16 @@
  * mid so the user sees the new content without dragging.
  */
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 // Two snaps only — peek (handle + first row) and mid (50 dvh, the
 // user-requested cap). No 'full' snap, so the sheet never covers
 // more than half the viewport and the map above always stays usable.
 type Snap = 'peek' | 'mid'
+/** Collapsed height: the drag row plus a hint of the panel. */
+const PEEK_PX = 56
 
 const props = defineProps<{ forceSnap?: Snap | null; ping?: number }>()
 
@@ -30,56 +35,35 @@ const sheetEl = ref<HTMLElement | null>(null)
 const dragging = ref(false)
 
 let startY = 0
-let startTranslate = 0
-let currentTranslate = 0
-let frame: number | null = null
 
 // Peek is a fixed strip. Mid fits its content up to half the viewport,
 // so a short detail card does not leave an empty panel under it.
 const sheetStyle = computed(() => ({
   bottom: 'var(--nav-h, 0px)',
-  height: snap.value === 'peek' ? '88px' : 'auto',
+  height: snap.value === 'peek' ? `${PEEK_PX}px` : 'auto',
   maxHeight: '50dvh',
-  transform: dragging.value ? `translateY(${currentTranslate}px)` : 'translateY(0)',
-  transition: dragging.value ? 'none' : 'height 280ms ease, transform 280ms ease',
+  transition: 'height 280ms ease',
 }))
 
-function pxOf(snapTo: Snap): number {
-  const el = sheetEl.value
-  if (!el) return 0
-  const h = el.getBoundingClientRect().height
-  if (snapTo === 'peek') return h - 88
-  if (snapTo === 'mid') return h * 0.5
-  return 0
-}
+// Swipe up opens, swipe down collapses; a plain tap toggles. The sheet
+// height itself animates (see sheetStyle), so no per-pixel tracking.
+const SWIPE_PX = 24
 
 function onPointerDown(e: PointerEvent) {
-  if (!sheetEl.value) return
-  ;(e.target as HTMLElement).setPointerCapture(e.pointerId)
+  ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
   dragging.value = true
   startY = e.clientY
-  startTranslate = pxOf(snap.value)
-  currentTranslate = startTranslate
 }
 
-function onPointerMove(e: PointerEvent) {
-  if (!dragging.value) return
-  const next = startTranslate + (e.clientY - startY)
-  currentTranslate = Math.max(0, Math.min(next, pxOf('peek')))
-  if (frame) cancelAnimationFrame(frame)
-  frame = requestAnimationFrame(() => {
-    if (sheetEl.value) sheetEl.value.style.transform = `translateY(${currentTranslate}px)`
-  })
-}
+function onPointerMove() {}
 
-function onPointerUp() {
+function onPointerUp(e: PointerEvent) {
   if (!dragging.value) return
   dragging.value = false
-  // snap to whichever of peek/mid is nearest
-  const px = currentTranslate
-  const peekPx = pxOf('peek')
-  const midPx = pxOf('mid')
-  snap.value = Math.abs(px - peekPx) < Math.abs(px - midPx) ? 'peek' : 'mid'
+  const dy = e.clientY - startY
+  if (dy <= -SWIPE_PX) snap.value = 'mid'
+  else if (dy >= SWIPE_PX) snap.value = 'peek'
+  else cycle()
 }
 
 function cycle() {
@@ -114,7 +98,6 @@ watch(snap, () => nextTick(syncCssVar))
 
 onBeforeUnmount(() => {
   sizeObserver?.disconnect()
-  if (frame) cancelAnimationFrame(frame)
   if (typeof document !== 'undefined') {
     document.documentElement.style.removeProperty('--sheet-h')
   }
@@ -129,19 +112,29 @@ onBeforeUnmount(() => {
     role="dialog"
     aria-label="Panel koridor"
   >
-    <button
-      type="button"
-      class="grid h-6 shrink-0 place-items-center"
-      :aria-expanded="snap === 'mid'"
-      @click="cycle"
+    <!-- Drag zone: the whole top row, not just the pill, and
+         touch-action none so a finger drag moves the sheet instead of
+         scrolling the page. The button collapses it in one tap so the
+         map can be seen in full. -->
+    <div
+      class="relative flex h-11 shrink-0 touch-none items-center justify-center"
       @pointerdown="onPointerDown"
       @pointermove="onPointerMove"
       @pointerup="onPointerUp"
       @pointercancel="onPointerUp"
     >
       <span class="h-1 w-10 rounded-full bg-bnc-stone-300 dark:bg-bnc-stone-700" aria-hidden />
-      <span class="sr-only">Geser untuk membuka panel</span>
-    </button>
+      <button
+        type="button"
+        class="absolute right-2 top-1/2 flex min-h-11 -translate-y-1/2 items-center gap-1 rounded-full px-3 text-xs font-medium text-bnc-stone-600 dark:text-bnc-stone-300"
+        :aria-expanded="snap === 'mid'"
+        @pointerdown.stop
+        @click="cycle"
+      >
+        {{ snap === 'mid' ? t('sheet.showMap') : t('sheet.showPanel') }}
+        <svg class="h-3.5 w-3.5 transition-transform" :class="snap === 'mid' ? '' : 'rotate-180'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+      </button>
+    </div>
 
     <div class="min-h-0 overflow-y-auto px-4 pb-4" data-sheet-scroll>
       <slot />
