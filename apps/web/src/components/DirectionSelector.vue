@@ -44,7 +44,7 @@ const { t } = useI18n()
         type="button"
         role="radio"
         :aria-checked="direction === d"
-        class="relative flex min-h-14 flex-col items-start justify-center [overflow-wrap:anywhere] gap-0.5 overflow-hidden rounded-lg border px-3 py-2 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-bnc-accent"
+        class="relative flex min-h-12 flex-col items-start justify-center [overflow-wrap:anywhere] gap-px overflow-hidden rounded-lg border px-2.5 py-1.5 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-bnc-accent"
         :class="
           direction === d
             ? 'border-transparent'
@@ -57,10 +57,10 @@ const { t } = useI18n()
         "
         @click="emit('update:direction', d)"
       >
-        <span class="text-sm font-semibold leading-snug text-bnc-ink dark:text-bnc-paper">
+        <span class="text-xs font-semibold leading-snug text-bnc-ink dark:text-bnc-paper">
           {{ t('route.directionTo', { place: (d === 'a' ? towardLabel : originLabel) || '—' }) }}
         </span>
-        <span class="text-[11px] text-bnc-stone-500">
+        <span class="text-[10px] leading-snug text-bnc-stone-500">
           {{ t('route.directionFrom', { place: (d === 'a' ? originLabel : towardLabel) || '—' }) }}
         </span>
         <span

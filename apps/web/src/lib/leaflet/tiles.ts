@@ -25,6 +25,16 @@ export function lightTiles(): L.MaplibreGL {
   return openFreeMapTiles('positron')
 }
 
+/** Positron for the printable booklet: keeps the drawing buffer so the
+ *  canvas can be copied to an image (see basemapSnapshot.ts). */
+export function exportTiles(): L.MaplibreGL {
+  return L.maplibreGL({
+    style: 'https://tiles.openfreemap.org/styles/positron',
+    attributionControl: { customAttribution: OPENFREEMAP_ATTR },
+    canvasContextAttributes: { preserveDrawingBuffer: true },
+  })
+}
+
 /** OpenFreeMap Dark — clean dark basemap, used for dark mode. */
 export function darkTiles(): L.MaplibreGL {
   return openFreeMapTiles('dark')
