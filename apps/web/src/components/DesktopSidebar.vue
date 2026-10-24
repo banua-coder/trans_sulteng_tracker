@@ -6,7 +6,7 @@
  * above the tabs because it must stay visible while you browse.
  * Phones keep the bottom sheet (no room for a sidebar).
  */
-import { computed, defineAsyncComponent, ref } from 'vue'
+import { computed, defineAsyncComponent, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
 import { useBrtStore } from '@/stores/brt'
@@ -33,9 +33,12 @@ const { t } = useI18n()
 const brt = useBrtStore()
 const city = useCityStore()
 const { corridors, buses } = storeToRefs(brt)
-const { kind: selectionKind } = storeToRefs(useSelectionStore())
-const { isFocused } = storeToRefs(useFocusStore())
-const { selectedPlan } = storeToRefs(useTripStore())
+const selection = useSelectionStore()
+const focus = useFocusStore()
+const trip = useTripStore()
+const { kind: selectionKind } = storeToRefs(selection)
+const { isFocused } = storeToRefs(focus)
+const { selectedPlan } = storeToRefs(trip)
 const { isActive: rideActive } = storeToRefs(useRideStore())
 
 const tab = ref<Tab>('routes')
@@ -57,12 +60,31 @@ const detail = computed<'bus' | 'halte' | 'route' | 'trip' | null>(() => {
   return null
 })
 
+// Opening a detail moves to the tab it belongs to, so closing it
+// lands the user back in the right list.
+watch(detail, (d) => {
+  if (d === 'bus') tab.value = 'buses'
+  else if (d === 'halte') tab.value = 'stops'
+  else if (d === 'route') tab.value = 'routes'
+  else if (d === 'trip') tab.value = 'plan'
+})
+
+/** Picking a tab while a detail is open leaves that detail. */
+function pick(id: Tab) {
+  if (detail.value) {
+    selection.clear()
+    focus.clear()
+    trip.selectPlan(null)
+  }
+  tab.value = id
+}
+
 function onKey(e: KeyboardEvent, i: number) {
   const n = tabs.value.length
   const next = e.key === 'ArrowRight' ? (i + 1) % n : e.key === 'ArrowLeft' ? (i - 1 + n) % n : -1
   if (next < 0) return
   e.preventDefault()
-  tab.value = tabs.value[next].id
+  pick(tabs.value[next].id)
   ;(document.getElementById(`sidebar-tab-${tab.value}`) as HTMLElement | null)?.focus()
 }
 </script>
@@ -95,7 +117,7 @@ function onKey(e: KeyboardEvent, i: number) {
             ? 'text-bnc-ink dark:text-bnc-paper'
             : 'text-bnc-stone-500 hover:bg-bnc-stone-100 hover:text-bnc-ink dark:hover:bg-bnc-stone-800/60 dark:hover:text-bnc-paper'
         "
-        @click="tab = tb.id"
+        @click="pick(tb.id)"
         @keydown="onKey($event, i)"
       >
         <SidebarIcon :name="tb.id" />
