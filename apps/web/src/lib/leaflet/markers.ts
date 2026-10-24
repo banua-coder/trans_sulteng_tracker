@@ -1,5 +1,5 @@
 import L from 'leaflet'
-import { onColor } from '@/lib/color'
+import { badgeBg, onColor } from '@/lib/color'
 
 /** Front-facing bus glyph, used on the bus-stop tile. */
 function busGlyph(ink: string): string {
@@ -30,7 +30,7 @@ export function busIcon(opts: {
       <div class="bus-arrow-wrap" style="transform: rotate(${safeAngle}deg)">
         <span class="bus-arrow" style="border-bottom-color: ${color}"></span>
       </div>
-      <div class="bus-disc" style="background:${color};color:${onColor(color)}">${safe}</div>
+      <div class="bus-disc" style="background:${badgeBg(color)};color:${onColor(badgeBg(color))}">${safe}</div>
     `,
   })
 }
@@ -48,7 +48,7 @@ export function stopTileMarker(
       className: 'stop-marker',
       iconSize: [24, 24],
       iconAnchor: [12, 12],
-      html: `<span style="background:${color}">${busGlyph(onColor(color))}</span>`,
+      html: `<span style="background:${badgeBg(color)}">${busGlyph(onColor(badgeBg(color)))}</span>`,
     }),
     keyboard: false,
   })
@@ -108,7 +108,7 @@ export function terminalMarker(
       className: 'terminal-marker',
       iconSize: [24, 24],
       iconAnchor: [12, 12],
-      html: `<span style="background:${color};color:${onColor(color)}">${safe}</span>`,
+      html: `<span style="background:${badgeBg(color)};color:${onColor(badgeBg(color))}">${safe}</span>`,
     }),
     interactive: false,
     keyboard: false,

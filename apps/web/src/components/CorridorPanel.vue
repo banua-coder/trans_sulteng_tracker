@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onColor } from '@/lib/color'
+import { badgeBg, onColor } from '@/lib/color'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
@@ -130,7 +130,7 @@ const busStatusLabel = computed(() => {
             <div class="flex items-center gap-2">
               <span
                 class="grid h-7 w-7 shrink-0 place-items-center rounded-full font-mono text-[10px] font-extrabold text-white"
-                :style="{ background: c.color || '#0EA5E9', color: onColor(c.color || '#0EA5E9') }"
+                :style="{ background: badgeBg(c.color || '#0EA5E9'), color: onColor(badgeBg(c.color || '#0EA5E9')) }"
                 aria-hidden
               >{{ c.kor }}</span>
               <div class="min-w-0 flex-1">

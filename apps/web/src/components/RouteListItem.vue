@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onColor } from '@/lib/color'
+import { badgeBg, onColor } from '@/lib/color'
 /**
  * Single corridor row used in RoutesIndexView. Mirrors TJ's route
  * picker shape: a colored circle with the corridor code, the
@@ -22,7 +22,7 @@ defineProps<{
   >
     <span
       class="grid h-10 w-10 shrink-0 place-items-center rounded-full font-mono text-xs font-extrabold text-white"
-      :style="{ background: color, color: onColor(color) }"
+      :style="{ background: badgeBg(color), color: onColor(badgeBg(color)) }"
       aria-hidden
     >
       {{ kor }}

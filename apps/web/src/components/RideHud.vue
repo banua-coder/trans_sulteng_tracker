@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onColor } from '@/lib/color'
+import { badgeBg, onColor } from '@/lib/color'
 /**
  * Live trip companion HUD. Replaces TripDetailPanel content while
  * a ride is active. Status-driven content: one big metric + at most
@@ -105,7 +105,7 @@ const durationMin = computed(() => {
     <SheetStickyHeader :back-label="t('ride.stop')" mobile-only @back="askStop">
       <span
         class="grid h-7 w-7 shrink-0 place-items-center rounded-full font-mono text-[10px] font-bold text-white"
-        :style="{ background: korColor, color: onColor(korColor) }"
+        :style="{ background: badgeBg(korColor), color: onColor(badgeBg(korColor)) }"
         aria-hidden
       >
         {{ currentStep?.kor || '·' }}

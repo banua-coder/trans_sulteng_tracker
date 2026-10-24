@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onColor } from '@/lib/color'
+import { badgeBg, onColor } from '@/lib/color'
 import { computed, nextTick, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
@@ -336,7 +336,7 @@ const showNoResults = computed(
           class="flex min-h-11 w-full items-center gap-3 border-t border-bnc-stone-100 px-4 py-2 text-left text-sm hover:bg-bnc-stone-50 dark:border-bnc-stone-800 dark:hover:bg-bnc-stone-800"
           @click="pickOriginHalte(h)"
         >
-          <span class="inline-flex shrink-0 items-center rounded-md px-1.5 py-0.5 font-mono text-[11px] font-bold" :style="{ background: brt.colorForKor(h.kor), color: onColor(brt.colorForKor(h.kor)) }">{{ korLabel(h.kor) }}</span>
+          <span class="inline-flex shrink-0 items-center rounded-md px-1.5 py-0.5 font-mono text-[11px] font-bold" :style="{ background: badgeBg(brt.colorForKor(h.kor)), color: onColor(badgeBg(brt.colorForKor(h.kor))) }">{{ korLabel(h.kor) }}</span>
           <span class="min-w-0 flex-1 [overflow-wrap:anywhere]">{{ h.sh_name }}</span>
           <span v-if="korCity(h.kor)" class="shrink-0 text-xs text-bnc-stone-500">{{ korCity(h.kor) }}</span>
         </button>
@@ -364,7 +364,7 @@ const showNoResults = computed(
           class="flex min-h-11 w-full items-center gap-3 border-t border-bnc-stone-100 px-4 py-2 text-left text-sm hover:bg-bnc-stone-50 dark:border-bnc-stone-800 dark:hover:bg-bnc-stone-800"
           @click="pickDestHalte(h)"
         >
-          <span class="inline-flex shrink-0 items-center rounded-md px-1.5 py-0.5 font-mono text-[11px] font-bold" :style="{ background: brt.colorForKor(h.kor), color: onColor(brt.colorForKor(h.kor)) }">{{ korLabel(h.kor) }}</span>
+          <span class="inline-flex shrink-0 items-center rounded-md px-1.5 py-0.5 font-mono text-[11px] font-bold" :style="{ background: badgeBg(brt.colorForKor(h.kor)), color: onColor(badgeBg(brt.colorForKor(h.kor))) }">{{ korLabel(h.kor) }}</span>
           <span class="min-w-0 flex-1 [overflow-wrap:anywhere]">{{ h.sh_name }}</span>
           <span v-if="korCity(h.kor)" class="shrink-0 text-xs text-bnc-stone-500">{{ korCity(h.kor) }}</span>
         </button>

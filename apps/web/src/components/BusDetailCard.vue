@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onColor } from '@/lib/color'
+import { badgeBg, onColor } from '@/lib/color'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
@@ -82,7 +82,7 @@ useBusAnnouncements(selectedBus, upcomingStops)
       <SheetStickyHeader :back-label="t('a11y.back')" mobile-only @back="selection.back()">
         <span
           class="grid h-7 w-7 shrink-0 place-items-center rounded-full font-mono text-[10px] font-bold text-white"
-          :style="{ background: corridorColor, color: onColor(corridorColor) }"
+          :style="{ background: badgeBg(corridorColor), color: onColor(badgeBg(corridorColor)) }"
           aria-hidden
         >
           {{ selectedBus.kor || '·' }}
@@ -147,7 +147,7 @@ useBusAnnouncements(selectedBus, upcomingStops)
             >
               <span
                 class="grid h-5 w-5 shrink-0 place-items-center rounded-full font-mono text-[9px] font-bold text-white"
-                :style="{ background: corridorColor, color: onColor(corridorColor) }"
+                :style="{ background: badgeBg(corridorColor), color: onColor(badgeBg(corridorColor)) }"
                 aria-hidden
               >
                 {{ i + 1 }}

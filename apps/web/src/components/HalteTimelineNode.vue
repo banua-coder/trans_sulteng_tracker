@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onColor } from '@/lib/color'
+import { badgeBg, onColor } from '@/lib/color'
 defineProps<{
   haltename: string
   halteId?: string
@@ -66,7 +66,7 @@ const emit = defineEmits<{ halteClick: [id: string] }>()
           v-for="b in corridorBadges"
           :key="b.kor"
           class="inline-flex items-center rounded px-1.5 py-[1px] font-mono text-[9px] font-bold uppercase tracking-wider text-white transition-opacity"
-          :style="{ background: b.color, color: onColor(b.color), opacity: b.current ? 1 : 0.45 }"
+          :style="{ background: badgeBg(b.color), color: onColor(badgeBg(b.color)), opacity: b.current ? 1 : 0.45 }"
         >
           {{ b.kor }}
         </span>
