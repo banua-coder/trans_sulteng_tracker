@@ -12,10 +12,7 @@ import MapLegend from '@/components/MapLegend.vue'
 import BusDataBadge from '@/components/BusDataBadge.vue'
 import MyLocationButton from '@/components/MyLocationButton.vue'
 import BasemapToggle from '@/components/BasemapToggle.vue'
-import NearbyHaltePanel from '@/components/NearbyHaltePanel.vue'
-import CorridorPanel from '@/components/CorridorPanel.vue'
-import BusListPanel from '@/components/BusListPanel.vue'
-import CollapsibleSection from '@/components/CollapsibleSection.vue'
+import DesktopSidebar from '@/components/DesktopSidebar.vue'
 import BottomSheet from '@/components/BottomSheet.vue'
 import BusDetailCard from '@/components/BusDetailCard.vue'
 import HalteDetailCard from '@/components/HalteDetailCard.vue'
@@ -28,9 +25,7 @@ import { useUiStore } from '@/stores/ui'
 // trip planner / focuses a corridor / picks a plan. Keeps the trip
 // planner worker bundle and the corridor-focus map logic out of the
 // initial route chunk so the map paints faster on first load.
-const TripPlannerPanel = defineAsyncComponent(() => import('@/components/TripPlannerPanel.vue'))
 const TripDetailPanel = defineAsyncComponent(() => import('@/components/TripDetailPanel.vue'))
-const CorridorFocusPanel = defineAsyncComponent(() => import('@/components/CorridorFocusPanel.vue'))
 const MobileRouteDetailPanel = defineAsyncComponent(() => import('@/components/MobileRouteDetailPanel.vue'))
 const RideHud = defineAsyncComponent(() => import('@/components/RideHud.vue'))
 const RideResumeBanner = defineAsyncComponent(() => import('@/components/RideResumeBanner.vue'))
@@ -80,28 +75,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="grid h-[calc(100dvh-var(--header-h)-32px)] grid-cols-1 lg:grid-cols-[var(--sidebar-w)_1fr]">
-    <!-- Desktop sidebar -->
-    <aside
-      class="hidden border-r border-bnc-stone-200 bg-bnc-stone-50/60 p-4 lg:block lg:overflow-y-auto dark:border-bnc-stone-800 dark:bg-bnc-stone-900/40"
-    >
-      <div class="flex flex-col gap-5">
-        <CollapsibleSection name="trip" :title="'Rencana Perjalanan'">
-          <TripPlannerPanel />
-        </CollapsibleSection>
-        <NearbyHaltePanel />
-        <CorridorPanel />
-        <BusListPanel />
-        <router-link
-          :to="{ name: 'map-export', params: { city: city.slug } }"
-          class="inline-flex items-center gap-2 self-start rounded-md border border-bnc-stone-200 bg-white px-3 py-1.5 font-mono text-[11px] font-bold uppercase tracking-wider text-bnc-ink transition-colors hover:bg-bnc-stone-100 dark:border-bnc-stone-700 dark:bg-bnc-stone-900 dark:text-bnc-paper dark:hover:bg-bnc-stone-800"
-        >
-          <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden>
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" />
-          </svg>
-          Unduh Peta Koridor
-        </router-link>
-      </div>
-    </aside>
+    <DesktopSidebar />
 
     <!-- BottomSheet writes its current snap height to `--sheet-h` on
          :root; we wrap MapView in a sized box that uses that value
@@ -141,20 +115,7 @@ onBeforeUnmount(() => {
       <MobileRoutesPanel v-else />
     </BottomSheet>
 
-    <!-- Desktop info panel — only on lg+. Selection (bus/halte) wins
-         over corridor focus so the drill-down flow stays intact:
-         focus corridor -> tap bus -> bus detail covers the corridor
-         panel -> close bus -> corridor panel returns. Same cascade
-         order as the mobile bottom sheet. -->
-    <div
-      class="pointer-events-none fixed bottom-4 right-4 z-[1000] hidden lg:block lg:max-w-md"
-    >
-      <RideHud v-if="rideActive" />
-      <BusDetailCard v-else-if="selectionKind === 'bus'" />
-      <HalteDetailCard v-else-if="selectionKind === 'halte'" />
-      <CorridorFocusPanel v-else-if="isFocused" />
-      <TripDetailPanel v-else-if="tripSelectedPlan" />
-    </div>
+
 
     <RideResumeBanner />
   </div>

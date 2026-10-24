@@ -86,6 +86,13 @@ export const messages = {
       loadFailed: 'Gagal memuat data',
       retry: 'Coba lagi',
     },
+    sidebar: {
+      routes: 'Rute',
+      buses: 'Bus',
+      stops: 'Halte',
+      plan: 'Rencana',
+      nav: 'Fitur peta',
+    },
     a11y: {
       toggleTheme: 'Ganti tema gelap/terang',
       toggleLang: 'Ganti bahasa',
@@ -364,6 +371,13 @@ export const messages = {
     errors: {
       loadFailed: 'Failed to load data',
       retry: 'Retry',
+    },
+    sidebar: {
+      routes: 'Routes',
+      buses: 'Buses',
+      stops: 'Stops',
+      plan: 'Plan',
+      nav: 'Map features',
     },
     a11y: {
       toggleTheme: 'Toggle dark/light theme',
