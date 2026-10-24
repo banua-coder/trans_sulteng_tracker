@@ -3,7 +3,7 @@
  * Hand-drawn 24px stroke icons for the sidebar tabs. One family:
  * 1.8 stroke, round caps, so the four tabs read as a set.
  */
-defineProps<{ name: 'routes' | 'buses' | 'stops' | 'plan' }>()
+defineProps<{ name: 'routes' | 'buses' | 'stops' | 'plan' | 'companion' | 'download' }>()
 </script>
 
 <template>
@@ -34,6 +34,15 @@ defineProps<{ name: 'routes' | 'buses' | 'stops' | 'plan' }>()
     <template v-else-if="name === 'stops'">
       <path d="M12 21s6.5-5.6 6.5-11a6.5 6.5 0 0 0-13 0c0 5.4 6.5 11 6.5 11z" />
       <circle cx="12" cy="10" r="2.2" />
+    </template>
+    <!-- companion: compass needle inside a ring (guides you along) -->
+    <template v-else-if="name === 'companion'">
+      <circle cx="12" cy="12" r="9" />
+      <path d="m15.5 8.5-2 5-5 2 2-5z" />
+    </template>
+    <!-- download: tray with a down arrow -->
+    <template v-else-if="name === 'download'">
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" />
     </template>
     <!-- plan: origin to destination with a direction arrow -->
     <template v-else>
