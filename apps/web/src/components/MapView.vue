@@ -655,14 +655,32 @@ let lastSpotlightInit = false
  *  coordinate dedup, so byLeg slot alone isn't authoritative) and to
  *  gate halte clicks when corridor focus is active. Returns null when
  *  no corridor is focused or no direction is active. */
+/** The corridor leg the map should show: the selected bus's own
+ *  direction when a bus is selected (only its route, not the reverse),
+ *  otherwise the focused corridor's chosen direction. */
+function legTarget(): { kor: string; leg: 'a' | 'b' } | null {
+  if (selection.kind === 'bus' && selection.id) {
+    const b = brt.buses.get(selection.id)
+    const c = b?.kor ? brt.corridorByKor.get(b.kor) : undefined
+    if (b && c) return { kor: b.kor, leg: b.toward === c.toward ? 'a' : 'b' }
+  }
+  if (focus.kor) return { kor: focus.kor, leg: focus.direction }
+  return null
+}
+
 function activeLegHalteShIds(): Set<string> | null {
-  const fk = focus.kor
-  if (!fk) return null
-  const c = brt.corridorByKor.get(fk)
+  const lt = legTarget()
+  if (!lt) return null
+  const c = brt.corridorByKor.get(lt.kor)
   if (!c) return null
-  const wantToward = focus.direction === 'a' ? c.toward : c.origin
-  const wantOrigin = focus.direction === 'a' ? c.origin : c.toward
-  const leg = brt.getHalteForLeg(fk, wantToward, wantOrigin)
+  const wantToward = lt.leg === 'a' ? c.toward : c.origin
+  const wantOrigin = lt.leg === 'a' ? c.origin : c.toward
+  const leg = brt.getHalteForLeg(lt.kor, wantToward, wantOrigin)
+  if (!leg.length) {
+    // Stops for this leg are not loaded yet; fetch, then redraw.
+    void brt.ensureHalteForLeg(lt.kor, wantToward, wantOrigin).then(() => applyFocus(true)).catch(() => {})
+    return null
+  }
   return new Set(leg.map((h) => h.sh_id))
 }
 
@@ -675,7 +693,8 @@ function applyFocus(force = false) {
   // spotlight comes from a bus selection (spotlightKor fallback)
   // rather than focus.kor, we still want both legs visible — the
   // user is inspecting a single vehicle, not a direction.
-  const activeLeg: 'a' | 'b' | null = fk && focus.kor === fk ? focus.direction : null
+  const lt = legTarget()
+  const activeLeg: 'a' | 'b' | null = fk && lt && lt.kor === fk ? lt.leg : null
   const activeShIds = activeLeg ? activeLegHalteShIds() : null
   const planKors = tripPlanKors.value
   const planNames = planKors ? tripPlanHalteNames.value : null
@@ -784,7 +803,7 @@ function applyFocus(force = false) {
   // Bus-selected refinement: dim stops the bus has already passed so
   // the user can scan only what's still ahead (TJ-style "upcoming
   // halte" view, beads c1d).
-  applyUpcomingHalteFilter()
+  applyUpcomingHalteFilter(activeShIds)
   renderStopTiles(fk, !!planKors)
 
   // Buses
@@ -804,13 +823,20 @@ function busColorFor(b: BrtBus): string {
  *  wanted to see the whole route clearly; dimming the passed half made
  *  shared-coordinate halte (multi-corridor stops) appear half-erased,
  *  which read worse than it solved. */
-function applyUpcomingHalteFilter() {
+function applyUpcomingHalteFilter(activeShIds: Set<string> | null) {
   if (selection.kind !== 'bus' || !selection.id) return
   const bus = brt.buses.get(selection.id)
   if (!bus?.kor) return
   const slot = halteByLeg.get(bus.kor)
   if (!slot) return
   for (const m of [...slot.a, ...slot.b]) {
+    // Keep the leg filter: stops of the reverse direction stay hidden.
+    if (activeShIds) {
+      const ids = halteMarkerShIds.get(m)
+      let on = false
+      if (ids) for (const id of ids) if (activeShIds.has(id)) { on = true; break }
+      if (!on) continue
+    }
     m.setStyle({ opacity: 1, fillOpacity: 1 })
   }
 }
@@ -1178,7 +1204,7 @@ watch(
   },
   (next, prev) => {
     if (next === prev) return
-    applyUpcomingHalteFilter()
+    applyUpcomingHalteFilter(legTarget() ? activeLegHalteShIds() : null)
   },
 )
 

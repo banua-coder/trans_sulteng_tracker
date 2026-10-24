@@ -385,3 +385,10 @@ html.dark .leaflet-container { background: var(--color-bnc-stone-900); }
   box-shadow: none;
   padding: 0;
 }
+/* Lists inside detail cards cap their height for the floating-card and
+   bottom-sheet layouts (max-h-[60vh] + inner scroll). In the sidebar the
+   panel itself scrolls, so the cap only strands empty space below. */
+.sidebar-detail [class*="max-h-"] {
+  max-height: none;
+  overflow: visible;
+}
