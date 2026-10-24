@@ -145,14 +145,16 @@ export const useTripStore = defineStore('trip', () => {
       return
     }
     const seq = ++recomputeSeq
+    // Show the spinner for the whole job, including the graph build
+    // and its network prefetch, so "no route" never flashes first.
+    loading.value = true
+    error.value = null
     if (!graphReady.value) await buildGraph()
     if (seq !== recomputeSeq) return // a newer recompute superseded us
     if (!graphReady.value) {
       loading.value = false
       return // buildGraph already recorded the error
     }
-    loading.value = true
-    error.value = null
     try {
       // Strip reactive Proxies before postMessage — structured clone
       // can't handle them. origin/destination.point is a Vue reactive
@@ -495,6 +497,13 @@ export const useTripStore = defineStore('trip', () => {
   let debounceTimer: number | undefined
   watch([origin, destination], () => {
     if (debounceTimer) window.clearTimeout(debounceTimer)
+    // Spinner starts now, not 250 ms later when the debounce fires,
+    // so the "no route" message cannot show in that gap.
+    if (origin.value && destination.value) {
+      plans.value = []
+      selectedPlanIdx.value = null
+      loading.value = true
+    }
     debounceTimer = window.setTimeout(() => { recompute() }, 250)
   })
 
