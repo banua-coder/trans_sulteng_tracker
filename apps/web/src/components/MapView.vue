@@ -68,8 +68,47 @@ let meAccuracyCircle: L.Circle | null = null
 interface BusMarkerCache {
   marker: L.Marker
   iconKey: string
+  /** performance.now() of the previous fix; sizes the glide. */
+  lastFixAt: number
+  raf?: number
 }
 const busMarkers = new Map<string, BusMarkerCache>()
+
+const REDUCED_MOTION =
+  typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
+/** Slide a bus to its new fix instead of teleporting. GPS fixes arrive
+ *  every few seconds, so a straight setLatLng reads as hopping. The
+ *  glide lasts about one fix interval (0.6 to 3 s) at constant speed,
+ *  and restarts from wherever the marker currently is. Big jumps, a
+ *  hidden tab and reduced motion snap instead. */
+function glideTo(cache: BusMarkerCache, to: L.LatLngTuple) {
+  const m = cache.marker
+  if (cache.raf) cancelAnimationFrame(cache.raf)
+  cache.raf = undefined
+  const from = m.getLatLng()
+  const dist = from.distanceTo(L.latLng(to))
+  const now = performance.now()
+  const gap = now - cache.lastFixAt
+  cache.lastFixAt = now
+  if (REDUCED_MOTION || document.hidden || dist < 1 || dist > 400) {
+    m.setLatLng(to)
+    return
+  }
+  const dur = Math.min(Math.max(gap, 600), 3000)
+  const step = (t: number) => {
+    const k = Math.min(1, (t - now) / dur)
+    m.setLatLng([from.lat + (to[0] - from.lat) * k, from.lng + (to[1] - from.lng) * k])
+    cache.raf = k < 1 ? requestAnimationFrame(step) : undefined
+  }
+  cache.raf = requestAnimationFrame(step)
+}
+
+function dropBusMarker(key: string) {
+  const c = busMarkers.get(key)
+  if (c?.raf) cancelAnimationFrame(c.raf)
+  busMarkers.delete(key)
+}
 const lastReceivedAt = new Map<string, number>()
 
 /** Polylines and halte tracked per (kor, leg) so the A↔B toggle can fit
@@ -214,6 +253,7 @@ function clearAll() {
   corridorLayer.clearLayers()
   halteLayer.clearLayers()
   busLayer.clearLayers()
+  for (const c of busMarkers.values()) if (c.raf) cancelAnimationFrame(c.raf)
   busMarkers.clear()
   corridorLines.clear()
   halteByLeg.clear()
@@ -798,10 +838,10 @@ function upsertBusMarker(b: BrtBus) {
       focusBus(key, b)
     })
     marker.addTo(busLayer)
-    cache = { marker, iconKey }
+    cache = { marker, iconKey, lastFixAt: performance.now() }
     busMarkers.set(key, cache)
   } else {
-    cache.marker.setLatLng([b.lat, b.lng])
+    glideTo(cache, [b.lat, b.lng])
     // Only rebuild the DivIcon when the visual state actually changed
     // (corridor color, kor label, stale flag, or heading bucket).
     // Position-only updates skip setIcon entirely.
@@ -877,7 +917,7 @@ function pruneBusMarkers(active: Map<string, BrtBus>) {
     if (!active.has(key)) {
       const cache = busMarkers.get(key)
       if (cache) busLayer.removeLayer(cache.marker)
-      busMarkers.delete(key)
+      dropBusMarker(key)
       lastReceivedAt.delete(key)
     }
   }
