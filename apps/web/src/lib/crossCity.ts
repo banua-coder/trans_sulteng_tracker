@@ -11,6 +11,12 @@ export function splitKor(kor: string): { pref: string | null; kor: string } {
   const i = kor.indexOf(':')
   return i < 0 ? { pref: null, kor } : { pref: kor.slice(0, i), kor: kor.slice(i + 1) }
 }
+/** City name for a namespaced kor's prefix, null for the current city. */
+export function korCity(kor: string): string | null {
+  const p = splitKor(kor).pref
+  return p === '11' ? 'Donggala' : p === '12' ? 'Palu' : null
+}
+
 /** Code shown to riders: always the plain one. */
 export const korLabel = (kor: string): string => splitKor(kor).kor
 
