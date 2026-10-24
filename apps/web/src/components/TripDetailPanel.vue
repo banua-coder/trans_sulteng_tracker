@@ -20,7 +20,7 @@ import CopyLinkButton from '@/components/CopyLinkButton.vue'
 import PlateBadge from '@/components/PlateBadge.vue'
 import SheetStickyHeader from '@/components/SheetStickyHeader.vue'
 import type { PlanStep } from '@/lib/tripPlanner'
-import { korLabel } from '@/lib/crossCity'
+import { isNsKor, korLabel } from '@/lib/crossCity'
 import { badgeBg, onColor } from '@/lib/color'
 
 const { t } = useI18n()
@@ -293,13 +293,13 @@ function focusStep(step: PlanStep) {
                 <button
                   type="button"
                   class="flex w-full items-center gap-2 rounded-md border border-bnc-stone-200 bg-bnc-stone-50 px-2 py-1.5 text-left transition-colors hover:border-bnc-stone-300 dark:border-bnc-stone-800 dark:bg-bnc-stone-800/50 dark:hover:border-bnc-stone-700"
-                  @click.stop="selection.selectBus(b.bus.imei || b.bus.id)"
+                  @click.stop="!isNsKor(b.bus.kor) && selection.selectBus(b.bus.imei || b.bus.id)"
                 >
                   <span
                     class="inline-flex shrink-0 items-center rounded-md px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase tracking-wider"
                     :style="chipStyle(b.corridorColor)"
                   >
-                    {{ b.bus.kor }}
+                    {{ korLabel(b.bus.kor) }}
                   </span>
                   <div class="flex min-w-0 flex-col">
                     <div class="flex items-center gap-1">
@@ -312,7 +312,7 @@ function focusStep(step: PlanStep) {
                         v-else
                         class="[overflow-wrap:anywhere] font-mono text-[11px] font-bold"
                       >
-                        {{ b.bus.kor }}
+                        {{ korLabel(b.bus.kor) }}
                       </span>
                       <span
                         v-if="b.atStop"

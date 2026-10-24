@@ -80,8 +80,8 @@ pub fn build_downstream(state: AppState) -> (socketioxide::layer::SocketIoLayer,
                         let room = format!("room:{}", msg.pref);
                         let _ = s.leave_all();
                         s.join(room.clone()).ok();
-                        for p in &msg.extra {
-                            if ALLOWED_PREFS.contains(&p.as_str()) {
+                        for p in msg.extra.iter().take(ALLOWED_PREFS.len()) {
+                            if *p != msg.pref && ALLOWED_PREFS.contains(&p.as_str()) {
                                 s.join(format!("room:{p}")).ok();
                             }
                         }

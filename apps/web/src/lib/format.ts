@@ -313,3 +313,14 @@ export function formatPlateForSpeech(plate?: string | null): string {
     .filter(Boolean)
     .join(', ')
 }
+
+/** The feed shouts stop and corridor names in capitals ("TRANFERPOINT
+ *  TAMAN GOR"). Title-case those for reading; leave mixed-case names
+ *  alone and keep short tokens like GOR or UIN as they are. */
+export function prettyName(name: string | null | undefined): string {
+  if (!name) return ''
+  if (/[a-z]/.test(name)) return name
+  return name.replace(/[A-Za-z]+/g, (w) =>
+    w.length <= 3 ? w : w[0] + w.slice(1).toLowerCase(),
+  )
+}

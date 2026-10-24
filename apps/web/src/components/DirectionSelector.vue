@@ -7,6 +7,7 @@
  * changes padding; the structure is the same on phones and desktop.
  */
 import { useI18n } from 'vue-i18n'
+import { prettyName } from '@/lib/format'
 
 withDefaults(
   defineProps<{
@@ -30,12 +31,12 @@ const { t } = useI18n()
 
 <template>
   <div :class="layout === 'desktop' ? 'border-b border-bnc-stone-200 px-4 py-3 dark:border-bnc-stone-800' : ''">
-    <p class="mb-2 text-xs font-medium text-bnc-stone-500">{{ t('route.direction') }}</p>
+    <p class="mb-1.5 text-xs font-medium text-bnc-stone-500">{{ t('route.direction') }}</p>
     <div
       v-if="available.a || available.b"
       role="radiogroup"
       :aria-label="t('route.direction')"
-      class="grid grid-cols-2 gap-2"
+      class="grid grid-cols-2 gap-1.5"
     >
       <button
         v-for="d in (['a', 'b'] as const)"
@@ -44,11 +45,11 @@ const { t } = useI18n()
         type="button"
         role="radio"
         :aria-checked="direction === d"
-        class="relative flex min-h-12 flex-col items-start justify-center [overflow-wrap:anywhere] gap-px overflow-hidden rounded-lg border px-2.5 py-1.5 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-bnc-accent"
+        class="flex min-h-11 items-center justify-center rounded-lg border px-2 py-1.5 text-center text-xs font-semibold leading-snug transition-colors [overflow-wrap:anywhere] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-bnc-accent"
         :class="
           direction === d
-            ? 'border-transparent'
-            : 'border-bnc-stone-200 bg-white hover:border-bnc-stone-300 dark:border-bnc-stone-800 dark:bg-bnc-stone-900 dark:hover:border-bnc-stone-700'
+            ? 'border-transparent text-bnc-ink dark:text-bnc-paper'
+            : 'border-bnc-stone-200 bg-white text-bnc-stone-600 hover:border-bnc-stone-300 dark:border-bnc-stone-800 dark:bg-bnc-stone-900 dark:text-bnc-stone-300 dark:hover:border-bnc-stone-700'
         "
         :style="
           direction === d
@@ -57,20 +58,14 @@ const { t } = useI18n()
         "
         @click="emit('update:direction', d)"
       >
-        <span class="text-xs font-semibold leading-snug text-bnc-ink dark:text-bnc-paper">
-          {{ t('route.directionTo', { place: (d === 'a' ? towardLabel : originLabel) || '—' }) }}
-        </span>
-        <span class="text-[10px] leading-snug text-bnc-stone-500">
-          {{ t('route.directionFrom', { place: (d === 'a' ? originLabel : towardLabel) || '—' }) }}
-        </span>
-        <span
-          v-if="direction === d"
-          class="absolute inset-x-0 bottom-0 h-[3px]"
-          :style="{ background: color }"
-          aria-hidden="true"
-        />
+        {{ t('route.directionTo', { place: prettyName(d === 'a' ? towardLabel : originLabel) || '—' }) }}
       </button>
     </div>
+    <!-- One quiet line for the chosen direction's start, instead of a
+         second line on every card. -->
+    <p v-if="available.a || available.b" class="mt-1.5 text-[11px] leading-snug text-bnc-stone-500">
+      {{ t('route.directionFrom', { place: prettyName(direction === 'a' ? originLabel : towardLabel) || '—' }) }}
+    </p>
     <p
       v-if="!available.a || !available.b"
       class="mt-2 rounded-md bg-bnc-stone-100 px-2 py-1.5 text-[11px] text-bnc-stone-600 dark:bg-bnc-stone-800 dark:text-bnc-stone-300"

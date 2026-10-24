@@ -235,14 +235,20 @@ export const useBrtStore = defineStore('brt', () => {
 
   /** Live buses of the other city, kors namespaced (see crossCity.ts).
    *  Planner-only: the map and bus lists never read this. */
+  const FOREIGN_BUS_TTL_MS = 3 * 60_000
   const foreignBuses = shallowReactive<Map<string, BrtBus>>(new Map())
   function upsertForeignBus(b: BrtBus) {
     if (b.lat == null || b.lng == null || !b.pref) return
+    const now = Date.now()
     foreignBuses.set(`${b.pref}|${b.imei || b.id}`, {
       ...b,
       kor: nsKor(String(b.pref), b.kor),
-      _receivedAt: Date.now(),
+      _receivedAt: now,
     })
+    // A bus that stopped reporting should not linger in the planner.
+    for (const [k, v] of foreignBuses) {
+      if (now - (v._receivedAt ?? now) > FOREIGN_BUS_TTL_MS) foreignBuses.delete(k)
+    }
   }
 
   function clearBuses() {
@@ -300,8 +306,12 @@ export const useBrtStore = defineStore('brt', () => {
   async function loadForeign(pref: string) {
     foreignCorridors.value = []
     foreignHalte.value = []
+    // The "other" city flips when the user switches city mid-request;
+    // a late answer for the old pairing must not land as foreign data.
+    const stillWanted = () => pref === (city.pref === '12' ? '11' : '12')
     try {
       const [c, h] = await Promise.all([api.corridors(pref), api.halte(pref)])
+      if (!stillWanted()) return
       foreignCorridors.value = asArray<BrtCorridor>(c).map((x) => nsCorridor(pref, x))
       foreignHalte.value = asArray<BrtHalte>(h).map((x) => nsHalte(pref, x))
     } catch {
