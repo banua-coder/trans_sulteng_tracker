@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { formatPlateForSpeech } from './format'
+import { formatPlateForSpeech, isStale } from './format'
+import type { BrtBus } from '@/types/brt'
 
 describe('formatPlateForSpeech', () => {
   it('spaces every char and comma-separates chunks', () => {
@@ -34,5 +35,16 @@ describe('prettyName', () => {
   })
   it('leaves mixed-case names alone', () => {
     expect(prettyName('Halte Unisa 2')).toBe('Halte Unisa 2')
+  })
+})
+
+describe('isStale device time', () => {
+  const iso = (msAgo: number) => new Date(Date.now() - msAgo).toISOString().slice(0, 19).replace('T', ' ')
+  const bus = (dt: string) => ({ speed: 0, dt_tracker: dt, _receivedAt: Date.now() }) as unknown as BrtBus
+  it('flags a bus the server keeps relaying while its device went quiet', () => {
+    expect(isStale(bus(iso(75 * 60_000)))).toBe(true)
+  })
+  it('keeps a bus whose device just reported', () => {
+    expect(isStale(bus(iso(3_000)))).toBe(false)
   })
 })

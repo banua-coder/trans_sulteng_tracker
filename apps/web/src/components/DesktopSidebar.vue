@@ -33,7 +33,7 @@ type Tab = 'routes' | 'buses' | 'stops' | 'plan'
 const { t } = useI18n()
 const brt = useBrtStore()
 const city = useCityStore()
-const { corridors, buses } = storeToRefs(brt)
+const { corridors } = storeToRefs(brt)
 const selection = useSelectionStore()
 const focus = useFocusStore()
 const trip = useTripStore()
@@ -46,7 +46,7 @@ const tab = ref<Tab>('routes')
 
 const tabs = computed<{ id: Tab; label: string; count?: number }[]>(() => [
   { id: 'routes', label: t('sidebar.routes'), count: corridors.value.length },
-  { id: 'buses', label: t('sidebar.buses'), count: buses.value.size },
+  { id: 'buses', label: t('sidebar.buses'), count: brt.activeBusCount() },
   { id: 'stops', label: t('sidebar.stops') },
   { id: 'plan', label: t('sidebar.plan') },
 ])
