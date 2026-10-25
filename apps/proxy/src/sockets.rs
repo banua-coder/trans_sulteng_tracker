@@ -120,6 +120,7 @@ pub async fn spawn_upstream(
     // Forward every BRT-{pref} event to the matching room.
     let io_for_any = io.clone();
     let state_for_any = state.clone();
+    let idle = std::sync::Arc::new(crate::idle::IdleTracker::default());
 
     let client = UpstreamBuilder::new(url.clone())
         .transport_type(TransportType::Websocket)
@@ -163,6 +164,7 @@ pub async fn spawn_upstream(
         .on_any(move |event, payload, _client| {
             let io = io_for_any.clone();
             let state = state_for_any.clone();
+            let idle = idle.clone();
             Box::pin(async move {
                 let name = event.as_str();
                 let Some(pref) = name.strip_prefix("BRT-") else {
@@ -187,7 +189,10 @@ pub async fn spawn_upstream(
                     // care about — drop silently.
                     _ => None,
                 };
-                let Some(value) = value else { return };
+                let Some(mut value) = value else { return };
+                if let Some(now) = now_unix() {
+                    idle.annotate(pref, &mut value, now);
+                }
 
                 let room = format!("room:{pref}");
                 if let Err(e) = io.to(room).emit("bus", &value) {

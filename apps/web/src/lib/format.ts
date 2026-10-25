@@ -121,6 +121,9 @@ export function etaToHalte(
  *   2. **Sustained zero speed** — speed has been reported as exactly
  *      0 km/h for `zeroSpeedSecs` (default 60 s). The driver has
  *      stopped pinging at the wheel.
+ *   0. **Parked, per the proxy** — `idle_s` says the bus has not moved
+ *      for `stallSecs`. Unlike 2 and 3 this holds the moment the page
+ *      opens, because the proxy has been watching all along.
  *   3. **Stalled in place** — speed < `stallSpeedKmh` AND the
  *      position hasn't moved beyond GPS jitter for `stallSecs`
  *      (default 90 s). Parked / engine off.
@@ -140,6 +143,9 @@ export function isStale(
   if (recv && now - recv > feedTimeoutSecs * 1000) return true
   const deviceAge = ageSeconds(b.dt_tracker)
   if (deviceAge != null && deviceAge > feedTimeoutSecs) return true
+
+  // 0. The proxy has watched this bus stand still
+  if (b.idle_s != null && b.idle_s > stallSecs) return true
 
   // 2. Sustained 0 km/h
   if (b._zeroSpeedSince && now - b._zeroSpeedSince > zeroSpeedSecs * 1000) {

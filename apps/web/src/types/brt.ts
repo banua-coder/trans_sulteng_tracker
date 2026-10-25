@@ -78,6 +78,10 @@ export interface BrtBus {
    *  Negative values are sentinels — treat as missing. */
   prosen?: string | number | null
 
+  /** Seconds this bus has stood still, measured by the proxy (which
+   *  watches the feed continuously). Absent on older proxies. */
+  idle_s?: number
+
   /** Internal: wall-clock timestamp (ms) of when our store received this
    *  payload. Authoritative for stale checks since the upstream
    *  dt_tracker is unreliable (UTC without timezone marker). */
