@@ -2,6 +2,18 @@
 
 All notable releases of cektrans are recorded here. Generated automatically by `release-finalize.yml`.
 
+## v0.11.2 — 2026-10-25
+
+### 🐛 Bug Fixes
+
+- fix: proxy measures how long a bus has stood still; parked buses are stale at once (4e44581)
+
+### 🧹 Chore
+
+- chore: bump version to 0.11.2 (913f1fc)
+
+
+
 ## v0.11.1 — 2026-10-25
 
 ### 🐛 Bug Fixes
