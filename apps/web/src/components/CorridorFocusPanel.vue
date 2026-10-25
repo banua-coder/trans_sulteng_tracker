@@ -20,11 +20,7 @@ const { corridor, direction, directionAvailable } = storeToRefs(focus)
 
 const rows = brt.corridorTimelineRowsFor(() => corridor.value?.kor, () => direction.value)
 
-const activeBuses = computed(() => {
-  const c = corridor.value
-  if (!c) return [] as BrtBus[]
-  return [...brt.buses.values()].filter((b) => b.kor === c.kor)
-})
+const activeBusCount = computed(() => (corridor.value ? brt.activeBusCount(corridor.value.kor) : 0))
 
 const accentColor = computed(() => corridor.value?.color || '#1D9CD4')
 
@@ -71,7 +67,7 @@ function pickBus(bus: BrtBus) {
             {{ directionLabel }}
           </h3>
           <p class="mt-0.5 font-mono text-[11px] text-bnc-stone-500">
-            {{ rows.length }} halte · {{ activeBuses.length }} bus aktif
+            {{ rows.length }} halte · {{ activeBusCount }} bus aktif
           </p>
         </div>
         <div class="flex shrink-0 flex-col items-end gap-1">

@@ -111,9 +111,13 @@ export function etaToHalte(
 
 /** True when a bus has stopped delivering useful state.
  *
- *  Three independent signals — any one flips the bus to stale:
+ *  Independent signals — any one flips the bus to stale:
  *   1. **Data drought** — no upsert from the server for
- *      `feedTimeoutSecs` (default 5 min). The feed is dead.
+ *      `feedTimeoutSecs` (default 5 min), or the device's own clock
+ *      (`dt_tracker`) is that old. The second matters: the server
+ *      re-relays a parked bus's last fix with a fresh server time, so
+ *      after operating hours a silent bus still "arrives" every few
+ *      seconds. Only the device time tells the truth.
  *   2. **Sustained zero speed** — speed has been reported as exactly
  *      0 km/h for `zeroSpeedSecs` (default 60 s). The driver has
  *      stopped pinging at the wheel.
@@ -131,13 +135,11 @@ export function isStale(
 ): boolean {
   const now = Date.now()
 
-  // 1. Data drought
+  // 1. Data drought (our receive time and the device's own time)
   const recv = b._receivedAt
   if (recv && now - recv > feedTimeoutSecs * 1000) return true
-  if (!recv) {
-    const a = ageSeconds(b.dt_tracker)
-    if (a != null && a > feedTimeoutSecs) return true
-  }
+  const deviceAge = ageSeconds(b.dt_tracker)
+  if (deviceAge != null && deviceAge > feedTimeoutSecs) return true
 
   // 2. Sustained 0 km/h
   if (b._zeroSpeedSince && now - b._zeroSpeedSince > zeroSpeedSecs * 1000) {
