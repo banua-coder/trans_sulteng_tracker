@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { badgeBg, onColor } from '@/lib/color'
+import { korLabel } from '@/lib/crossCity'
 /**
  * Live trip companion HUD. Replaces TripDetailPanel content while
  * a ride is active. Status-driven content: one big metric + at most
@@ -44,7 +46,7 @@ const title = computed(() => {
     case 'walking':
       return t('ride.hud.walking', { target: step?.toName ?? '—' })
     case 'waiting':
-      return t('ride.hud.waiting', { kor: step?.kor ?? '—' })
+      return t('ride.hud.waiting', { kor: korLabel(step?.kor ?? '—') })
     case 'on-bus':
       return t('ride.hud.onBus', { target: step?.toName ?? '—' })
     case 'transferring':
@@ -104,22 +106,22 @@ const durationMin = computed(() => {
     <SheetStickyHeader :back-label="t('ride.stop')" mobile-only @back="askStop">
       <span
         class="grid h-7 w-7 shrink-0 place-items-center rounded-full font-mono text-[10px] font-bold text-white"
-        :style="{ background: korColor }"
+        :style="{ background: badgeBg(korColor), color: onColor(badgeBg(korColor)) }"
         aria-hidden
       >
-        {{ currentStep?.kor || '·' }}
+        {{ korLabel(currentStep?.kor ?? '') || '·' }}
       </span>
       <div class="min-w-0 flex-1">
         <p class="font-mono text-[10px] uppercase tracking-wider text-bnc-stone-500">
           {{ t('ride.activeBadge') }} · {{ t('ride.stepOf', { current: stepNum, total: stepTotal }) }}
         </p>
-        <h2 class="truncate font-display text-sm font-bold tracking-tight">
+        <h2 class="[overflow-wrap:anywhere] font-display text-sm font-bold tracking-tight">
           {{ title }}
         </h2>
       </div>
       <button
         type="button"
-        class="hidden shrink-0 items-center justify-center rounded-md border border-bnc-stone-300 px-2 py-1 font-mono text-[10px] font-bold uppercase tracking-wider text-bnc-stone-600 transition-colors hover:bg-bnc-stone-100 lg:inline-flex dark:border-bnc-stone-700 dark:text-bnc-stone-300 dark:hover:bg-bnc-stone-800"
+        class="inline-flex min-h-11 shrink-0 items-center justify-center rounded-md border border-bnc-stone-300 px-3 font-mono text-[11px] font-bold uppercase tracking-wider text-bnc-stone-600 transition-colors hover:bg-bnc-stone-100 dark:border-bnc-stone-700 dark:text-bnc-stone-300 dark:hover:bg-bnc-stone-800"
         @click="askStop"
       >
         {{ t('ride.stop') }}
@@ -134,14 +136,14 @@ const durationMin = computed(() => {
       <span class="flex-1 text-xs">{{ t('ride.stopConfirm') }}</span>
       <button
         type="button"
-        class="rounded-md px-2 py-1 font-mono text-[10px] font-bold uppercase tracking-wider text-bnc-stone-600 hover:bg-bnc-stone-100 dark:text-bnc-stone-300 dark:hover:bg-bnc-stone-800"
+        class="min-h-11 rounded-md px-3 font-mono text-[11px] font-bold uppercase tracking-wider text-bnc-stone-600 hover:bg-bnc-stone-100 dark:text-bnc-stone-300 dark:hover:bg-bnc-stone-800"
         @click="cancelStop"
       >
         {{ t('a11y.back') }}
       </button>
       <button
         type="button"
-        class="rounded-md bg-bnc-ink px-2 py-1 font-mono text-[10px] font-bold uppercase tracking-wider text-white hover:opacity-90 dark:bg-bnc-paper dark:text-bnc-ink"
+        class="min-h-11 rounded-md bg-bnc-ink px-3 font-mono text-[11px] font-bold uppercase tracking-wider text-white hover:opacity-90 dark:bg-bnc-paper dark:text-bnc-ink"
         @click="confirmStop"
       >
         {{ t('ride.stop') }}

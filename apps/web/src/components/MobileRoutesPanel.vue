@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { badgeBg, onColor } from '@/lib/color'
 /**
  * TJ-style "Rute & Halte" picker — rendered INSIDE the existing
  * mobile BottomSheet when no corridor/bus/halte is selected. Replaces
@@ -117,50 +118,11 @@ function pickHalte(shId: string) {
          content effectively start 4px higher than the sticky's
          rendered bottom edge and visually overlap on first paint. -->
     <div
+      v-if="tab !== 'plan'"
       class="sticky top-0 z-10 -mx-4 flex flex-col gap-2 bg-bnc-paper px-4 pb-3 pt-2 shadow-[0_4px_8px_-6px_rgba(10,14,20,0.12)] dark:bg-bnc-stone-900"
     >
-      <!-- tabs -->
-      <div class="flex shrink-0 gap-2">
-        <button
-          type="button"
-          class="flex-1 rounded-full px-4 py-1.5 font-mono text-xs font-bold uppercase tracking-wider transition-colors"
-          :class="
-            tab === 'routes'
-              ? 'bg-bnc-primary text-white shadow-sm'
-              : 'bg-bnc-stone-100 text-bnc-stone-600 dark:bg-bnc-stone-800 dark:text-bnc-stone-300'
-          "
-          @click="tab = 'routes'"
-        >
-          {{ t('route.tabRoute') }}
-        </button>
-        <button
-          type="button"
-          class="flex-1 rounded-full px-4 py-1.5 font-mono text-xs font-bold uppercase tracking-wider transition-colors"
-          :class="
-            tab === 'halte'
-              ? 'bg-bnc-primary text-white shadow-sm'
-              : 'bg-bnc-stone-100 text-bnc-stone-600 dark:bg-bnc-stone-800 dark:text-bnc-stone-300'
-          "
-          @click="tab = 'halte'"
-        >
-          {{ t('route.tabHalte') }}
-        </button>
-        <button
-          type="button"
-          class="flex-1 rounded-full px-4 py-1.5 font-mono text-xs font-bold uppercase tracking-wider transition-colors"
-          :class="
-            tab === 'plan'
-              ? 'bg-bnc-primary text-white shadow-sm'
-              : 'bg-bnc-stone-100 text-bnc-stone-600 dark:bg-bnc-stone-800 dark:text-bnc-stone-300'
-          "
-          @click="tab = 'plan'"
-        >
-          {{ t('route.tabPlan') }}
-        </button>
-      </div>
-
       <!-- search (shared with BusListPanel via ui store so search persists across swaps) -->
-      <label v-if="tab !== 'plan'" class="relative block shrink-0">
+      <label class="relative block shrink-0">
         <span class="sr-only">{{ t('route.search') }}</span>
         <input
           v-model="busSearch"
@@ -240,7 +202,7 @@ function pickHalte(shId: string) {
             type="button"
             class="inline-flex shrink-0 items-center rounded-md px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-white transition-opacity"
             :style="{
-              background: p.color,
+              background: badgeBg(p.color), color: onColor(badgeBg(p.color)),
               opacity: halteListFilterKor === null || halteListFilterKor === p.kor ? 1 : 0.4,
             }"
             :aria-pressed="halteListFilterKor === p.kor"
@@ -259,7 +221,7 @@ function pickHalte(shId: string) {
             @click="pickHalte(h.sh_id)"
           >
             <div class="min-w-0 flex-1">
-              <p class="truncate font-display text-sm font-semibold tracking-tight">
+              <p class="[overflow-wrap:anywhere] font-display text-sm font-semibold tracking-tight">
                 {{ h.sh_name }}
               </p>
               <div class="mt-1 flex flex-wrap gap-1">
@@ -267,7 +229,7 @@ function pickHalte(shId: string) {
                   v-for="b in brt.corridorBadgesForHalte(h, halteListFilterKor)"
                   :key="b.kor"
                   class="inline-flex items-center rounded px-1.5 py-[1px] font-mono text-[9px] font-bold uppercase tracking-wider text-white transition-opacity"
-                  :style="{ background: b.color, opacity: halteListFilterKor === null || b.current ? 1 : 0.45 }"
+                  :style="{ background: badgeBg(b.color), color: onColor(badgeBg(b.color)), opacity: halteListFilterKor === null || b.current ? 1 : 0.45 }"
                 >
                   {{ b.kor }}
                 </span>

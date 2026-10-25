@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { badgeBg, onColor } from '@/lib/color'
 defineProps<{
   haltename: string
   halteId?: string
@@ -25,7 +26,7 @@ const emit = defineEmits<{ halteClick: [id: string] }>()
       class="absolute left-[7px] w-px"
       :class="{
         'top-3 bottom-0': isFirst && !isLast,
-        'top-0 bottom-3': isLast && !isFirst,
+        'top-0 h-[18px]': isLast && !isFirst,
         'top-0 bottom-0': !isFirst && !isLast,
       }"
       :style="{ background: accentColor, opacity: 0.5 }"
@@ -42,12 +43,12 @@ const emit = defineEmits<{ halteClick: [id: string] }>()
       <button
         v-if="halteId"
         type="button"
-        class="truncate text-left font-display text-sm font-semibold tracking-tight hover:underline"
+        class="[overflow-wrap:anywhere] text-left font-display text-sm font-semibold tracking-tight hover:underline"
         @click="emit('halteClick', halteId)"
       >
         {{ haltename }}
       </button>
-      <p v-else class="truncate font-display text-sm font-semibold tracking-tight">
+      <p v-else class="[overflow-wrap:anywhere] font-display text-sm font-semibold tracking-tight">
         {{ haltename }}
       </p>
       <p
@@ -65,7 +66,7 @@ const emit = defineEmits<{ halteClick: [id: string] }>()
           v-for="b in corridorBadges"
           :key="b.kor"
           class="inline-flex items-center rounded px-1.5 py-[1px] font-mono text-[9px] font-bold uppercase tracking-wider text-white transition-opacity"
-          :style="{ background: b.color, opacity: b.current ? 1 : 0.45 }"
+          :style="{ background: badgeBg(b.color), color: onColor(badgeBg(b.color)), opacity: b.current ? 1 : 0.45 }"
         >
           {{ b.kor }}
         </span>

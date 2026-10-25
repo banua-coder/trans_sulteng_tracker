@@ -125,9 +125,8 @@ const open = computed<boolean>({
   width: 10px;
   height: 10px;
   border-radius: 9999px;
-  background: #94a3b8;
-  border: 2px solid #fff;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
+  background: #fff;
+  border: 2.5px solid #64748b;
 }
 .legend-line {
   display: inline-block;

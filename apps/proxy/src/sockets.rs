@@ -43,6 +43,10 @@ const ALLOWED_PREFS: &[&str] = &["11", "12"];
 #[derive(Deserialize, Debug)]
 struct SubscribeMsg {
     pref: String,
+    /// Extra cities to follow alongside `pref` (the cross-city planner
+    /// needs live buses from both operators).
+    #[serde(default)]
+    extra: Vec<String>,
 }
 
 /// Build the downstream Socket.IO layer. Returns `(layer, io)` — the
@@ -76,7 +80,12 @@ pub fn build_downstream(state: AppState) -> (socketioxide::layer::SocketIoLayer,
                         let room = format!("room:{}", msg.pref);
                         let _ = s.leave_all();
                         s.join(room.clone()).ok();
-                        tracing::debug!(sid = %s.id, %room, "joined room");
+                        for p in msg.extra.iter().take(ALLOWED_PREFS.len()) {
+                            if *p != msg.pref && ALLOWED_PREFS.contains(&p.as_str()) {
+                                s.join(format!("room:{p}")).ok();
+                            }
+                        }
+                        tracing::debug!(sid = %s.id, %room, extra = ?msg.extra, "joined room");
                     }
                 },
             );

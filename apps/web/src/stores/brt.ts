@@ -11,6 +11,7 @@ import {
 } from '@/lib/format'
 import type { BrtBus, BrtCity, BrtCorridor, BrtHalte } from '@/types/brt'
 import { useCityStore } from './city'
+import { nsCorridor, nsHalte, nsKor, splitKor } from '@/lib/crossCity'
 
 /** Arrival row used by the halte detail card and the trip planner's
  *  per-step disclosure. Pre-computed in the store so components are
@@ -107,7 +108,19 @@ export const useBrtStore = defineStore('brt', () => {
     return m
   })
 
-  const colorForKor = computed(() => (kor: string) => corridorByKor.value.get(kor)?.color ?? '#0EA5E9')
+  // Planner-only data for the other city (namespaced kors, see crossCity.ts).
+  const foreignCorridors = ref<BrtCorridor[]>([])
+  const foreignHalte = ref<BrtHalte[]>([])
+  const planCorridorByKor = computed(() => {
+    const m = new Map(corridorByKor.value)
+    for (const c of foreignCorridors.value) m.set(c.kor, c)
+    return m
+  })
+  const planHalte = computed(() => [...halte.value, ...foreignHalte.value])
+
+  const colorForKor = computed(
+    () => (kor: string) => planCorridorByKor.value.get(kor)?.color ?? '#0EA5E9',
+  )
 
   const cityByPref = computed(() => {
     const m = new Map<string, BrtCity>()
@@ -220,7 +233,26 @@ export const useBrtStore = defineStore('brt', () => {
     })
   }
 
+  /** Live buses of the other city, kors namespaced (see crossCity.ts).
+   *  Planner-only: the map and bus lists never read this. */
+  const FOREIGN_BUS_TTL_MS = 3 * 60_000
+  const foreignBuses = shallowReactive<Map<string, BrtBus>>(new Map())
+  function upsertForeignBus(b: BrtBus) {
+    if (b.lat == null || b.lng == null || !b.pref) return
+    const now = Date.now()
+    foreignBuses.set(`${b.pref}|${b.imei || b.id}`, {
+      ...b,
+      kor: nsKor(String(b.pref), b.kor),
+      _receivedAt: now,
+    })
+    // A bus that stopped reporting should not linger in the planner.
+    for (const [k, v] of foreignBuses) {
+      if (now - (v._receivedAt ?? now) > FOREIGN_BUS_TTL_MS) foreignBuses.delete(k)
+    }
+  }
+
   function clearBuses() {
+    foreignBuses.clear()
     buses.clear()
   }
 
@@ -239,9 +271,11 @@ export const useBrtStore = defineStore('brt', () => {
     const inflight = inflightHalteLeg.get(key)
     if (inflight) return inflight
 
+    const { pref: fPref, kor: plainKor } = splitKor(kor)
     const p = api
-      .halteByCorridor(city.pref, kor, toward, origin)
-      .then((list) => {
+      .halteByCorridor(fPref ?? city.pref, plainKor, toward, origin)
+      .then((raw) => {
+        const list = fPref ? raw.map((h) => nsHalte(fPref, h)) : raw
         halteByLeg.value.set(key, list)
         inflightHalteLeg.delete(key)
         return list
@@ -263,9 +297,26 @@ export const useBrtStore = defineStore('brt', () => {
     // same triple is good enough for graph construction — bulk has
     // sequential order and only loses the K1-reverse terminals plus
     // the entire K2A reverse, which transit planning can tolerate.
-    return halte.value.filter(
+    return planHalte.value.filter(
       (h) => h.kor === kor && h.toward === toward && h.origin === origin,
     )
+  }
+
+  /** Load the other city's network so the planner can cross over. */
+  async function loadForeign(pref: string) {
+    foreignCorridors.value = []
+    foreignHalte.value = []
+    // The "other" city flips when the user switches city mid-request;
+    // a late answer for the old pairing must not land as foreign data.
+    const stillWanted = () => pref === (city.pref === '12' ? '11' : '12')
+    try {
+      const [c, h] = await Promise.all([api.corridors(pref), api.halte(pref)])
+      if (!stillWanted()) return
+      foreignCorridors.value = asArray<BrtCorridor>(c).map((x) => nsCorridor(pref, x))
+      foreignHalte.value = asArray<BrtHalte>(h).map((x) => nsHalte(pref, x))
+    } catch {
+      // Cross-city is a bonus; the current city still plans on its own.
+    }
   }
 
   watch(
@@ -273,6 +324,8 @@ export const useBrtStore = defineStore('brt', () => {
     () => {
       halteByLeg.value.clear()
       inflightHalteLeg.clear()
+      foreignCorridors.value = []
+      foreignHalte.value = []
     },
   )
 
@@ -635,6 +688,10 @@ export const useBrtStore = defineStore('brt', () => {
     loading,
     error,
     corridorByKor,
+    planCorridorByKor,
+    planHalte,
+    foreignCorridors,
+    loadForeign,
     colorForKor,
     cityByPref,
     nearestHalte,
@@ -642,6 +699,8 @@ export const useBrtStore = defineStore('brt', () => {
     loadRoutes,
     upsertBus,
     clearBuses,
+    foreignBuses,
+    upsertForeignBus,
     halteByLeg,
     ensureHalteForLeg,
     getHalteForLeg,

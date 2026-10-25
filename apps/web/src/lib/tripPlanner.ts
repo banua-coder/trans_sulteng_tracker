@@ -29,12 +29,20 @@ export const WALK_IN_RADIUS_M = 800
  *  destination. Deliberately tight so the algorithm has to actually
  *  ride the bus to the destination instead of dropping off early. */
 export const WALK_OUT_RADIUS_M = 300
-export const TRANSFER_RADIUS_M = 30
+/** Two stops on different corridors within this distance are one
+ *  transfer point, whatever their names say. Catches stops the feed
+ *  names differently ("Wisma Donggala" vs "Halte Unisa", 97 m apart)
+ *  and ignores same-named stops that are far apart. */
+export const TRANSFER_RADIUS_M = 150
+/** When the user picked a specific halte as origin, only stops this
+ *  close count as "the same place" — no silent 700 m walk to a
+ *  different stop because it is faster. */
+export const PINNED_ORIGIN_RADIUS_M = 60
 /** Synthetic-node bridge cap: a transfer-point node created via
  *  in_koridor expansion connects to the nearest real node on the
  *  same kor via a fake ride edge, but only if within this distance.
  *  Keeps the bridge realistic. */
-export const SYNTH_BRIDGE_MAX_M = 2500
+export const SYNTH_BRIDGE_MAX_M = 400
 
 export interface LatLng { lat: number; lng: number }
 
@@ -72,6 +80,10 @@ export interface PlanStep {
   kor?: string         // present for ride steps
   durationMin: number
   distM: number
+  /** First boarding only: minutes until the bus arrives after you reach the stop. */
+  waitMin?: number
+  /** True when waitMin comes from a live bus position, false when it is a headway guess. */
+  waitLive?: boolean
 }
 
 export interface PlanResult {
@@ -125,23 +137,22 @@ export function buildGraph(
 
   // 1. Real nodes + ride edges from each leg's known halte order.
   for (const leg of halteByLeg) {
-    for (let i = 0; i < leg.length; i++) {
-      const h = leg[i]
+    // Chain to the last stop that had usable coordinates, so one bad
+    // row does not cut the corridor in two.
+    let prevId: NodeId | null = null
+    let prevPt: LatLng | null = null
+    for (const h of leg) {
       const lat = parseFloat(h.sh_lat)
       const lng = parseFloat(h.sh_lng)
       if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue
       const id = addNode(h.kor, h.sh_id, h.sh_name, lat, lng)
-      if (i > 0) {
-        const prev = leg[i - 1]
-        const prevId: NodeId = `${prev.kor}|${prev.sh_id}`
-        if (!nodes.has(prevId)) continue
-        const pLat = parseFloat(prev.sh_lat)
-        const pLng = parseFloat(prev.sh_lng)
-        if (!Number.isFinite(pLat) || !Number.isFinite(pLng)) continue
-        const distM = haversineMeters({ lat: pLat, lng: pLng }, { lat, lng })
+      if (prevId && prevPt && prevId !== id) {
+        const distM = haversineMeters(prevPt, { lat, lng })
         const rideMin = (distM / 1000) / RIDE_SPEED_KMH * 60 + STOP_DWELL_MIN
         addEdge(prevId, { to: id, weight: rideMin, distM, kind: 'ride' })
       }
+      prevId = id
+      prevPt = { lat, lng }
     }
   }
 
@@ -189,20 +200,22 @@ export function buildGraph(
     }
   }
 
-  // 4. Transfer edges between same-physical-stop nodes on different
-  //    corridors. Use sh_name as the cross-corridor identifier (the
-  //    bulk feed gives slightly different lat/lng per kor for the
-  //    same stop, so a 30 m haversine cutoff misses real transfers).
-  for (const [, ids] of nodesByName) {
-    if (ids.length < 2) continue
-    for (let i = 0; i < ids.length; i++) {
-      for (let j = i + 1; j < ids.length; j++) {
-        const a = nodes.get(ids[i])
-        const b = nodes.get(ids[j])
-        if (!a || !b || a.kor === b.kor) continue
-        addEdge(ids[i], { to: ids[j], weight: TRANSFER_WAIT_MIN, distM: 0, kind: 'transfer' })
-        addEdge(ids[j], { to: ids[i], weight: TRANSFER_WAIT_MIN, distM: 0, kind: 'transfer' })
-      }
+  // 4. Transfer edges between nodes on different corridors that sit
+  //    within TRANSFER_RADIUS_M of each other. Distance, not name, is
+  //    the identity: the feed names the same stop differently per
+  //    corridor and the same name can repeat far apart. The cost is the
+  //    fixed wait plus the walk between the two stops.
+  const all = [...nodes.values()]
+  for (let i = 0; i < all.length; i++) {
+    for (let j = i + 1; j < all.length; j++) {
+      const a = all[i]
+      const b = all[j]
+      if (a.kor === b.kor) continue
+      const distM = haversineMeters(a, b)
+      if (distM > TRANSFER_RADIUS_M) continue
+      const weight = TRANSFER_WAIT_MIN + (distM / 1000) / WALK_SPEED_KMH * 60
+      addEdge(a.id, { to: b.id, weight, distM, kind: 'transfer' })
+      addEdge(b.id, { to: a.id, weight, distM, kind: 'transfer' })
     }
   }
 
@@ -283,8 +296,9 @@ function shortestPath(
   origin: LatLng,
   dest: LatLng,
   destKors: string[] | null = null,
+  originPinned = false,
 ): PlanResult | null {
-  const originHalte = nearbyHalte(graph, origin, WALK_IN_RADIUS_M)
+  const originHalte = nearbyHalte(graph, origin, originPinned ? PINNED_ORIGIN_RADIUS_M : WALK_IN_RADIUS_M)
   // Tighter walk-out radius — forces the algorithm to actually ride
   // the bus to (near) the destination instead of dropping off early
   // and walking 800 m.
@@ -327,24 +341,30 @@ function shortestPath(
     })
   }
 
-  const dist = new Map<NodeId, number>()
-  const prev = new Map<NodeId, { from: NodeId; edge: Edge }>()
-  const heap = new MinHeap<ExpansionState>()
+  // Search state is (node, rode). A plan must contain at least one bus
+  // ride, so the walk into the destination is only offered from states
+  // that already rode. This stops "walk to a stop, walk on to the
+  // destination" from passing as a plan.
+  const key = (n: NodeId, rode: boolean) => `${n}#${rode ? 1 : 0}`
+  const dist = new Map<string, number>()
+  const prev = new Map<string, { fromKey: string; from: NodeId; edge: Edge }>()
+  const heap = new MinHeap<ExpansionState & { rode: boolean }>()
 
-  dist.set(START, 0)
-  heap.push({ weight: 0, node: START, prev: null, edge: null })
+  dist.set(key(START, false), 0)
+  heap.push({ weight: 0, node: START, prev: null, edge: null, rode: false })
+  let destKey: string | null = null
 
   while (heap.size) {
     const cur = heap.pop()!
-    if (cur.node === DEST) break
-    if (cur.weight !== dist.get(cur.node)) continue
+    const curKey = key(cur.node, cur.rode)
+    if (cur.node === DEST) { destKey = curKey; break }
+    if (cur.weight !== dist.get(curKey)) continue
 
     // Read the base adjacency from the graph but NEVER push into it —
     // graph.adj is shared across plan() calls in the worker, and a
     // stray push of a walkIn edge pointing at __dest__ would leak into
-    // the next search (where __dest__ means a different point), then
-    // produce 0-min "teleport" plans or filter-rejected ones.
-    const w = cur.node !== START ? walkIn.get(cur.node) : undefined
+    // the next search (where __dest__ means a different point).
+    const w = cur.node !== START && cur.rode ? walkIn.get(cur.node) : undefined
     let outEdges: Edge[]
     if (cur.node === START) {
       outEdges = [...walkOut.values()]
@@ -355,28 +375,32 @@ function shortestPath(
 
     for (const edge of outEdges) {
       const nextWeight = cur.weight + edge.weight
-      const known = dist.get(edge.to)
+      const nextRode = cur.rode || edge.kind === 'ride'
+      const nextKey = key(edge.to, nextRode)
+      const known = dist.get(nextKey)
       if (known != null && known <= nextWeight) continue
-      dist.set(edge.to, nextWeight)
-      prev.set(edge.to, { from: cur.node, edge })
-      heap.push({ weight: nextWeight, node: edge.to, prev: cur.node, edge })
+      dist.set(nextKey, nextWeight)
+      prev.set(nextKey, { fromKey: curKey, from: cur.node, edge })
+      heap.push({ weight: nextWeight, node: edge.to, prev: cur.node, edge, rode: nextRode })
     }
   }
 
-  if (!dist.has(DEST)) return null
+  if (!destKey) return null
 
   // Reconstruct path
   const reversed: { from: NodeId; to: NodeId; edge: Edge }[] = []
+  let cursorKey: string = destKey
   let cursor: NodeId = DEST
   while (cursor !== START) {
-    const back = prev.get(cursor)
+    const back = prev.get(cursorKey)
     if (!back) return null
     reversed.push({ from: back.from, to: cursor, edge: back.edge })
+    cursorKey = back.fromKey
     cursor = back.from
   }
   reversed.reverse()
 
-  return collapseToSteps(graph, reversed, dist.get(DEST)!)
+  return collapseToSteps(graph, reversed, dist.get(destKey)!)
 }
 
 function nodeLabel(graph: Graph, id: NodeId): string {
@@ -479,13 +503,14 @@ export function planTrip(
   dest: LatLng,
   k = 5,
   destKors: string[] | null = null,
+  opts: { originPinned?: boolean } = {},
 ): PlanResult[] {
   const out: PlanResult[] = []
   const forbidden = new Set<string>() // `${from}|${to}` keys
   const allowedKors = destKors ?? []
 
   for (let attempt = 0; attempt < k * 2; attempt++) {
-    const result = shortestPathWithForbidden(graph, origin, dest, forbidden, destKors)
+    const result = shortestPathWithForbidden(graph, origin, dest, forbidden, destKors, opts.originPinned)
     if (!result) break
 
     // Reject plans whose last ride leaves the user off the destination's
@@ -533,8 +558,9 @@ function shortestPathWithForbidden(
   dest: LatLng,
   forbidden: Set<string>,
   destKors: string[] | null = null,
+  originPinned = false,
 ): PlanResult | null {
-  if (!forbidden.size) return shortestPath(graph, origin, dest, destKors)
+  if (!forbidden.size) return shortestPath(graph, origin, dest, destKors, originPinned)
   // Filter adjacency on the fly using a temporary view
   const filtered: Graph = {
     nodes: graph.nodes,
@@ -548,5 +574,5 @@ function shortestPathWithForbidden(
     })
     filtered.adj.set(from, kept)
   }
-  return shortestPath(filtered, origin, dest, destKors)
+  return shortestPath(filtered, origin, dest, destKors, originPinned)
 }

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { badgeBg, onColor } from '@/lib/color'
 import { computed } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useBrtStore } from '@/stores/brt'
@@ -9,6 +10,7 @@ import CopyLinkButton from '@/components/CopyLinkButton.vue'
 import HalteTimelineNode from '@/components/HalteTimelineNode.vue'
 import IncomingBusCard from '@/components/IncomingBusCard.vue'
 import DirectionSelector from '@/components/DirectionSelector.vue'
+import { prettyName } from '@/lib/format'
 import type { BrtBus, BrtHalte } from '@/types/brt'
 
 const brt = useBrtStore()
@@ -34,8 +36,8 @@ const directionLabel = computed(() => {
   const c = corridor.value
   if (!c) return ''
   return direction.value === 'a'
-    ? `${c.origin} → ${c.toward}`
-    : `${c.toward} → ${c.origin}`
+    ? `${prettyName(c.origin)} → ${prettyName(c.toward)}`
+    : `${prettyName(c.toward)} → ${prettyName(c.origin)}`
 })
 
 function pickBus(bus: BrtBus) {
@@ -56,7 +58,7 @@ function pickBus(bus: BrtBus) {
       >
         <span
           class="grid h-9 w-9 shrink-0 place-items-center rounded-full font-mono text-xs font-bold text-white"
-          :style="{ background: accentColor }"
+          :style="{ background: badgeBg(accentColor), color: onColor(badgeBg(accentColor)) }"
           aria-hidden
         >
           {{ corridor?.kor ?? '·' }}
@@ -100,6 +102,7 @@ function pickBus(bus: BrtBus) {
         :available="directionAvailable"
         :toward-label="corridor?.toward || ''"
         :origin-label="corridor?.origin || ''"
+        :color="corridor?.color || undefined"
         @update:direction="focus.setDirection($event)"
       />
 

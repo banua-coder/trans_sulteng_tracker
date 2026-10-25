@@ -20,6 +20,8 @@ import CopyLinkButton from '@/components/CopyLinkButton.vue'
 import PlateBadge from '@/components/PlateBadge.vue'
 import SheetStickyHeader from '@/components/SheetStickyHeader.vue'
 import type { PlanStep } from '@/lib/tripPlanner'
+import { isNsKor, korLabel } from '@/lib/crossCity'
+import { badgeBg, onColor } from '@/lib/color'
 
 const { t } = useI18n()
 const trip = useTripStore()
@@ -75,7 +77,7 @@ watch(
       if (step.kind !== 'ride' || !step.kor) continue
       if (seen.has(step.kor)) continue
       seen.add(step.kor)
-      const c = brt.corridorByKor.get(step.kor)
+      const c = brt.planCorridorByKor.get(step.kor)
       if (!c) continue
       brt.ensureHalteForLeg(step.kor, c.toward, c.origin).catch(() => {})
       brt.ensureHalteForLeg(step.kor, c.origin, c.toward).catch(() => {})
@@ -98,6 +100,12 @@ function back() {
   trip.selectPlan(null)
 }
 
+/** Badge fill plus a text colour that stays readable on it. */
+function chipStyle(color: string) {
+  const bg = badgeBg(color)
+  return { background: bg, color: onColor(bg) }
+}
+
 function colorForStep(step: PlanStep): string {
   if (step.kind === 'ride' && step.kor) return brt.colorForKor(step.kor) || 'var(--color-bnc-accent)'
   if (step.kind === 'transfer') return 'var(--color-warn)'
@@ -110,8 +118,8 @@ const totalKm = computed(() => {
 })
 
 function coordForName(name: string, kor: string | undefined): { lat: number; lng: number } | null {
-  const h = (kor && brt.halte.find((x) => x.sh_name === name && x.kor === kor))
-    ?? brt.halte.find((x) => x.sh_name === name)
+  const h = (kor && brt.planHalte.find((x) => x.sh_name === name && x.kor === kor))
+    ?? brt.planHalte.find((x) => x.sh_name === name)
   if (!h) return null
   const lat = parseFloat(h.sh_lat)
   const lng = parseFloat(h.sh_lng)
@@ -143,7 +151,7 @@ function focusStep(step: PlanStep) {
         <p class="font-mono text-[10px] uppercase tracking-wider text-bnc-stone-500">
           {{ t('trip.itineraryTitle') }}
         </p>
-        <h2 class="truncate font-display text-sm font-bold tracking-tight">
+        <h2 class="[overflow-wrap:anywhere] font-display text-sm font-bold tracking-tight">
           {{ origin?.label ?? '—' }} → {{ destination?.label ?? '—' }}
         </h2>
       </div>
@@ -179,8 +187,8 @@ function focusStep(step: PlanStep) {
         <div class="relative flex w-6 shrink-0 flex-col items-center">
           <span
             v-if="stepNumbers.get(idx) != null"
-            class="z-10 grid h-5 w-5 place-items-center rounded-full border-2 border-white font-mono text-[10px] font-bold tabular-nums text-white shadow-sm dark:border-bnc-stone-900"
-            :style="{ background: colorForStep(step) }"
+            class="z-10 grid h-5 w-5 place-items-center rounded-full border-2 border-white font-mono text-[10px] font-bold tabular-nums shadow-sm dark:border-bnc-stone-900"
+            :style="chipStyle(colorForStep(step))"
           >
             {{ stepNumbers.get(idx) }}
           </span>
@@ -227,12 +235,12 @@ function focusStep(step: PlanStep) {
           <template v-else-if="step.kind === 'ride'">
             <p class="flex flex-wrap items-center gap-1.5 text-sm font-medium">
               <span
-                class="inline-flex items-center rounded-md px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-white"
-                :style="{ background: colorForStep(step) }"
+                class="inline-flex items-center rounded-md px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider"
+                :style="chipStyle(colorForStep(step))"
               >
-                {{ step.kor }}
+                {{ korLabel(step.kor ?? '') }}
               </span>
-              <span class="truncate">{{ step.fromName }} → {{ step.toName }}</span>
+              <span class="[overflow-wrap:anywhere]">{{ step.fromName }} → {{ step.toName }}</span>
             </p>
             <p class="mt-0.5 font-mono text-[10px] tabular-nums text-bnc-stone-500">
               {{ Math.max(1, Math.round(step.durationMin)) }} {{ t('units.minutes') }}
@@ -285,13 +293,13 @@ function focusStep(step: PlanStep) {
                 <button
                   type="button"
                   class="flex w-full items-center gap-2 rounded-md border border-bnc-stone-200 bg-bnc-stone-50 px-2 py-1.5 text-left transition-colors hover:border-bnc-stone-300 dark:border-bnc-stone-800 dark:bg-bnc-stone-800/50 dark:hover:border-bnc-stone-700"
-                  @click.stop="selection.selectBus(b.bus.imei || b.bus.id)"
+                  @click.stop="!isNsKor(b.bus.kor) && selection.selectBus(b.bus.imei || b.bus.id)"
                 >
                   <span
-                    class="inline-flex shrink-0 items-center rounded-md px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase tracking-wider text-white"
-                    :style="{ background: b.corridorColor }"
+                    class="inline-flex shrink-0 items-center rounded-md px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase tracking-wider"
+                    :style="chipStyle(b.corridorColor)"
                   >
-                    {{ b.bus.kor }}
+                    {{ korLabel(b.bus.kor) }}
                   </span>
                   <div class="flex min-w-0 flex-col">
                     <div class="flex items-center gap-1">
@@ -302,9 +310,9 @@ function focusStep(step: PlanStep) {
                       />
                       <span
                         v-else
-                        class="truncate font-mono text-[11px] font-bold"
+                        class="[overflow-wrap:anywhere] font-mono text-[11px] font-bold"
                       >
-                        {{ b.bus.kor }}
+                        {{ korLabel(b.bus.kor) }}
                       </span>
                       <span
                         v-if="b.atStop"

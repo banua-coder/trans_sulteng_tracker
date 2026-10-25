@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { badgeBg, onColor } from '@/lib/color'
 /**
  * One printable A4 page within a corridor's booklet — header, map of
  * the corridor, side column with a slice of the halte list, optional
@@ -13,7 +14,8 @@ import polyline from '@mapbox/polyline'
 import QRCode from 'qrcode'
 import { computed, onBeforeUnmount, onMounted, shallowRef, watch } from 'vue'
 import { useBrtStore } from '@/stores/brt'
-import { lightTiles, satelliteTiles } from '@/lib/leaflet/tiles'
+import { satelliteTiles } from '@/lib/leaflet/tiles'
+import { snapshotBasemap } from '@/lib/leaflet/basemapSnapshot'
 import { buildHalteIndex, isTransfer, otherCorridorsAt } from '@/lib/exportMap'
 import BanuacoderLogo from '@/components/BanuacoderLogo.vue'
 import type { BrtCorridor, BrtHalte } from '@/types/brt'
@@ -148,8 +150,27 @@ async function renderQR() {
 let drawnLayers: L.Layer[] = []
 let tileLayer: L.Layer | null = null
 
-function makeTileLayer(): L.Layer {
-  return props.tileMode === 'satellite' ? satelliteTiles() : lightTiles()
+let basemapSeq = 0
+let snapshot: L.ImageOverlay | null = null
+
+/** Satellite is plain raster tiles. The vector map is drawn once and
+ *  kept as an image so a long booklet never runs out of WebGL contexts. */
+async function loadBasemap() {
+  const seq = ++basemapSeq
+  const m = map
+  if (!m) return
+  tileLayer?.remove()
+  tileLayer = null
+  snapshot?.remove()
+  snapshot = null
+  if (props.tileMode === 'satellite') {
+    tileLayer = satelliteTiles().addTo(m)
+    return
+  }
+  const img = await snapshotBasemap(m, () => seq !== basemapSeq || map !== m)
+  if (img && seq === basemapSeq && map === m) {
+    snapshot = img.addTo(m)
+  }
 }
 
 onMounted(async () => {
@@ -165,26 +186,21 @@ onMounted(async () => {
     keyboard: false,
     touchZoom: false,
   })
-  tileLayer = makeTileLayer().addTo(map)
   drawMap()
+  loadBasemap()
   await renderQR()
 })
 
-watch(() => props.tileMode, () => {
-  if (!map) return
-  if (tileLayer) {
-    tileLayer.remove()
-    tileLayer = null
-  }
-  tileLayer = makeTileLayer().addTo(map)
-})
+watch(() => props.tileMode, () => { loadBasemap() })
 
 watch(() => props.legHalte, () => {
   if (!map) return
   drawMap()
+  loadBasemap()
 })
 
 onBeforeUnmount(() => {
+  basemapSeq++
   drawnLayers = []
   if (map) {
     map.remove()
@@ -209,7 +225,7 @@ onBeforeUnmount(() => {
           <template v-if="legPageTotal > 1">· hal. {{ legPageNum }}/{{ legPageTotal }}</template>
         </p>
         <h1>
-          <span class="chip" :style="{ background: corridor.color || '#0EA5E9' }">{{ corridor.kor }}</span>
+          <span class="chip" :style="{ background: badgeBg(corridor.color || '#0EA5E9'), color: onColor(badgeBg(corridor.color || '#0EA5E9')) }">{{ corridor.kor }}</span>
           {{ titleLabel }}
         </h1>
         <p class="footnote">
@@ -249,7 +265,7 @@ onBeforeUnmount(() => {
                   v-for="k in legTransfersFor(h)"
                   :key="k"
                   class="transfer-chip"
-                  :style="{ background: brt.colorForKor(k) || '#0EA5E9' }"
+                  :style="{ background: badgeBg(brt.colorForKor(k) || '#0EA5E9'), color: onColor(badgeBg(brt.colorForKor(k) || '#0EA5E9')) }"
                 >{{ k }}</span>
               </span>
             </li>
@@ -278,7 +294,7 @@ onBeforeUnmount(() => {
     <footer class="sheet-footer">
       <span>Sumber data: gps.brtnusantara.com</span>
       <span class="bnc">
-        <BanuacoderLogo :height="14" />
+        <BanuacoderLogo :height="14" light />
         <span>© {{ new Date().getFullYear() }} banuacoder.com</span>
       </span>
     </footer>

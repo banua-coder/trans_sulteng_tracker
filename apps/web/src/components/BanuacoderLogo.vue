@@ -11,6 +11,9 @@ withDefaults(
     /** Height in px. Width is derived from the asset's intrinsic ratio. */
     height?: number
     title?: string
+    /** Always the light-mode logo, for surfaces that stay white in dark
+     *  mode (the printable corridor booklet). */
+    light?: boolean
   }>(),
   { height: 22, title: 'Banua Coder' },
 )
@@ -27,9 +30,10 @@ withDefaults(
       src="/banuacoder-horizontal.png"
       :alt="title"
       decoding="async"
-      class="block h-full w-auto dark:hidden"
+      class="block h-full w-auto" :class="light ? '' : 'dark:hidden'"
     />
     <img
+      v-if="!light"
       src="/banuacoder-horizontal-dark.png"
       alt=""
       aria-hidden="true"

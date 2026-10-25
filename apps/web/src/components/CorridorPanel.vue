@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { badgeBg, onColor } from '@/lib/color'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
@@ -19,22 +20,15 @@ const { corridors, halte, buses, loading, error } = storeToRefs(brt)
 const stats = computed(() => {
   const fk = focus.kor
   let count = 0
-  let speedSum = 0
-  let speedN = 0
   for (const b of buses.value.values()) {
     if (fk && b.kor !== fk) continue
     if (isStale(b)) continue
     count++
-    if (Number.isFinite(b.speed) && b.speed! > 0) {
-      speedSum += b.speed!
-      speedN++
-    }
   }
   return {
     corridors: corridors.value.length,
     halte: halte.value.length,
     buses: count,
-    avgSpeed: speedN ? Math.round(speedSum / speedN) : 0,
   }
 })
 
@@ -90,37 +84,18 @@ const busStatusLabel = computed(() => {
         />
       </span>
       <div class="min-w-0">
-        <h2 class="truncate font-display text-base font-semibold tracking-tight">
+        <h2 class="[overflow-wrap:anywhere] font-display text-base font-semibold tracking-tight">
           {{ cityMeta?.name ?? city.slug }}
         </h2>
-        <p v-if="cityMeta?.city" class="truncate text-xs text-bnc-stone-500">
+        <p v-if="cityMeta?.city" class="[overflow-wrap:anywhere] text-xs text-bnc-stone-500">
           {{ cityMeta.city }}
         </p>
       </div>
     </header>
 
-    <dl
-      class="grid grid-cols-2 gap-2 rounded-md bg-bnc-stone-100 p-2 text-center font-mono text-[11px] uppercase tracking-wider dark:bg-bnc-stone-800 sm:grid-cols-4"
-    >
-      <div>
-        <dt class="text-bnc-stone-500">Koridor</dt>
-        <dd class="text-base font-bold text-bnc-ink dark:text-bnc-paper">{{ stats.corridors }}</dd>
-      </div>
-      <div>
-        <dt class="text-bnc-stone-500">{{ t('bus.listTitle') }}</dt>
-        <dd class="text-base font-bold text-bnc-ink dark:text-bnc-paper">{{ stats.buses }}</dd>
-      </div>
-      <div>
-        <dt class="text-bnc-stone-500">{{ t('stats.avg') }}</dt>
-        <dd class="text-base font-bold tabular-nums text-bnc-ink dark:text-bnc-paper">
-          {{ stats.avgSpeed }}<span class="text-[11px] font-normal text-bnc-stone-500"> {{ t('units.kmh') }}</span>
-        </dd>
-      </div>
-      <div>
-        <dt class="text-bnc-stone-500">{{ t('stats.viewers') }}</dt>
-        <dd class="text-base font-bold tabular-nums text-bnc-ink dark:text-bnc-paper">{{ socket.viewers }}</dd>
-      </div>
-    </dl>
+    <p class="font-mono text-xs tabular-nums text-bnc-stone-600 dark:text-bnc-stone-300">
+      {{ stats.corridors }} koridor · {{ stats.buses }} {{ t('bus.listTitle').toLowerCase() }}
+    </p>
 
     <p
       v-if="busStatusKey"
@@ -155,11 +130,11 @@ const busStatusLabel = computed(() => {
             <div class="flex items-center gap-2">
               <span
                 class="grid h-7 w-7 shrink-0 place-items-center rounded-full font-mono text-[10px] font-extrabold text-white"
-                :style="{ background: c.color || '#0EA5E9' }"
+                :style="{ background: badgeBg(c.color || '#0EA5E9'), color: onColor(badgeBg(c.color || '#0EA5E9')) }"
                 aria-hidden
               >{{ c.kor }}</span>
               <div class="min-w-0 flex-1">
-                <p class="truncate text-xs font-medium text-bnc-stone-700 dark:text-bnc-stone-200">
+                <p class="[overflow-wrap:anywhere] text-xs font-medium text-bnc-stone-700 dark:text-bnc-stone-200">
                   {{ c.origin }} → {{ c.toward }}
                 </p>
                 <p class="mt-0.5 font-mono text-[10px] text-bnc-stone-500">

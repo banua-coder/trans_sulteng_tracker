@@ -1,10 +1,12 @@
 <script setup lang="ts">
+import { badgeBg, onColor } from '@/lib/color'
 import { computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
 import { useSelectionStore } from '@/stores/selection'
 import { useBrtStore } from '@/stores/brt'
-import { formatDistance, formatSpeed, parsePassenger } from '@/lib/format'
+import { formatDistance, formatSpeed, haversineMeters, parsePassenger } from '@/lib/format'
+import { useTripStore, type Endpoint } from '@/stores/trip'
 import CopyLinkButton from '@/components/CopyLinkButton.vue'
 import PlateBadge from '@/components/PlateBadge.vue'
 import EtaQualityGuide from '@/components/EtaQualityGuide.vue'
@@ -14,6 +16,7 @@ import { useHalteAnnouncements } from '@/composables/useHalteAnnouncements'
 const { t } = useI18n()
 const selection = useSelectionStore()
 const brt = useBrtStore()
+const trip = useTripStore()
 const { selectedHalte, halteFilterKor } = storeToRefs(selection)
 
 // Once a halte is selected, eagerly pull both legs of every corridor
@@ -60,6 +63,37 @@ const corridorsAtHalte = computed(() =>
     : [],
 )
 
+/** Closest other stops, one row per name, so a short detail panel still
+ *  gives the rider somewhere to go next. */
+const nearbyStops = computed(() => {
+  const here = selectedHalte.value
+  if (!here) return []
+  const p = { lat: parseFloat(here.sh_lat), lng: parseFloat(here.sh_lng) }
+  const byName = new Map<string, { h: (typeof brt.halte)[number]; d: number }>()
+  for (const h of brt.halte) {
+    if (h.sh_name === here.sh_name) continue
+    const d = haversineMeters(p, { lat: parseFloat(h.sh_lat), lng: parseFloat(h.sh_lng) })
+    if (!Number.isFinite(d)) continue
+    const prev = byName.get(h.sh_name)
+    if (!prev || d < prev.d) byName.set(h.sh_name, { h, d })
+  }
+  return [...byName.values()].sort((a, b) => a.d - b.d).slice(0, 4)
+})
+
+function planFromHere(as: 'origin' | 'dest') {
+  const h = selectedHalte.value
+  if (!h) return
+  const e: Endpoint = {
+    kind: 'halte',
+    label: h.sh_name,
+    point: { lat: parseFloat(h.sh_lat), lng: parseFloat(h.sh_lng) },
+    sh_id: h.sh_id,
+  }
+  if (as === 'origin') trip.setOrigin(e)
+  else trip.setDestination(e)
+  selection.clear()
+}
+
 function pickBus(imei: string) {
   selection.selectBus(imei)
 }
@@ -100,7 +134,7 @@ function openDirections() {
           <p class="font-mono text-[10px] uppercase tracking-wider text-bnc-stone-500">
             {{ t('bus.halte') }}
           </p>
-          <h3 class="truncate font-display text-sm font-bold tracking-tight">
+          <h3 class="[overflow-wrap:anywhere] font-display text-sm font-bold tracking-tight">
             {{ selectedHalte.sh_name }}
           </h3>
         </div>
@@ -132,7 +166,7 @@ function openDirections() {
               :type="corridorsAtHalte.length > 1 ? 'button' : undefined"
               class="inline-flex items-center rounded-md px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-white transition-opacity"
               :style="{
-                background: c.color,
+                background: badgeBg(c.color), color: onColor(badgeBg(c.color)),
                 opacity: halteFilterKor === null || halteFilterKor === c.kor ? 1 : 0.4,
               }"
               :aria-pressed="corridorsAtHalte.length > 1 ? halteFilterKor === c.kor : undefined"
@@ -170,28 +204,28 @@ function openDirections() {
               <!-- Corridor kor badge -->
               <span
                 class="inline-flex shrink-0 items-center rounded-md px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-white"
-                :style="{ background: a.corridorColor }"
+                :style="{ background: badgeBg(a.corridorColor), color: onColor(badgeBg(a.corridorColor)) }"
               >
                 {{ a.bus.kor }}
               </span>
               <div class="flex min-w-0 flex-col">
-                <div class="flex items-center gap-1.5">
+                <div class="flex flex-wrap items-center gap-x-1.5 gap-y-1">
                   <PlateBadge v-if="a.bus.plate_number" :plate="a.bus.plate_number" size="sm" />
                   <span
                     v-else
-                    class="truncate font-mono text-xs font-bold text-bnc-ink dark:text-bnc-paper"
+                    class="[overflow-wrap:anywhere] font-mono text-xs font-bold text-bnc-ink dark:text-bnc-paper"
                   >
                     {{ a.bus.kor }}
                   </span>
                   <span
                     v-if="a.bus.name"
-                    class="inline-flex items-center rounded bg-bnc-stone-200 px-1 py-[1px] font-mono text-[9px] font-bold tracking-wider dark:bg-bnc-stone-700"
+                    class="inline-flex items-center whitespace-nowrap rounded bg-bnc-stone-200 px-1.5 py-[1px] font-mono text-[10px] font-bold tracking-wider dark:bg-bnc-stone-700"
                   >
                     {{ a.bus.name }}
                   </span>
                   <span
                     v-if="a.atStop"
-                    class="rounded-full px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-white"
+                    class="whitespace-nowrap rounded-full px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wide text-white"
                     :style="{ background: 'var(--color-good)' }"
                   >
                     {{ t('halte.atStop') }}
@@ -215,13 +249,13 @@ function openDirections() {
                   </template>
                 </p>
               </div>
-              <span class="ml-auto flex flex-col items-end">
+              <span class="ml-auto flex shrink-0 flex-col items-end whitespace-nowrap pl-1">
                 <span
                   class="font-mono text-sm font-bold tabular-nums text-bnc-accent"
                   :style="{ color: `var(--color-${a.quality})` }"
                 >
                   <template v-if="a.etaMin != null">
-                    ~{{ Math.max(1, Math.round(a.etaMin)) }}<span class="text-[10px] font-normal text-bnc-stone-500">{{ t('units.minutes') }}</span>
+                    ~{{ Math.max(1, Math.round(a.etaMin)) }}<span class="ml-0.5 text-[10px] font-normal text-bnc-stone-500">{{ t('units.minutes') }}</span>
                   </template>
                   <template v-else>—</template>
                 </span>
@@ -238,6 +272,23 @@ function openDirections() {
         <p v-else class="mt-2 text-xs text-bnc-stone-500">
           {{ t('halte.noBuses') }}
         </p>
+      </section>
+
+      <section class="flex gap-2 border-t border-bnc-stone-200 pt-3 dark:border-bnc-stone-800">
+        <button type="button" class="min-h-11 flex-1 rounded-lg border border-bnc-stone-300 px-3 text-sm font-medium hover:bg-bnc-stone-100 dark:border-bnc-stone-700 dark:hover:bg-bnc-stone-800" @click="planFromHere('origin')">{{ t('halte.planFrom') }}</button>
+        <button type="button" class="min-h-11 flex-1 rounded-lg bg-bnc-ink px-3 text-sm font-medium text-bnc-paper hover:opacity-90 dark:bg-bnc-paper dark:text-bnc-ink" @click="planFromHere('dest')">{{ t('halte.planTo') }}</button>
+      </section>
+
+      <section v-if="nearbyStops.length" class="border-t border-bnc-stone-200 pt-3 dark:border-bnc-stone-800">
+        <h4 class="font-mono text-[11px] uppercase tracking-wider text-bnc-stone-500">{{ t('halte.nearby') }}</h4>
+        <ul class="mt-1 flex flex-col">
+          <li v-for="n in nearbyStops" :key="n.h.sh_id">
+            <button type="button" class="flex min-h-11 w-full items-center gap-3 rounded-md px-1 text-left text-sm hover:bg-bnc-stone-100 dark:hover:bg-bnc-stone-800" @click="selection.selectHalte(n.h.sh_id)">
+              <span class="min-w-0 flex-1 [overflow-wrap:anywhere]">{{ n.h.sh_name }}</span>
+              <span class="shrink-0 font-mono text-xs tabular-nums text-bnc-stone-500">{{ formatDistance(n.d) }}</span>
+            </button>
+          </li>
+        </ul>
       </section>
     </article>
   </transition>

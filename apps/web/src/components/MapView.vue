@@ -2,6 +2,7 @@
 import '@/lib/leaflet/setup'
 import L from 'leaflet'
 import polyline from '@mapbox/polyline'
+import { isLightRoute } from '@/lib/color'
 import { onBeforeUnmount, onMounted, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
@@ -14,7 +15,7 @@ import { useSelectionStore } from '@/stores/selection'
 import { useTripStore } from '@/stores/trip'
 import { useUiStore } from '@/stores/ui'
 import type { PlanResult } from '@/lib/tripPlanner'
-import { busIcon, halteHaloMarker, halteMarker } from '@/lib/leaflet/markers'
+import { busIcon, halteHaloMarker, halteMarker, HALTE_RING, stopTileMarker, terminalMarker } from '@/lib/leaflet/markers'
 import { darkTiles, lightTiles, satelliteTiles } from '@/lib/leaflet/tiles'
 import { useTheme } from '@/lib/theme'
 import { haversineMeters, isStale } from '@/lib/format'
@@ -46,7 +47,17 @@ const {
 const containerEl = shallowRef<HTMLElement | null>(null)
 let map: L.Map | null = null
 let tileLayer: L.Layer | null = null
+// White casing sits under the colour line so the selected route
+// separates from the basemap (perjalananmu-style). Added to the map
+// before corridorLayer so it always draws beneath.
+const casingLayer = L.layerGroup()
 const corridorLayer = L.layerGroup()
+// Bus-stop tiles for the focused corridor. They sit over the plain
+// circle markers, which are hidden while a tile covers them.
+const stopTileLayer = L.layerGroup()
+const tileOf = new Map<L.CircleMarker, L.Marker>()
+// Lettered A/B terminals of the focused corridor leg.
+const terminalLayer = L.layerGroup()
 const halteLayer = L.layerGroup()
 const busLayer = L.layerGroup()
 const meLayer = L.layerGroup()
@@ -62,14 +73,67 @@ let meAccuracyCircle: L.Circle | null = null
 interface BusMarkerCache {
   marker: L.Marker
   iconKey: string
+  /** performance.now() of the previous fix; sizes the glide. */
+  lastFixAt: number
+  raf?: number
 }
 const busMarkers = new Map<string, BusMarkerCache>()
+
+const REDUCED_MOTION =
+  typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
+/** Slide a bus to its new fix instead of teleporting. GPS fixes arrive
+ *  every few seconds, so a straight setLatLng reads as hopping. The
+ *  glide lasts about one fix interval (0.6 to 3 s) at constant speed,
+ *  and restarts from wherever the marker currently is. Big jumps, a
+ *  hidden tab and reduced motion snap instead. */
+function glideTo(cache: BusMarkerCache, to: L.LatLngTuple) {
+  const m = cache.marker
+  if (cache.raf) cancelAnimationFrame(cache.raf)
+  cache.raf = undefined
+  const from = m.getLatLng()
+  const dist = from.distanceTo(L.latLng(to))
+  const now = performance.now()
+  const gap = now - cache.lastFixAt
+  cache.lastFixAt = now
+  if (REDUCED_MOTION || document.hidden || dist < 1 || dist > 400) {
+    m.setLatLng(to)
+    return
+  }
+  const dur = Math.min(Math.max(gap, 600), 3000)
+  const step = (t: number) => {
+    const k = Math.min(1, (t - now) / dur)
+    m.setLatLng([from.lat + (to[0] - from.lat) * k, from.lng + (to[1] - from.lng) * k])
+    cache.raf = k < 1 ? requestAnimationFrame(step) : undefined
+  }
+  cache.raf = requestAnimationFrame(step)
+}
+
+function dropBusMarker(key: string) {
+  const c = busMarkers.get(key)
+  if (c?.raf) cancelAnimationFrame(c.raf)
+  busMarkers.delete(key)
+}
 const lastReceivedAt = new Map<string, number>()
 
 /** Polylines and halte tracked per (kor, leg) so the A↔B toggle can fit
  *  the map to one leg even though styling stays per-corridor. */
 type Leg = 'a' | 'b'
 const corridorLines = new Map<string, Record<Leg, L.Polyline[]>>()
+const casingOf = new WeakMap<L.Polyline, L.Polyline>()
+
+/** Style a corridor line and its casing together. The casing only
+ *  shows on emphasised (weight >= 6) lines. */
+function styleLine(ln: L.Polyline, color: string, opacity: number, weight: number) {
+  ln.setStyle({ color, opacity, weight })
+  casingOf.get(ln)?.setStyle({
+    // White casing vanishes against pale routes (yellow, sky blue), so
+    // those get a dark one.
+    color: isLightRoute(color) ? '#0a0e14' : '#fff',
+    weight: weight + 3,
+    opacity: weight >= 6 ? 0.9 : 0,
+  })
+}
 const halteByLeg = new Map<string, Record<Leg, L.CircleMarker[]>>()
 /** Dedup map: coord key → marker instance. Prevents drawing multiple
  *  overlapping icons when several corridors share a physical stop. */
@@ -87,9 +151,37 @@ const halteMarkerShIds = new Map<L.CircleMarker, Set<string>>()
 let selectedHalteMarker: L.CircleMarker | null = null
 let selectedHalteHalo: L.Marker | null = null
 
+function renderStopTiles(fk: string | null, hide: boolean) {
+  stopTileLayer.clearLayers()
+  tileOf.clear()
+  if (!fk || hide) return
+  const slot = halteByLeg.get(fk)
+  if (!slot) return
+  const color = brt.corridorByKor.get(fk)?.color || '#0EA5E9'
+  for (const m of new Set([...slot.a, ...slot.b])) {
+    if ((m.options.opacity ?? 1) <= 0) continue
+    const tile = stopTileMarker(m.getLatLng(), color, () => m.fire('click'))
+    const name = m.getTooltip()?.getContent()
+    if (name) tile.bindTooltip(name as string, { direction: 'top', offset: [0, -10] })
+    tile.addTo(stopTileLayer)
+    tileOf.set(m, tile)
+    m.setStyle({ opacity: 0, fillOpacity: 0 })
+  }
+}
+
+function markSelectedTile() {
+  for (const t of tileOf.values()) t.getElement()?.classList.remove('selected')
+  if (selectedHalteMarker) tileOf.get(selectedHalteMarker)?.getElement()?.classList.add('selected')
+}
+
 function applySelectedHalte() {
+  applySelectedHalteInner()
+  markSelectedTile()
+}
+
+function applySelectedHalteInner() {
   if (selectedHalteMarker) {
-    selectedHalteMarker.setStyle({ radius: 5, fillColor: '#94a3b8', weight: 2 })
+    selectedHalteMarker.setStyle({ radius: 4.5, fillColor: '#fff', color: HALTE_RING, weight: 2.5 })
     selectedHalteMarker = null
   }
   if (selectedHalteHalo) {
@@ -105,7 +197,7 @@ function applySelectedHalte() {
   const coordKey = `${lat.toFixed(5)},${lng.toFixed(5)}`
   const marker = halteSeen.get(coordKey)
   if (!marker) return
-  marker.setStyle({ radius: 8, fillColor: '#1D9CD4', weight: 2.5 })
+  marker.setStyle({ radius: 8, fillColor: '#1D9CD4', color: '#fff', weight: 2.5 })
   marker.bringToFront()
   selectedHalteMarker = marker
   if (map) {
@@ -139,6 +231,24 @@ function markFlyInProgress(ms = 700) {
  *  closing the bus info card returns the user to where they were. */
 let priorViewport: { center: L.LatLng; zoom: number } | null = null
 
+let tripBounds: L.LatLngBounds | null = null
+
+/** Pixels of the map the phone sheet hides at the bottom. Camera moves
+ *  aim at the part still visible. A detail opens the sheet to about
+ *  half the screen, so assume at least that much for those moves. */
+function sheetInset(): number {
+  if (window.innerWidth >= 1024) return 0
+  return Math.max(ui.sheetH, window.innerHeight * 0.45)
+}
+
+/** Where to centre the map so `ll` lands in the middle of the visible
+ *  area (above the sheet) rather than the middle of the full map. */
+function visibleCenter(ll: L.LatLngExpression, zoom: number, inset = sheetInset()): L.LatLng {
+  const target = L.latLng(ll)
+  if (!map || !inset) return target
+  return map.unproject(map.project(target, zoom).add([0, inset / 2]), zoom)
+}
+
 function initMap() {
   if (!containerEl.value || map) return
 
@@ -151,7 +261,10 @@ function initMap() {
   L.control.zoom({ position: 'bottomright' }).addTo(map)
   tileLayer = currentTiles().addTo(map)
 
+  casingLayer.addTo(map)
   corridorLayer.addTo(map)
+  terminalLayer.addTo(map)
+  stopTileLayer.addTo(map)
   halteLayer.addTo(map)
   busLayer.addTo(map)
   meLayer.addTo(map)
@@ -189,9 +302,16 @@ function syncHalteVisibility() {
 }
 
 function clearAll() {
+  casingLayer.clearLayers()
+  stopTileLayer.clearLayers()
+  tileOf.clear()
+  terminalLayer.clearLayers()
+  stopTileLayer.clearLayers()
+  tileOf.clear()
   corridorLayer.clearLayers()
   halteLayer.clearLayers()
   busLayer.clearLayers()
+  for (const c of busMarkers.values()) if (c.raf) cancelAnimationFrame(c.raf)
   busMarkers.clear()
   corridorLines.clear()
   halteByLeg.clear()
@@ -213,7 +333,7 @@ function corridorSlice(
   fromCoord: L.LatLngTuple,
   toCoord: L.LatLngTuple,
 ): L.LatLngTuple[] | null {
-  const c = brt.corridorByKor.get(kor)
+  const c = brt.planCorridorByKor.get(kor)
   if (!c) return null
 
   function trySlice(enc: string | undefined | null): { slice: L.LatLngTuple[]; snap: number } | null {
@@ -260,6 +380,7 @@ function corridorSlice(
  *  Fits the map viewport to the plan bounds. */
 function drawTripPreview(plan: PlanResult | null) {
   tripPreviewLayer.clearLayers()
+  tripBounds = null
   if (!plan || !map) return
 
   const bounds = L.latLngBounds([])
@@ -268,28 +389,16 @@ function drawTripPreview(plan: PlanResult | null) {
 
   if (originPt) {
     bounds.extend([originPt.lat, originPt.lng])
-    L.circleMarker([originPt.lat, originPt.lng], {
-      radius: 8,
-      color: '#fff',
-      weight: 3,
-      fillColor: '#1D9CD4',
-      fillOpacity: 1,
-    }).addTo(tripPreviewLayer)
+    terminalMarker([originPt.lat, originPt.lng], 'A', '#1D9CD4').addTo(tripPreviewLayer)
   }
   if (destPt) {
     bounds.extend([destPt.lat, destPt.lng])
-    L.circleMarker([destPt.lat, destPt.lng], {
-      radius: 8,
-      color: '#fff',
-      weight: 3,
-      fillColor: '#dc2626',
-      fillOpacity: 1,
-    }).addTo(tripPreviewLayer)
+    terminalMarker([destPt.lat, destPt.lng], 'B', '#dc2626').addTo(tripPreviewLayer)
   }
 
   function halteCoordByName(name: string, kor: string | undefined): L.LatLngTuple | null {
-    const h = (kor && brt.halte.find((x) => x.sh_name === name && x.kor === kor))
-      ?? brt.halte.find((x) => x.sh_name === name)
+    const h = (kor && brt.planHalte.find((x) => x.sh_name === name && x.kor === kor))
+      ?? brt.planHalte.find((x) => x.sh_name === name)
     if (!h) return null
     const lat = parseFloat(h.sh_lat)
     const lng = parseFloat(h.sh_lng)
@@ -308,6 +417,13 @@ function drawTripPreview(plan: PlanResult | null) {
         const path = slice ?? [from, to]
         for (const p of path) bounds.extend(p)
         const color = brt.colorForKor(step.kor) || '#1D9CD4'
+        L.polyline(path, {
+          color: '#fff',
+          weight: 10,
+          opacity: 0.9,
+          lineCap: 'round',
+          lineJoin: 'round',
+        }).addTo(tripPreviewLayer)
         L.polyline(path, {
           color,
           weight: 7,
@@ -367,11 +483,24 @@ function drawTripPreview(plan: PlanResult | null) {
   }
 
   if (bounds.isValid()) {
-    map.fitBounds(bounds.pad(0.2), { duration: 0.6, animate: true })
+    tripBounds = bounds
+    markFlyInProgress()
+    map.fitBounds(bounds.pad(0.2), { duration: 0.6, animate: true, paddingBottomRight: [0, sheetInset()] })
   }
 }
 
+/** A/B terminals at the start and end of the focused leg line(s). */
+function addTerminals(lines: L.Polyline[], color: string) {
+  if (!lines.length) return
+  const first = (lines[0].getLatLngs() as L.LatLng[])[0]
+  const lastLn = lines[lines.length - 1].getLatLngs() as L.LatLng[]
+  const last = lastLn[lastLn.length - 1]
+  if (first) terminalMarker(first, 'A', color).addTo(terminalLayer)
+  if (last) terminalMarker(last, 'B', color).addTo(terminalLayer)
+}
+
 function drawCorridors(items: BrtCorridor[]) {
+  casingLayer.clearLayers()
   corridorLayer.clearLayers()
   corridorLines.clear()
   const allBounds = L.latLngBounds([])
@@ -390,12 +519,21 @@ function drawCorridors(items: BrtCorridor[]) {
         if (!latlngs.length) continue
         const line = L.polyline(latlngs, {
           color,
-          weight: 5,
-          opacity: dim ? 0.35 : 0.85,
+          weight: 3,
+          opacity: dim ? 0.35 : 0.7,
           lineCap: 'round',
           lineJoin: 'round',
           interactive: true,
         })
+        const casing = L.polyline(latlngs, {
+          color: '#fff',
+          weight: 6,
+          opacity: 0,
+          lineCap: 'round',
+          lineJoin: 'round',
+          interactive: false,
+        }).addTo(casingLayer)
+        casingOf.set(line, casing)
         line.on('click', () => {
         // When a different corridor is already focused, ignore clicks
         // on other corridors' (dimmed) polylines — the user explicitly
@@ -415,7 +553,9 @@ function drawCorridors(items: BrtCorridor[]) {
   }
 
   if (map && allBounds.isValid()) {
-    map.fitBounds(allBounds.pad(0.08), { animate: false })
+    // Real sheet height here: the sheet opens later and the sheet-height
+    // watcher then slides the view with it.
+    map.fitBounds(allBounds.pad(0.08), { animate: false, paddingBottomRight: [0, window.innerWidth >= 1024 ? 0 : ui.sheetH] })
   }
   applyFocus(true)
 }
@@ -538,14 +678,32 @@ let lastSpotlightInit = false
  *  coordinate dedup, so byLeg slot alone isn't authoritative) and to
  *  gate halte clicks when corridor focus is active. Returns null when
  *  no corridor is focused or no direction is active. */
+/** The corridor leg the map should show: the selected bus's own
+ *  direction when a bus is selected (only its route, not the reverse),
+ *  otherwise the focused corridor's chosen direction. */
+function legTarget(): { kor: string; leg: 'a' | 'b' } | null {
+  if (selection.kind === 'bus' && selection.id) {
+    const b = brt.buses.get(selection.id)
+    const c = b?.kor ? brt.corridorByKor.get(b.kor) : undefined
+    if (b && c) return { kor: b.kor, leg: b.toward === c.toward ? 'a' : 'b' }
+  }
+  if (focus.kor) return { kor: focus.kor, leg: focus.direction }
+  return null
+}
+
 function activeLegHalteShIds(): Set<string> | null {
-  const fk = focus.kor
-  if (!fk) return null
-  const c = brt.corridorByKor.get(fk)
+  const lt = legTarget()
+  if (!lt) return null
+  const c = brt.corridorByKor.get(lt.kor)
   if (!c) return null
-  const wantToward = focus.direction === 'a' ? c.toward : c.origin
-  const wantOrigin = focus.direction === 'a' ? c.origin : c.toward
-  const leg = brt.getHalteForLeg(fk, wantToward, wantOrigin)
+  const wantToward = lt.leg === 'a' ? c.toward : c.origin
+  const wantOrigin = lt.leg === 'a' ? c.origin : c.toward
+  const leg = brt.getHalteForLeg(lt.kor, wantToward, wantOrigin)
+  if (!leg.length) {
+    // Stops for this leg are not loaded yet; fetch, then redraw.
+    void brt.ensureHalteForLeg(lt.kor, wantToward, wantOrigin).then(() => applyFocus(true)).catch(() => {})
+    return null
+  }
   return new Set(leg.map((h) => h.sh_id))
 }
 
@@ -558,7 +716,8 @@ function applyFocus(force = false) {
   // spotlight comes from a bus selection (spotlightKor fallback)
   // rather than focus.kor, we still want both legs visible — the
   // user is inspecting a single vehicle, not a direction.
-  const activeLeg: 'a' | 'b' | null = fk && focus.kor === fk ? focus.direction : null
+  const lt = legTarget()
+  const activeLeg: 'a' | 'b' | null = fk && lt && lt.kor === fk ? lt.leg : null
   const activeShIds = activeLeg ? activeLegHalteShIds() : null
   const planKors = tripPlanKors.value
   const planNames = planKors ? tripPlanHalteNames.value : null
@@ -576,6 +735,7 @@ function applyFocus(force = false) {
   lastSpotlightInit = true
 
   // Corridors
+  terminalLayer.clearLayers()
   for (const [kor, byLeg] of corridorLines.entries()) {
     const c = brt.corridorByKor.get(kor)
     const baseColor = c?.color || '#0EA5E9'
@@ -587,18 +747,20 @@ function applyFocus(force = false) {
       // is hidden because drawTripPreview already paints the exact
       // sliced segments the user actually rides through. Showing the
       // full corridor lines would re-add the off-route portions.
-      for (const ln of all) ln.setStyle({ color: baseColor, opacity: 0, weight: 0 })
+      for (const ln of all) styleLine(ln, baseColor, 0, 0)
     } else if (fk === null) {
-      const opacity = baseDim ? 0.35 : 0.85
-      for (const ln of all) ln.setStyle({ color: baseColor, opacity, weight: 5 })
+      const opacity = baseDim ? 0.35 : 0.7
+      for (const ln of all) styleLine(ln, baseColor, opacity, 3)
     } else if (kor === fk) {
       if (activeLeg) {
         const active = activeLeg === 'a' ? byLeg.a : byLeg.b
         const inactive = activeLeg === 'a' ? byLeg.b : byLeg.a
-        for (const ln of active) ln.setStyle({ color: baseColor, opacity: 0.95, weight: 6 })
-        for (const ln of inactive) ln.setStyle({ color: baseColor, opacity: 0, weight: 0 })
+        for (const ln of active) styleLine(ln, baseColor, 1, 6.5)
+        for (const ln of inactive) styleLine(ln, baseColor, 0, 0)
+        addTerminals(active, baseColor)
       } else {
-        for (const ln of all) ln.setStyle({ color: baseColor, opacity: 0.95, weight: 6 })
+        for (const ln of all) styleLine(ln, baseColor, 1, 6.5)
+        addTerminals(all, baseColor)
       }
     } else {
       // Dimmed, not hidden: a first-time rider who hasn't picked a
@@ -607,7 +769,7 @@ function applyFocus(force = false) {
       // used above for off-hours corridors (baseDim) — same visual
       // language, not a new one. Previously 0.1, which read as
       // near-invisible to anyone who wasn't already a TJ power user.
-      for (const ln of all) ln.setStyle({ color: baseColor, opacity: 0.35, weight: 2 })
+      for (const ln of all) styleLine(ln, baseColor, 0.45, 2.5)
     }
   }
 
@@ -635,7 +797,8 @@ function applyFocus(force = false) {
     // there) — kept in sync so lines and their halte read as one
     // de-emphasized group rather than two different intensities.
     const opacity = fk === null || kor === fk ? 1 : 0.35
-    for (const m of all) m.setStyle({ opacity, fillOpacity: opacity })
+    const ring = fk !== null && kor === fk ? (brt.corridorByKor.get(kor)?.color || HALTE_RING) : HALTE_RING
+    for (const m of all) m.setStyle({ color: ring, opacity, fillOpacity: opacity })
   }
 
   // Direction filter: override the above per-marker. We iterate the
@@ -663,7 +826,8 @@ function applyFocus(force = false) {
   // Bus-selected refinement: dim stops the bus has already passed so
   // the user can scan only what's still ahead (TJ-style "upcoming
   // halte" view, beads c1d).
-  applyUpcomingHalteFilter()
+  applyUpcomingHalteFilter(activeShIds)
+  renderStopTiles(fk, !!planKors)
 
   // Buses
   for (const bus of brt.buses.values()) upsertBusMarker(bus)
@@ -682,13 +846,20 @@ function busColorFor(b: BrtBus): string {
  *  wanted to see the whole route clearly; dimming the passed half made
  *  shared-coordinate halte (multi-corridor stops) appear half-erased,
  *  which read worse than it solved. */
-function applyUpcomingHalteFilter() {
+function applyUpcomingHalteFilter(activeShIds: Set<string> | null) {
   if (selection.kind !== 'bus' || !selection.id) return
   const bus = brt.buses.get(selection.id)
   if (!bus?.kor) return
   const slot = halteByLeg.get(bus.kor)
   if (!slot) return
   for (const m of [...slot.a, ...slot.b]) {
+    // Keep the leg filter: stops of the reverse direction stay hidden.
+    if (activeShIds) {
+      const ids = halteMarkerShIds.get(m)
+      let on = false
+      if (ids) for (const id of ids) if (activeShIds.has(id)) { on = true; break }
+      if (!on) continue
+    }
     m.setStyle({ opacity: 1, fillOpacity: 1 })
   }
 }
@@ -757,10 +928,10 @@ function upsertBusMarker(b: BrtBus) {
       focusBus(key, b)
     })
     marker.addTo(busLayer)
-    cache = { marker, iconKey }
+    cache = { marker, iconKey, lastFixAt: performance.now() }
     busMarkers.set(key, cache)
   } else {
-    cache.marker.setLatLng([b.lat, b.lng])
+    glideTo(cache, [b.lat, b.lng])
     // Only rebuild the DivIcon when the visual state actually changed
     // (corridor color, kor label, stale flag, or heading bucket).
     // Position-only updates skip setIcon entirely.
@@ -810,7 +981,7 @@ function upsertBusMarker(b: BrtBus) {
     selection.id === key &&
     map
   ) {
-    map.panTo([b.lat, b.lng], { animate: true, duration: 0.6 })
+    map.panTo(visibleCenter([b.lat, b.lng], map.getZoom()), { animate: true, duration: 0.6 })
   }
 }
 
@@ -836,7 +1007,7 @@ function pruneBusMarkers(active: Map<string, BrtBus>) {
     if (!active.has(key)) {
       const cache = busMarkers.get(key)
       if (cache) busLayer.removeLayer(cache.marker)
-      busMarkers.delete(key)
+      dropBusMarker(key)
       lastReceivedAt.delete(key)
     }
   }
@@ -876,6 +1047,50 @@ onMounted(() => {
     resizeObserver.observe(containerEl.value)
   }
 })
+
+// The sheet overlays the map. When the user collapses or reopens it,
+// re-frame what they are looking at (stop, bus, route or trip) inside
+// the part of the map the sheet leaves, zoom included. With nothing
+// selected, slide the view by half the change so the middle stays put.
+// Skipped while a fly is running: that one already aimed past the sheet.
+let prevTargetH: number | null = null
+watch(
+  () => ui.sheetSnap,
+  () => {
+    const inset = ui.sheetTargetH
+    const prev = prevTargetH
+    prevTargetH = inset
+    if (!map || prev == null || flyInProgress || window.innerWidth >= 1024) return
+    const m = map
+    const pad: L.PointExpression = [0, inset]
+    markFlyInProgress()
+
+    const point = (ll: L.LatLngExpression) => {
+      const z = Math.max(m.getZoom(), 16)
+      m.flyTo(visibleCenter(ll, z, inset), z, { duration: 0.5 })
+    }
+    if (selection.kind === 'bus' && selection.id) {
+      const b = brt.buses.get(selection.id)
+      if (b) return point([b.lat, b.lng])
+    } else if (selection.kind === 'halte' && selection.id) {
+      const h = brt.halte.find((x) => x.sh_id === selection.id)
+      if (h) return point([parseFloat(h.sh_lat), parseFloat(h.sh_lng)])
+    }
+    const fk = focus.kor
+    if (fk) {
+      const byLeg = corridorLines.get(fk)
+      const dir = focus.direction
+      const lines = byLeg ? (dir === 'a' ? byLeg.a : dir === 'b' ? byLeg.b : [...byLeg.a, ...byLeg.b]) : []
+      const b = L.latLngBounds([])
+      for (const ln of lines) b.extend(ln.getBounds())
+      if (b.isValid()) return void m.flyToBounds(b.pad(0.12), { duration: 0.5, paddingBottomRight: pad })
+    }
+    if (trip.selectedPlan && tripBounds?.isValid()) {
+      return void m.flyToBounds(tripBounds.pad(0.2), { duration: 0.5, paddingBottomRight: pad })
+    }
+    m.panBy([0, (inset - prev) / 2], { animate: false })
+  },
+)
 
 watch(
   () => city.pref,
@@ -985,7 +1200,7 @@ watch(
         for (const ln of legLines) bounds.extend(ln.getBounds())
         if (bounds.isValid()) {
           following = false
-          map.flyToBounds(bounds.pad(0.12), { duration: 0.6 })
+          map.flyToBounds(bounds.pad(0.12), { duration: 0.6, paddingBottomRight: [0, sheetInset()] })
         }
       }
     }
@@ -1015,7 +1230,7 @@ watch(
         following = true
         const targetZoom = Math.max(map.getZoom(), 16)
         markFlyInProgress()
-        map.flyTo([b.lat, b.lng], targetZoom, { duration: 0.6 })
+        map.flyTo(visibleCenter([b.lat, b.lng], targetZoom), targetZoom, { duration: 0.6 })
       }
     } else if (kind === 'halte' && id) {
       following = false
@@ -1026,7 +1241,7 @@ watch(
         if (Number.isFinite(hLat) && Number.isFinite(hLng)) {
           const targetZoom = Math.max(map.getZoom(), 16)
           markFlyInProgress()
-          map.flyTo([hLat as number, hLng as number], targetZoom, { duration: 0.6 })
+          map.flyTo(visibleCenter([hLat as number, hLng as number], targetZoom), targetZoom, { duration: 0.6 })
         }
       }
     } else {
@@ -1056,7 +1271,7 @@ watch(
   },
   (next, prev) => {
     if (next === prev) return
-    applyUpcomingHalteFilter()
+    applyUpcomingHalteFilter(legTarget() ? activeLegHalteShIds() : null)
   },
 )
 
@@ -1099,7 +1314,8 @@ watch(
 // be re-tapped to re-zoom.
 watch(tripFocusedStop, (p) => {
   if (!p || !map) return
-  map.flyTo([p.lat, p.lng], Math.max(map.getZoom(), 17), { duration: 0.5 })
+  const z = Math.max(map.getZoom(), 17)
+  map.flyTo(visibleCenter([p.lat, p.lng], z), z, { duration: 0.5 })
   trip.focusStop(null)
 })
 

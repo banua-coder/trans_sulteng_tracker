@@ -56,6 +56,19 @@ export const useTripStore = defineStore('trip', () => {
   function ensureWorker(): Worker {
     if (worker) return worker
     worker = new TripPlannerWorker()
+    // A crashed worker or failed chunk load would otherwise leave every
+    // pending call hanging and the spinner on forever. Reject them all
+    // and drop the worker so the next call starts a fresh one.
+    const fail = (message: string) => {
+      const pending = [...inflight.values()]
+      inflight.clear()
+      worker?.terminate()
+      worker = null
+      graphReady.value = false
+      for (const cb of pending) cb({ type: 'error', message })
+    }
+    worker.onerror = (ev) => fail(ev.message || 'planner worker failed')
+    worker.onmessageerror = () => fail('planner worker message error')
     worker.onmessage = (ev: MessageEvent) => {
       const data = ev.data as { id: number; type: string }
       const cb = inflight.get(data.id)
@@ -85,18 +98,31 @@ export const useTripStore = defineStore('trip', () => {
    *  missing reverse-direction halte for some corridors (K2A has 0
    *  reverse rows in bulk; per-leg returns 19). Prefetch all legs in
    *  parallel before building so the worker gets the full picture. */
+  let foreignLoading: Promise<void> | null = null
+  function ensureForeign(): Promise<void> {
+    if (brt.foreignCorridors.length) return Promise.resolve()
+    foreignLoading ??= brt
+      .loadForeign(city.pref === '12' ? '11' : '12')
+      .finally(() => { foreignLoading = null })
+    return foreignLoading
+  }
+
   async function buildGraph() {
     graphReady.value = false
+    // The other city joins the graph so a trip can cross the border
+    // (Wisma Donggala ↔ Halte Unisa is a 96 m walk).
+    await ensureForeign()
+    const corridors = [...brt.corridors, ...brt.foreignCorridors]
     // Prefetch per-leg in parallel — covers bulk feed gaps.
     const prefetches: Promise<unknown>[] = []
-    for (const c of brt.corridors) {
+    for (const c of corridors) {
       prefetches.push(brt.ensureHalteForLeg(c.kor, c.toward, c.origin).catch(() => {}))
       prefetches.push(brt.ensureHalteForLeg(c.kor, c.origin, c.toward).catch(() => {}))
     }
     await Promise.all(prefetches)
 
     const halteByLeg: import('@/types/brt').BrtHalte[][] = []
-    for (const c of brt.corridors) {
+    for (const c of corridors) {
       const a = brt.getHalteForLeg(c.kor, c.toward, c.origin)
       const b = brt.getHalteForLeg(c.kor, c.origin, c.toward)
       if (a.length) halteByLeg.push(a)
@@ -107,9 +133,9 @@ export const useTripStore = defineStore('trip', () => {
       // postMessage uses structured clone, which can't clone Proxies.
       await call<{ type: 'graphReady'; nodeCount: number }>({
         type: 'buildGraph',
-        corridors: JSON.parse(JSON.stringify(brt.corridors)),
+        corridors: JSON.parse(JSON.stringify(corridors)),
         halteByLeg: JSON.parse(JSON.stringify(halteByLeg)),
-        allHalte: JSON.parse(JSON.stringify(brt.halte)),
+        allHalte: JSON.parse(JSON.stringify(brt.planHalte)),
       })
       graphReady.value = true
     } catch (e) {
@@ -132,10 +158,16 @@ export const useTripStore = defineStore('trip', () => {
       return
     }
     const seq = ++recomputeSeq
-    if (!graphReady.value) await buildGraph()
-    if (seq !== recomputeSeq) return // a newer recompute superseded us
+    // Show the spinner for the whole job, including the graph build
+    // and its network prefetch, so "no route" never flashes first.
     loading.value = true
     error.value = null
+    if (!graphReady.value) await buildGraph()
+    if (seq !== recomputeSeq) return // a newer recompute superseded us
+    if (!graphReady.value) {
+      loading.value = false
+      return // buildGraph already recorded the error
+    }
     try {
       // Strip reactive Proxies before postMessage — structured clone
       // can't handle them. origin/destination.point is a Vue reactive
@@ -147,14 +179,18 @@ export const useTripStore = defineStore('trip', () => {
       // + the halte's own kor). Without this, Dijkstra can drop the
       // user off on a different corridor 300 m away — e.g. ending on
       // K1 when the picked halte isn't on K1 at all.
+      // A stop appears once per corridor and direction; union them all
+      // so picking the K1 row of a stop that K4A also serves still
+      // allows K4A to end the trip.
       let destKors: string[] | null = null
       if (destination.value.sh_id) {
-        const h = brt.halte.find((x) => x.sh_id === destination.value!.sh_id)
+        const h = brt.planHalte.find((x) => x.sh_id === destination.value!.sh_id)
         if (h) {
           const kors = new Set<string>()
-          kors.add(h.kor)
-          if (h.in_koridor) {
-            for (const k of h.in_koridor.split('|').filter(Boolean)) kors.add(k)
+          for (const row of brt.planHalte) {
+            if (row.sh_name !== h.sh_name) continue
+            kors.add(row.kor)
+            for (const k of (row.in_koridor ?? '').split('|').filter(Boolean)) kors.add(k)
           }
           destKors = [...kors]
         }
@@ -165,9 +201,10 @@ export const useTripStore = defineStore('trip', () => {
         dest: { lat: d.lat, lng: d.lng },
         k: 5,
         destKors,
+        originPinned: origin.value.kind === 'halte',
       })
       if (seq !== recomputeSeq) return // newer recompute won, ignore
-      plans.value = resp.paths
+      plans.value = withLiveWait(resp.paths)
       // Don't auto-select — the user picks from the result list first
       // (matches TJ Transjakarta's flow: list → tap → detail).
       selectedPlanIdx.value = null
@@ -176,7 +213,9 @@ export const useTripStore = defineStore('trip', () => {
       selectedPlanIdx.value = null
       error.value = e instanceof Error ? e.message : String(e)
     } finally {
-      loading.value = false
+      // A superseded call must not switch the spinner off under the
+      // newer one that is still running.
+      if (seq === recomputeSeq) loading.value = false
     }
   }
 
@@ -221,7 +260,7 @@ export const useTripStore = defineStore('trip', () => {
   const MATCH_RADIUS_M = 200
 
   function coordForName(name: string): { lat: number; lng: number } | null {
-    for (const h of brt.halte) {
+    for (const h of brt.planHalte) {
       if (h.sh_name !== name) continue
       const lat = parseFloat(h.sh_lat)
       const lng = parseFloat(h.sh_lng)
@@ -250,7 +289,7 @@ export const useTripStore = defineStore('trip', () => {
     const names = new Set<string>()
     for (const step of plan.steps) {
       if (step.kind !== 'ride' || !step.kor) continue
-      const c = brt.corridorByKor.get(step.kor)
+      const c = brt.planCorridorByKor.get(step.kor)
       if (!c) continue
       const legA = brt.getHalteForLeg(step.kor, c.toward, c.origin)
       const legB = brt.getHalteForLeg(step.kor, c.origin, c.toward)
@@ -320,8 +359,8 @@ export const useTripStore = defineStore('trip', () => {
   })
 
   /** Map of step index → display number for the timeline. Only
-   *  numbers ride + walk steps; transfer rows stay un-numbered so
-   *  they don't duplicate the surrounding ride's transfer-point disc. */
+   *  numbers ride + walk steps; a transfer row is numbered only when it
+   *  moves to a differently named stop. */
   const stepNumbers = computed<Map<number, number>>(() => {
     const out = new Map<number, number>()
     const plan = selectedPlan.value
@@ -341,6 +380,11 @@ export const useTripStore = defineStore('trip', () => {
       } else if (step.kind === 'walk') {
         const n = seen.get(step.toName)
         if (n != null) out.set(i, n)
+      } else if (step.kind === 'transfer') {
+        // Changing to a differently named stop (Wisma Donggala → Halte
+        // Unisa): that stop has its own map marker, so number the row.
+        const n = seen.get(step.toName)
+        if (n != null && n !== seen.get(step.fromName)) out.set(i, n)
       }
     }
     return out
@@ -349,112 +393,139 @@ export const useTripStore = defineStore('trip', () => {
   /** Buses currently approaching the given ride step's boarding
    *  halte. Same shape as brt.incomingBusesForHalte but scoped to a
    *  plan step's `fromName` / `kor`. */
+  function incomingFor(step: PlanStep | null | undefined): IncomingBus[] {
+    if (!step || step.kind !== 'ride' || !step.kor) return []
+    const corridor = brt.planCorridorByKor.get(step.kor)
+    if (!corridor) return []
+
+    const boardingShIds = new Set(
+      brt.planHalte
+        .filter((h) => h.kor === step.kor && h.sh_name === step.fromName)
+        .map((h) => h.sh_id),
+    )
+
+    let boardingCoord: { lat: number; lng: number } | null = null
+    const namedAtKor = brt.planHalte.find(
+      (x) => x.kor === step.kor && x.sh_name === step.fromName,
+    )
+    if (namedAtKor) {
+      const lat = parseFloat(namedAtKor.sh_lat)
+      const lng = parseFloat(namedAtKor.sh_lng)
+      if (Number.isFinite(lat) && Number.isFinite(lng)) {
+        boardingCoord = { lat, lng }
+      }
+    }
+
+    const out: IncomingBus[] = []
+    const seen = new Set<string>()
+    for (const bus of [...brt.buses.values(), ...brt.foreignBuses.values()]) {
+      if (bus.kor !== step.kor) continue
+
+      let headingHere = false
+      const originName = bus.toward === corridor.toward ? corridor.origin : corridor.toward
+      const leg = brt.getHalteForLeg(step.kor, bus.toward, originName)
+      if (leg.length) {
+        const progressIdx = busLegProgress(bus, leg)
+        for (let i = progressIdx; i < leg.length; i++) {
+          if (leg[i].sh_name === step.fromName) { headingHere = true; break }
+        }
+      }
+      if (!headingHere && bus.new_shel_t && boardingShIds.has(bus.new_shel_t)) {
+        headingHere = true
+      }
+
+      let nearby = false
+      if (
+        boardingCoord
+        && Number.isFinite(bus.lat) && Number.isFinite(bus.lng)
+      ) {
+        const d = haversineMeters(
+          boardingCoord,
+          { lat: Number(bus.lat), lng: Number(bus.lng) },
+        )
+        nearby = d <= 80
+      }
+      if (!headingHere && !nearby) continue
+      const key = bus.imei || bus.id
+      if (seen.has(key)) continue
+      seen.add(key)
+
+      let etaMin: number | null = null
+      let distM: number | null = null
+      if (
+        !nearby && boardingCoord
+        && Number.isFinite(bus.lat) && Number.isFinite(bus.lng)
+      ) {
+        const eta = etaToHalte(
+          { lat: Number(bus.lat), lng: Number(bus.lng), speed: bus.speed, dist_shel: null },
+          { sh_lat: boardingCoord.lat, sh_lng: boardingCoord.lng },
+        )
+        distM = eta?.distM ?? null
+        etaMin = eta?.etaMin ?? null
+      }
+
+      out.push({
+        bus,
+        etaMin: nearby ? 0 : etaMin,
+        distM: nearby ? 0 : distM,
+        atStop: nearby,
+        fresh: !isStale(bus),
+        quality: getEtaQuality(bus),
+        corridorColor: brt.colorForKor(step.kor) || '#0EA5E9',
+        arrivalAt: !nearby && etaMin != null
+          ? (() => {
+              const d = new Date(Date.now() + Math.max(0, etaMin) * 60_000)
+              const p = (n: number) => (n < 10 ? `0${n}` : String(n))
+              return `${p(d.getHours())}:${p(d.getMinutes())}`
+            })()
+          : null,
+      })
+    }
+
+    out.sort((a, b) => {
+      if (a.atStop !== b.atStop) return a.atStop ? -1 : 1
+      if (a.etaMin == null && b.etaMin == null) return 0
+      if (a.etaMin == null) return 1
+      if (b.etaMin == null) return -1
+      return a.etaMin - b.etaMin
+    })
+    return out
+  }
+
   function incomingBusesForStep(
     stepRef: MaybeRefOrGetter<PlanStep | null | undefined>,
   ): ComputedRef<IncomingBus[]> {
-    return computed(() => {
-      const step = toValue(stepRef)
-      if (!step || step.kind !== 'ride' || !step.kor) return []
-      const corridor = brt.corridorByKor.get(step.kor)
-      if (!corridor) return []
+    return computed(() => incomingFor(toValue(stepRef)))
+  }
 
-      const boardingShIds = new Set(
-        brt.halte
-          .filter((h) => h.kor === step.kor && h.sh_name === step.fromName)
-          .map((h) => h.sh_id),
-      )
+  /** Headway guess when no live bus is on its way: buses come about
+   *  every 10 minutes, so the average wait is half of that. */
+  const FALLBACK_WAIT_MIN = 5
 
-      let boardingCoord: { lat: number; lng: number } | null = null
-      const namedAtKor = brt.halte.find(
-        (x) => x.kor === step.kor && x.sh_name === step.fromName,
-      )
-      if (namedAtKor) {
-        const lat = parseFloat(namedAtKor.sh_lat)
-        const lng = parseFloat(namedAtKor.sh_lng)
-        if (Number.isFinite(lat) && Number.isFinite(lng)) {
-          boardingCoord = { lat, lng }
-        }
-      }
-
-      const out: IncomingBus[] = []
-      const seen = new Set<string>()
-      for (const bus of brt.buses.values()) {
-        if (bus.kor !== step.kor) continue
-
-        let headingHere = false
-        const originName = bus.toward === corridor.toward ? corridor.origin : corridor.toward
-        const leg = brt.getHalteForLeg(step.kor, bus.toward, originName)
-        if (leg.length) {
-          const progressIdx = busLegProgress(bus, leg)
-          for (let i = progressIdx; i < leg.length; i++) {
-            if (leg[i].sh_name === step.fromName) { headingHere = true; break }
-          }
-        }
-        if (!headingHere && bus.new_shel_t && boardingShIds.has(bus.new_shel_t)) {
-          headingHere = true
-        }
-
-        let nearby = false
-        if (
-          boardingCoord
-          && Number.isFinite(bus.lat) && Number.isFinite(bus.lng)
-        ) {
-          const d = haversineMeters(
-            boardingCoord,
-            { lat: Number(bus.lat), lng: Number(bus.lng) },
-          )
-          nearby = d <= 80
-        }
-        if (!headingHere && !nearby) continue
-        const key = bus.imei || bus.id
-        if (seen.has(key)) continue
-        seen.add(key)
-
-        let etaMin: number | null = null
-        let distM: number | null = null
-        if (
-          !nearby && boardingCoord
-          && Number.isFinite(bus.lat) && Number.isFinite(bus.lng)
-        ) {
-          const eta = etaToHalte(
-            { lat: Number(bus.lat), lng: Number(bus.lng), speed: bus.speed, dist_shel: null },
-            { sh_lat: boardingCoord.lat, sh_lng: boardingCoord.lng },
-          )
-          distM = eta?.distM ?? null
-          etaMin = eta?.etaMin ?? null
-        }
-
-        out.push({
-          bus,
-          etaMin: nearby ? 0 : etaMin,
-          distM: nearby ? 0 : distM,
-          atStop: nearby,
-          fresh: !isStale(bus),
-          quality: getEtaQuality(bus),
-          corridorColor: brt.colorForKor(step.kor) || '#0EA5E9',
-          arrivalAt: !nearby && etaMin != null
-            ? (() => {
-                const d = new Date(Date.now() + Math.max(0, etaMin) * 60_000)
-                const p = (n: number) => (n < 10 ? `0${n}` : String(n))
-                return `${p(d.getHours())}:${p(d.getMinutes())}`
-              })()
-            : null,
-        })
-      }
-
-      out.sort((a, b) => {
-        if (a.atStop !== b.atStop) return a.atStop ? -1 : 1
-        if (a.etaMin == null && b.etaMin == null) return 0
-        if (a.etaMin == null) return 1
-        if (b.etaMin == null) return -1
-        return a.etaMin - b.etaMin
-      })
-      return out
+  /** Add the wait for the first bus to each plan, from live positions
+   *  where a bus is heading for the boarding stop, then re-rank. The
+   *  rider walks to the stop first, so a bus that arrives before them
+   *  adds no wait. ponytail: transfers keep the fixed 5 min wait; live
+   *  ETAs at the transfer stop are a later step. */
+  function withLiveWait(paths: PlanResult[]): PlanResult[] {
+    const out = paths.map((plan) => {
+      const idx = plan.steps.findIndex((s) => s.kind === 'ride')
+      if (idx < 0) return plan
+      const walkBefore = plan.steps.slice(0, idx).reduce((n, s) => n + s.durationMin, 0)
+      const live = incomingFor(plan.steps[idx]).find((b) => b.fresh && b.etaMin != null)
+      const waitMin = live ? Math.max(0, live.etaMin! - walkBefore) : FALLBACK_WAIT_MIN
+      const steps = plan.steps.map((s, i) => (i === idx ? { ...s, waitMin, waitLive: !!live } : s))
+      return { ...plan, steps, totalMin: plan.totalMin + waitMin }
     })
+    return out.sort((a, b) => a.totalMin - b.totalMin)
   }
 
   // Rebuild graph when the city changes (different corridors / halte).
+  // The other city arriving (or failing and retrying) changes the graph.
+  watch(() => brt.foreignCorridors.length, () => { graphReady.value = false })
+
   watch(() => city.pref, () => {
+    foreignLoading = null
     graphReady.value = false
     clear()
   })
@@ -471,6 +542,13 @@ export const useTripStore = defineStore('trip', () => {
   let debounceTimer: number | undefined
   watch([origin, destination], () => {
     if (debounceTimer) window.clearTimeout(debounceTimer)
+    // Spinner starts now, not 250 ms later when the debounce fires,
+    // so the "no route" message cannot show in that gap.
+    if (origin.value && destination.value) {
+      plans.value = []
+      selectedPlanIdx.value = null
+      loading.value = true
+    }
     debounceTimer = window.setTimeout(() => { recompute() }, 250)
   })
 
@@ -493,6 +571,7 @@ export const useTripStore = defineStore('trip', () => {
     selectPlan,
     clear,
     buildGraph,
+    ensureForeign,
     recompute,
     planKors,
     planHalteNames,

@@ -2,7 +2,7 @@
   "name": "trans-sulteng-tracker",
   "private": true,
   "version": "0.0.0",
-  "description": "Realtime tracker for TransPalu and Trans Donggala — Vue 3 frontend + Rust proxy",
+  "description": "Realtime tracker for TransPalu and Trans Donggala \u2014 Vue 3 frontend + Rust proxy",
   "scripts": {
     "dev": "concurrently --kill-others-on-fail --names web,proxy --prefix-colors cyan,magenta \"pnpm dev:web\" \"pnpm dev:proxy\"",
     "dev:web": "pnpm --filter @cektrans/web dev",
@@ -33,7 +33,8 @@
       "fast-uri@>=3.0.0 <3.1.5": ">=3.1.5",
       "postcss@<=8.5.22": ">=8.5.23",
       "socket.io-parser@>=4.0.0 <4.2.7": ">=4.2.7",
-      "nanoid@<3.3.18": ">=3.3.18"
+      "nanoid@<3.3.18": ">=3.3.18",
+      "source-map-js@>=1.0.0 <1.2.2": ">=1.2.2"
     }
   }
 }
