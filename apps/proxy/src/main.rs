@@ -2,6 +2,7 @@ mod brt;
 mod config;
 mod crypto;
 mod error;
+mod idle;
 mod middleware;
 mod routes;
 mod sockets;
