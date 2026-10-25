@@ -251,6 +251,22 @@ export const useBrtStore = defineStore('brt', () => {
     }
   }
 
+  // The city view calls tick() every 15 s so "active" counts drop a bus
+  // when it ages out, not only when another message arrives.
+  const clock = ref(Date.now())
+  function tick() { clock.value = Date.now() }
+
+  /** Buses that are really running: not stale. Pass a corridor code to
+   *  count one corridor. */
+  function activeBusCount(kor?: string): number {
+    void clock.value
+    let n = 0
+    for (const b of buses.values()) {
+      if ((!kor || b.kor === kor) && !isStale(b)) n++
+    }
+    return n
+  }
+
   function clearBuses() {
     foreignBuses.clear()
     buses.clear()
@@ -699,6 +715,8 @@ export const useBrtStore = defineStore('brt', () => {
     loadRoutes,
     upsertBus,
     clearBuses,
+    activeBusCount,
+    tick,
     foreignBuses,
     upsertForeignBus,
     halteByLeg,

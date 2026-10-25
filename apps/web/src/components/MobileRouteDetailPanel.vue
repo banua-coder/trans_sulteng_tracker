@@ -38,10 +38,7 @@ const accentColor = computed(() => corridor.value?.color || '#1D9CD4')
 
 const activeBusCount = computed(() => {
   const c = corridor.value
-  if (!c) return 0
-  let n = 0
-  for (const b of brt.buses.values()) if (b.kor === c.kor) n++
-  return n
+  return c ? brt.activeBusCount(c.kor) : 0
 })
 
 const halteCount = computed(() => halte.value.length)

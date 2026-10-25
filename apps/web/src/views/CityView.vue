@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, defineAsyncComponent, onBeforeUnmount, watch } from 'vue'
+import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import { useBrtStore } from '@/stores/brt'
@@ -77,7 +77,11 @@ watch(
   { immediate: true },
 )
 
+let clockTimer: number | undefined
+onMounted(() => { clockTimer = window.setInterval(() => brt.tick(), 15_000) })
+
 onBeforeUnmount(() => {
+  window.clearInterval(clockTimer)
   socket.disconnect()
   selection.clear()
   focus.clear()

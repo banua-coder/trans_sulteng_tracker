@@ -65,9 +65,7 @@ const busCountByKor = computed(() => {
   // Watch buses Map via a snapshot. The Pinia reactive Map should
   // re-evaluate this on every upsert.
   const counts = new Map<string, number>()
-  for (const b of brt.buses.values()) {
-    counts.set(b.kor, (counts.get(b.kor) ?? 0) + 1)
-  }
+  for (const c of corridors.value) counts.set(c.kor, brt.activeBusCount(c.kor))
   return counts
 })
 
