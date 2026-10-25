@@ -48,3 +48,15 @@ describe('isStale device time', () => {
     expect(isStale(bus(iso(3_000)))).toBe(false)
   })
 })
+
+describe('isStale idle_s from the proxy', () => {
+  const fresh = new Date(Date.now() - 2_000).toISOString().slice(0, 19).replace('T', ' ')
+  const bus = (idle?: number) => ({ speed: 0, dt_tracker: fresh, _receivedAt: Date.now(), idle_s: idle }) as unknown as BrtBus
+  it('is stale at once when the proxy saw it parked for hours', () => {
+    expect(isStale(bus(5 * 3600))).toBe(true)
+  })
+  it('is not stale for a short stop', () => {
+    expect(isStale(bus(40))).toBe(false)
+    expect(isStale(bus(undefined))).toBe(false)
+  })
+})
