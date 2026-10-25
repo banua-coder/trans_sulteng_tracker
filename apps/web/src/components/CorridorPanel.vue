@@ -20,6 +20,7 @@ const { corridors, halte, buses, loading, error } = storeToRefs(brt)
 const stats = computed(() => {
   const fk = focus.kor
   let count = 0
+  void brt.activeBusCount()
   for (const b of buses.value.values()) {
     if (fk && b.kor !== fk) continue
     if (isStale(b)) continue
