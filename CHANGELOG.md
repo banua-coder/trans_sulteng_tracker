@@ -2,6 +2,18 @@
 
 All notable releases of cektrans are recorded here. Generated automatically by `release-finalize.yml`.
 
+## v0.11.1 — 2026-10-25
+
+### 🐛 Bug Fixes
+
+- fix(web): treat buses silent on their own clock as stale, count only active buses (842000e)
+
+### 🧹 Chore
+
+- chore: bump version to 0.11.1 (5164509)
+
+
+
 ## v0.11.0 — 2026-10-25
 
 ### ✨ Features
