@@ -2,6 +2,139 @@
 
 All notable releases of cektrans are recorded here. Generated automatically by `release-finalize.yml`.
 
+## v0.11.0 — 2026-10-25
+
+### ✨ Features
+
+- feat(web): replace CARTO raster tiles with OpenFreeMap vector tiles (6db5657)
+- feat(web): perjalananmu-style map look for routes, buses, stops and terminals (99b8b86)
+- feat(web): tabbed desktop sidebar with detail in-panel, simpler stats (1949fd8)
+- feat(web): rework landing page and drop the tail below the last timeline stop (2bf2cc4)
+- feat(web): custom product tour, drop driver.js (2e0f812)
+- feat(web): glide buses to each new fix instead of hopping (4c3ec89)
+- feat(web): direction cards, corridor-colour contrast, no truncated stop names (a88e96b)
+- feat(web): plans include waiting time for the first bus from live positions (e886f97)
+- feat(web): perjalananmu-style route planner inputs and result cards (cf32b09)
+- feat(web): plan trips across Trans Donggala and Trans Palu (b92cf64)
+- feat: cross-city search, step numbers and live waits (ffa9824)
+- feat(web): fill the stop detail panel with plan actions and nearby stops (228522e)
+- feat(web): phone bottom nav and floating where-to search (ec5d24b)
+- feat(web): collapse the phone sheet to see the whole map (f9a5624)
+- feat(web): full-size map under a smooth, 45% phone sheet (2a21b99)
+
+### 🐛 Bug Fixes
+
+- fix(web): reach a terminal offline state when the initial socket handshake never connects (fbef725)
+- fix(web): gate onboarding tour launch to the city route (17d8b13)
+- fix(web): raise Home footer version-label contrast from 2.35:1 to ~7:1 (5ba3a29)
+- fix(web): darken stone-500/stale token to clear 4.5:1 in light mode (a5dc8c6)
+- fix(web): show the real backend error on mobile, not a generic empty state (bccf8c5)
+- fix(web): clip TopBar city-switcher fallback to a two-letter monogram (eaabbbd)
+- fix(web): raise undersized text on the map view to an 11px floor (d221268)
+- fix(web): soften corridor spotlight-dim from 0.1 to 0.35 (507c5d6)
+- fix(web): add a minimum-step backstop so tours never degrade to one orphaned popover (8597d4f)
+- fix(web): 44px touch targets, mobile Stop button, keyboard plan card, GPS retry (6aa2c8d)
+- fix(web): sidebar tabs follow the open detail and let you leave it (8ba3b18)
+- fix(web): planner links stops by distance, requires a ride, pins the origin stop (c0ca334)
+- fix(web): full halte list in the sidebar tab, spinner covers the whole route calculation (08cea47)
+- fix(web): buses stay circles, bus stops get the glyph tile on a focused route (a4fa096)
+- fix(web): selected bus shows only its own direction, sidebar lists no longer capped (1155a7b)
+- fix(web): mobile sheet fits its content, legend starts closed, arrival badges stop wrapping (8b24276)
+- fix(web): planner suggestions stay visible on phones (f4fcad4)
+- fix(web): re-frame the selection when the phone sheet collapses or reopens (adac110)
+- fix(web): readable text on mid-tone corridor badges (640fdca)
+- fix(web): download map tiles on every page, light logo, compact direction chips (61492b2)
+- fix(web): compact direction switcher with readable names (bcd8dde)
+- fix: review findings for v0.11.0 (887e399)
+
+### ✅ Tests
+
+- test(web): satisfy BrtHalte type in planner spec (cd1e7b6)
+
+### 👷 CI
+
+- ci: add path filters, concurrency, and job timeouts (5a50e50)
+- ci: add scheduled CVE audit workflow (5719dfb)
+
+### 🧹 Chore
+
+- chore: bump dev version to 0.9.0 after v0.8.0 release (a9cbb6a)
+- chore: align version to 0.9.0 for back-merge (develop was ahead) (ae83a43)
+- chore: align version to 0.9.0 for back-merge (develop was ahead) (b60ce00)
+- chore: align version to 0.9.0 for back-merge (develop was ahead) (a6e42f7)
+- chore: align version to 0.9.0 for back-merge (develop was ahead) (45afb6a)
+- chore(deps): bump shell-quote to >=1.8.4 — CVE-2026-9277 (f4dfe16)
+- chore: align version to 0.9.0 for back-merge (develop was ahead) (2fa3d8d)
+- chore: align version to 0.9.0 for back-merge (develop was ahead) (5248b19)
+- chore: align version to 0.9.0 for back-merge (develop was ahead) (f71acaf)
+- chore(deps): fix CVE audit findings across JS/TS and Rust deps (c040d93)
+- chore(deps): bump openssl to 0.10.81 — GHSA-phqj-4mhp-q6mq (91391a6)
+- chore: sync cektrans-proxy self-version in Cargo.lock to 0.9.0 (225af4b)
+- chore: reconcile lockfile after merging develop (8eb7a9e)
+- chore: bump dev version to 0.10.0 after v0.9.0 release (6479635)
+- chore: bump dev version to 0.11.0 after v0.10.0 release (c118f6e)
+- chore: trigger CI after retarget to develop (331bc89)
+- chore: trigger CI after retarget (8a64dfa)
+- chore(deps): bump vue to 3.5.42+ and pin source-map-js 1.2.2 (high advisories) (0b07b4e)
+- chore: drop accidentally committed node_modules symlink and Cargo.lock bump (dedfb3f)
+- chore(deps): patch rustls, quinn-proto, rustls-webpki, webpki-roots (35af1cc)
+
+### 📌 Other
+
+- Merge pull request #80 from banua-coder/chore/bump-dev-version-v0.9.0 (d177cc0)
+- Merge pull request #81 from banua-coder/backmerge/main-to-develop-v0.8.0 (dce5bb5)
+- Merge pull request #83 from banua-coder/backmerge/main-to-develop-v0.8.1 (e70201d)
+- Merge pull request #85 from banua-coder/backmerge/main-to-develop-v0.8.2 (1e41787)
+- Merge pull request #87 from banua-coder/backmerge/main-to-develop-v0.8.3 (a68962b)
+- Merge pull request #90 from banua-coder/backmerge/main-to-develop-v0.8.4 (88a5e31)
+- Merge pull request #91 from banua-coder/feature/optimize-actions-minutes (84c70da)
+- Merge pull request #92 from banua-coder/chore/bump-shell-quote-cve-2026-9277 (812b0df)
+- Merge pull request #95 from banua-coder/backmerge/main-to-develop-v0.8.5 (e85ca24)
+- Merge pull request #97 from banua-coder/backmerge/main-to-develop-v0.8.6 (0a984a7)
+- Merge pull request #101 from banua-coder/backmerge/main-to-develop-v0.8.7 (d73005a)
+- Merge remote-tracking branch 'origin/main' into backmerge/main-to-develop-v0.8.7 (f9be188)
+- Merge pull request #103 from banua-coder/backmerge/main-to-develop-v0.8.7 (cd70d0d)
+- Merge remote-tracking branch 'origin/develop' into chore/cve-audit-fixes-2026-08 (eceb254)
+- Merge pull request #102 from banua-coder/chore/cve-audit-fixes-2026-08 (95b2f8f)
+- Merge pull request #104 from banua-coder/fix/ux-critique-p0-p1-findings (252617e)
+- Merge pull request #105 from banua-coder/fix/corridor-spotlight-dim (c55a4e0)
+- Merge pull request #106 from banua-coder/fix/tour-min-step-threshold (a31a6ad)
+- polish(web): rework the landing page hero — remove eyebrow, add entrance motion + richer card interactions (c476790)
+- Merge pull request #107 from banua-coder/feat/landing-page-polish (ac391fd)
+- Merge pull request #110 from banua-coder/backmerge/main-to-develop-v0.9.0 (1867114)
+- Merge pull request #109 from banua-coder/chore/bump-dev-version-v0.10.0 (55bfb9e)
+- Merge pull request #115 from banua-coder/feat/openfreemap-vector-tiles (edad6b4)
+- Merge pull request #118 from banua-coder/backmerge/main-to-develop-v0.10.0 (860ee3a)
+- Merge pull request #117 from banua-coder/chore/bump-dev-version-v0.11.0 (4afe9bd)
+- Merge pull request #134 from banua-coder/feat/map-look-perjalananmu (f29060a)
+- Merge pull request #135 from banua-coder/feat/sidebar-tabs (1c7e00d)
+- Merge pull request #136 from banua-coder/feat/landing-refresh (529e167)
+- Merge pull request #137 from banua-coder/feat/planner-ride-a11y (d4d668c)
+- Merge pull request #138 from banua-coder/fix/planner-graph (677db9c)
+- Merge pull request #140 from banua-coder/fix/halte-tab (ffaf6dd)
+- Merge pull request #141 from banua-coder/feat/smooth-buses (76d21e8)
+- Merge develop into feat/custom-tour (e41c273)
+- Merge pull request #142 from banua-coder/feat/ui-polish-contrast (ec7473e)
+- Merge pull request #139 from banua-coder/feat/custom-tour (1339106)
+- Merge pull request #143 from banua-coder/feat/planner-live-wait (8003868)
+- Merge pull request #144 from banua-coder/fix/marker-shapes (9ec362c)
+- Merge pull request #145 from banua-coder/fix/mobile-sheet (1acac8b)
+- Merge pull request #146 from banua-coder/feat/planner-ui (414b762)
+- Merge pull request #147 from banua-coder/feat/cross-city-planner (bae0a99)
+- Merge pull request #148 from banua-coder/feat/cross-city-followup (25423bb)
+- Merge pull request #149 from banua-coder/fix/halte-sidebar-space (369b873)
+- Merge pull request #150 from banua-coder/feat/mobile-nav (c78d775)
+- Merge pull request #151 from banua-coder/fix/planner-popover-mobile (277180f)
+- Merge pull request #152 from banua-coder/feat/sheet-collapse (6c993d0)
+- Merge pull request #153 from banua-coder/feat/map-overlay-sheet (6ea32ff)
+- Merge pull request #154 from banua-coder/fix/map-reframe-on-sheet (edeeff8)
+- Merge pull request #155 from banua-coder/fix/badge-contrast (9ac72c7)
+- Merge pull request #156 from banua-coder/fix/export-map-tiles (418ea00)
+- Merge pull request #157 from banua-coder/fix/review-v0.11 (30fc54d)
+- Merge pull request #160 from banua-coder/chore/rust-advisories (81bcc0c)
+
+
+
 ## v0.10.0 — 2026-08-28
 
 ### ✨ Features
