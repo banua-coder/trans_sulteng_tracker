@@ -15,7 +15,7 @@ import { useSelectionStore } from '@/stores/selection'
 import { useTripStore } from '@/stores/trip'
 import { useUiStore } from '@/stores/ui'
 import type { PlanResult } from '@/lib/tripPlanner'
-import { busIcon, halteHaloMarker, halteMarker, HALTE_RING, stopTileMarker, terminalMarker } from '@/lib/leaflet/markers'
+import { busIcon, halteMarker, HALTE_RING, selectedStopMarker, stopTileMarker, terminalMarker } from '@/lib/leaflet/markers'
 import { darkTiles, lightTiles, satelliteTiles } from '@/lib/leaflet/tiles'
 import { useTheme } from '@/lib/theme'
 import { haversineMeters, isStale } from '@/lib/format'
@@ -197,15 +197,12 @@ function applySelectedHalteInner() {
   const coordKey = `${lat.toFixed(5)},${lng.toFixed(5)}`
   const marker = halteSeen.get(coordKey)
   if (!marker) return
-  marker.setStyle({ radius: 8, fillColor: '#1D9CD4', color: '#fff', weight: 2.5 })
-  marker.bringToFront()
   selectedHalteMarker = marker
   if (map) {
-    selectedHalteHalo = halteHaloMarker([lat, lng]).addTo(map)
-    // Bus markers go up to z-index 1500 when selected. Push the halte
-    // halo above them so the focused stop is never hidden by a bus
-    // parked at it.
-    selectedHalteHalo.setZIndexOffset(2000)
+    // Colour: the focused corridor's, else the stop's own corridor.
+    const color = brt.colorForKor(focus.kor ?? h.kor) || '#1D9CD4'
+    // zIndexOffset keeps it above buses (up to 1500) parked at the stop.
+    selectedHalteHalo = selectedStopMarker([lat, lng], color).addTo(map)
   }
 }
 

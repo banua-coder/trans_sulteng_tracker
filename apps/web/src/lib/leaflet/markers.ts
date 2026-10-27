@@ -83,19 +83,21 @@ export function halteMarker(
   return L.circleMarker(latlng, { ...HALTE_DOT_DEFAULTS, ...opts })
 }
 
-/** Soft pulse ring placed on top of the currently selected halte.
- *  Lives in its own DOM marker so we get CSS animations + still keep
- *  the underlying dot lightweight. */
-const _halteHaloHtml = '<span class="halte-halo-ring"></span>'
-const _halteHaloIcon = L.divIcon({
-  className: 'halte-halo',
-  iconSize: [36, 36],
-  iconAnchor: [18, 18],
-  html: _halteHaloHtml,
-})
-
-export function halteHaloMarker(latlng: L.LatLngExpression): L.Marker {
-  return L.marker(latlng, { icon: _halteHaloIcon, interactive: false, keyboard: false })
+/** The focused stop: the bus-stop tile (same glyph as the stops of a
+ *  focused corridor), larger and ringed, so a selected stop reads as
+ *  a stop and not as a pulsing dot. It sits above buses parked at it. */
+export function selectedStopMarker(latlng: L.LatLngExpression, color: string): L.Marker {
+  return L.marker(latlng, {
+    icon: L.divIcon({
+      className: 'stop-marker stop-marker-focus',
+      iconSize: [24, 24],
+      iconAnchor: [12, 12],
+      html: `<span style="background:${badgeBg(color)}">${busGlyph(onColor(badgeBg(color)))}</span>`,
+    }),
+    interactive: false,
+    keyboard: false,
+    zIndexOffset: 2000,
+  })
 }
 
 /** Lettered terminal (A/B): solid route-colour disc, white border. */
