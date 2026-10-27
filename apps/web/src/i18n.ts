@@ -42,6 +42,8 @@ export const messages = {
       loading: 'Memuat data bus…',
     },
     bus: {
+      offRouteOn: 'Bus ini terdaftar di {kor}, tetapi sedang melintas di jalur {on} ({m} m dari jalur {kor}). Perkiraan tiba tidak ditampilkan.',
+      offRoute: 'Bus ini terdaftar di {kor}, tetapi sedang {m} m di luar jalurnya. Perkiraan tiba tidak ditampilkan.',
       plate: 'Pelat',
       corridor: 'Koridor',
       speed: 'Kecepatan',
@@ -359,6 +361,8 @@ export const messages = {
       loading: 'Loading bus data…',
     },
     bus: {
+      offRouteOn: 'This bus is registered to {kor} but is travelling on {on} ({m} m from {kor}). Arrival times are hidden.',
+      offRoute: 'This bus is registered to {kor} but is {m} m off its route. Arrival times are hidden.',
       plate: 'Plate',
       corridor: 'Corridor',
       speed: 'Speed',

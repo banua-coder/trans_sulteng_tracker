@@ -908,11 +908,12 @@ function upsertBusMarker(b: BrtBus) {
   const angle = Number.isFinite(b.angle) ? b.angle : 0
   // Bucket the heading to 10° so GPS jitter doesn't churn the icon.
   const angleBucket = Math.round(angle / 10) * 10
-  const iconKey = `${color}|${b.kor || '·'}|${stale ? 1 : 0}|${angleBucket}`
+  const offRoute = !!b._offRoute
+  const iconKey = `${color}|${b.kor || '·'}|${stale ? 1 : 0}|${offRoute ? 1 : 0}|${angleBucket}`
 
   let cache = busMarkers.get(key)
   if (!cache) {
-    const icon = busIcon({ color, code: b.kor || '·', angle, stale })
+    const icon = busIcon({ color, code: b.kor || '·', angle, stale, offRoute })
     const marker = L.marker([b.lat, b.lng], { icon, keyboard: false })
     marker.on('click', () => {
       // When a corridor is focused, only block clicks on buses from
@@ -937,7 +938,7 @@ function upsertBusMarker(b: BrtBus) {
     // Position-only updates skip setIcon entirely.
     if (cache.iconKey !== iconKey) {
       cache.marker.setIcon(
-        busIcon({ color, code: b.kor || '·', angle, stale }),
+        busIcon({ color, code: b.kor || '·', angle, stale, offRoute }),
       )
       cache.iconKey = iconKey
     }

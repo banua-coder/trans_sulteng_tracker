@@ -17,12 +17,14 @@ export function busIcon(opts: {
   code: string
   angle: number
   stale?: boolean
+  /** Moving well off the corridor it is registered to. */
+  offRoute?: boolean
 }): L.DivIcon {
-  const { color, code, angle, stale } = opts
+  const { color, code, angle, stale, offRoute } = opts
   const safe = code.replace(/[<>"']/g, '').slice(0, 4) || '·'
   const safeAngle = Number.isFinite(angle) ? angle : 0
   return L.divIcon({
-    className: `bus-marker${stale ? ' stale' : ''}`,
+    className: `bus-marker${stale ? ' stale' : ''}${offRoute ? ' off-route' : ''}`,
     iconSize: [40, 40],
     iconAnchor: [20, 20],
     popupAnchor: [0, -18],

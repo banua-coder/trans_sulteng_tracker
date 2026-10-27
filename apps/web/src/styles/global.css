@@ -214,6 +214,12 @@ html.dark .leaflet-container { background: var(--color-bnc-stone-900); }
     drop-shadow( 0 1px 0 #fff)
     drop-shadow( 0 2px 3px rgba(0,0,0,0.45));
 }
+/* Off its registered corridor: a dashed amber ring, so it is not read
+   as a normal bus of that line. */
+.bus-marker.off-route .bus-disc {
+  outline: 2px dashed #f59e0b;
+  outline-offset: 2px;
+}
 .bus-marker.stale .bus-disc,
 .bus-marker.stale .bus-arrow {
   filter: grayscale(0.85) opacity(0.55);
