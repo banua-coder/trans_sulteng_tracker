@@ -12,6 +12,13 @@ import {
 import type { BrtBus, BrtCity, BrtCorridor, BrtHalte } from '@/types/brt'
 import { useCityStore } from './city'
 import { nsCorridor, nsHalte, nsKor, splitKor } from '@/lib/crossCity'
+import {
+  decodeLines,
+  locateOffRoute,
+  MIN_MOVING_KMH,
+  OFF_ROUTE_HOLD_MS,
+  type Line,
+} from '@/lib/offRoute'
 
 /** Arrival row used by the halte detail card and the trip planner's
  *  per-step disclosure. Pre-computed in the store so components are
@@ -117,6 +124,13 @@ export const useBrtStore = defineStore('brt', () => {
     return m
   })
   const planHalte = computed(() => [...halte.value, ...foreignHalte.value])
+
+  /** Decoded corridor lines, for wrong-corridor detection. */
+  const linesByKor = computed(() => {
+    const m = new Map<string, Line[]>()
+    for (const c of corridors.value) m.set(c.kor, decodeLines([c.points_a, c.points_b]))
+    return m
+  })
 
   const colorForKor = computed(
     () => (kor: string) => planCorridorByKor.value.get(kor)?.color ?? '#0EA5E9',
@@ -224,12 +238,29 @@ export const useBrtStore = defineStore('brt', () => {
       zeroSpeedSince = now
     }
 
+    // Wrong corridor: only judge a moving bus (a parked one may be at a
+    // depot), and only after it stays off-route for a few updates.
+    let offRoute = prev?._offRoute
+    let offRouteSince = prev?._offRouteSince
+    if (speed >= MIN_MOVING_KMH && b.kor) {
+      const verdict = locateOffRoute([b.lat, b.lng], b.kor, linesByKor.value)
+      if (!verdict) {
+        offRoute = undefined
+        offRouteSince = undefined
+      } else {
+        offRouteSince = offRouteSince ?? now
+        offRoute = now - offRouteSince >= OFF_ROUTE_HOLD_MS ? verdict : undefined
+      }
+    }
+
     buses.set(key, {
       ...prev,
       ...b,
       _receivedAt: now,
       _lastMovedAt: lastMovedAt,
       _zeroSpeedSince: zeroSpeedSince,
+      _offRoute: offRoute,
+      _offRouteSince: offRouteSince,
     })
   }
 
@@ -392,6 +423,7 @@ export const useBrtStore = defineStore('brt', () => {
       const out: IncomingBus[] = []
       const seen = new Set<string>()
       for (const bus of buses.values()) {
+        if (bus._offRoute) continue // its ETA to this corridor's stops means nothing
         if (!allowedKors.has(bus.kor)) continue
         if (korFilter && bus.kor !== korFilter) continue
 
@@ -481,7 +513,7 @@ export const useBrtStore = defineStore('brt', () => {
   ): ComputedRef<UpcomingStop[]> {
     return computed(() => {
       const bus = toValue(busRef)
-      if (!bus?.kor) return []
+      if (!bus?.kor || bus._offRoute) return []
       const corridor = corridorByKor.value.get(bus.kor)
       if (!corridor) return []
 
@@ -591,7 +623,7 @@ export const useBrtStore = defineStore('brt', () => {
       const idxBySh = new Map<string, number>()
       for (let i = 0; i < haltes.length; i++) idxBySh.set(haltes[i].sh_id, i)
       const candidateBuses = [...buses.values()].filter((b) => {
-        if (b.kor !== c.kor) return false
+        if (b.kor !== c.kor || b._offRoute) return false
         if (b.new_shel_t && idxBySh.has(b.new_shel_t)) return true
         return b.toward === focusedToward
       })

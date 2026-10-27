@@ -81,6 +81,10 @@ export interface BrtBus {
   /** Seconds this bus has stood still, measured by the proxy (which
    *  watches the feed continuously). Absent on older proxies. */
   idle_s?: number
+  /** Internal: set when the bus is moving well off the corridor it is
+   *  registered to (see lib/offRoute.ts). */
+  _offRoute?: { m: number; onKor: string | null }
+  _offRouteSince?: number
 
   /** Internal: wall-clock timestamp (ms) of when our store received this
    *  payload. Authoritative for stale checks since the upstream
