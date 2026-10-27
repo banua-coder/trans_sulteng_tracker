@@ -419,7 +419,7 @@ export const useTripStore = defineStore('trip', () => {
     const out: IncomingBus[] = []
     const seen = new Set<string>()
     for (const bus of [...brt.buses.values(), ...brt.foreignBuses.values()]) {
-      if (bus.kor !== step.kor) continue
+      if (bus.kor !== step.kor || bus._offRoute) continue
 
       let headingHere = false
       const originName = bus.toward === corridor.toward ? corridor.origin : corridor.toward

@@ -125,6 +125,20 @@ useBusAnnouncements(selectedBus, upcomingStops)
         <CopyLinkButton />
       </SheetStickyHeader>
 
+      <!-- Wrong corridor: the registered line says one thing, the GPS
+           another. Arrival times are withheld (upcomingStops is empty). -->
+      <p
+        v-if="selectedBus._offRoute"
+        class="rounded-lg border border-warn/40 bg-warn/10 px-3 py-2 text-xs leading-snug text-bnc-ink dark:text-bnc-paper"
+        role="status"
+      >
+        {{
+          selectedBus._offRoute.onKor
+            ? t('bus.offRouteOn', { kor: selectedBus.kor, on: selectedBus._offRoute.onKor, m: selectedBus._offRoute.m })
+            : t('bus.offRoute', { kor: selectedBus.kor, m: selectedBus._offRoute.m })
+        }}
+      </p>
+
       <!-- Upcoming stops -->
       <section
         v-if="upcomingStops.length"
